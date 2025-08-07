@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080">
+  <defs>
+    <style>
+      .isket-bg { fill: #e5e8f6; }
+      .isket-red { fill: #e3003a; }
+      .isket-text { fill: #000000; }
+    </style>
+  </defs>
+  <title>Isket Minimal Favicon</title>
+  
+  <!-- Background circle -->
+  <circle cx="540" cy="540" r="540" class="isket-bg"/>
+  
+  <!-- Simplified "I" icon -->
+  <g transform="translate(540, 540) scale(0.6)">
+    <!-- Main "I" shape -->
+    <rect x="-60" y="-120" width="120" height="240" rx="20" class="isket-text"/>
+    
+    <!-- Top and bottom bars -->
+    <rect x="-100" y="-120" width="200" height="40" rx="20" class="isket-text"/>
+    <rect x="-100" y="80" width="200" height="40" rx="20" class="isket-text"/>
+    
+    <!-- Red accent dot -->
+    <circle cx="0" cy="-160" r="20" class="isket-red"/>
+  </g>
+  
+  <!-- Subtle border -->
+  <circle cx="540" cy="540" r="530" fill="none" stroke="#e3003a" stroke-width="4" opacity="0.2"/>
+</svg> 

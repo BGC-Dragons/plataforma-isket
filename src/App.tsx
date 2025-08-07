@@ -1,14 +1,13 @@
-import { Button, Container, Typography } from "@mui/material";
+import { ThemeProvider } from "@mui/material/styles";
+import { CssBaseline } from "@mui/material";
+import { AppRouter } from "./scripts/config/routes";
+import { theme } from "./theme";
 
 export function App() {
   return (
-    <Container sx={{ padding: 4 }}>
-      <Typography variant="h4" gutterBottom>
-        Hello World com MUI e React Router 7
-      </Typography>
-      <Button variant="contained" color="primary">
-        Botão MUI
-      </Button>
-    </Container>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <AppRouter />
+    </ThemeProvider>
   );
 }
