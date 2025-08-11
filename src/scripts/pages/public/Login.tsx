@@ -34,12 +34,10 @@ export function Login() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Aqui você implementará a lógica de login
     console.log("Login:", { email, password });
   };
 
   const handleGoogleLogin = () => {
-    // Aqui você implementará a integração OAuth do Google
     console.log("Login com Google");
   };
 
@@ -91,7 +89,6 @@ export function Login() {
               },
             }}
           >
-            {/* Logo with modern design */}
             <Grow in timeout={1000}>
               <Box
                 sx={{
@@ -119,7 +116,7 @@ export function Login() {
                 gutterBottom
                 sx={{
                   fontWeight: 500,
-                  color: "#000000",
+                  color: theme.palette.brand.dark,
                   mb: 1,
                 }}
               >
@@ -290,16 +287,16 @@ export function Login() {
                     mb: 3,
                     py: 1.8,
                     borderRadius: 3,
-                    borderColor: "#E0E0E0",
-                    color: "#333333",
-                    backgroundColor: "#FFFFFF",
-                    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
+                    borderColor: theme.palette.brand.border,
+                    color: theme.palette.brand.dark,
+                    backgroundColor: theme.palette.brand.surface,
+                    boxShadow: theme.palette.brand.shadow,
                     transition: "all 0.3s ease",
                     "&:hover": {
-                      backgroundColor: "#F8F9FA",
-                      borderColor: "#DADCE0",
+                      backgroundColor: theme.palette.brand.light,
+                      borderColor: theme.palette.brand.primary,
                       transform: "translateY(-2px)",
-                      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+                      boxShadow: theme.palette.brand.shadowHover,
                     },
                   }}
                   startIcon={

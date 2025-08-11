@@ -23,7 +23,6 @@ export function ForgotPassword() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Aqui você implementará a lógica de recuperação de senha
     console.log("Recuperar senha para:", email);
   };
 
@@ -98,7 +97,7 @@ export function ForgotPassword() {
                 gutterBottom
                 sx={{
                   fontWeight: 500,
-                  color: "#000000",
+                  color: theme.palette.brand.dark,
                   mb: 1,
                 }}
               >

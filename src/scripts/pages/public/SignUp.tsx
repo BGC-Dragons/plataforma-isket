@@ -22,7 +22,6 @@ import { useNavigate } from "react-router";
 import isketLogo from "../../../assets/isket.svg";
 import googleLogo from "../../../assets/google.svg";
 
-// Lista de cidades para o select (você pode expandir conforme necessário)
 const cities = [
   "São Paulo",
   "Rio de Janeiro",
@@ -54,12 +53,10 @@ export function SignUp() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Aqui você implementará a lógica de cadastro
     console.log("Cadastro:", { name, city });
   };
 
   const handleGoogleSignUp = () => {
-    // Aqui você implementará a integração OAuth do Google
     console.log("Cadastro com Google");
   };
 
@@ -107,7 +104,6 @@ export function SignUp() {
               },
             }}
           >
-            {/* Logo with modern design */}
             <Grow in timeout={1000}>
               <Box
                 sx={{
@@ -135,7 +131,7 @@ export function SignUp() {
                 gutterBottom
                 sx={{
                   fontWeight: 500,
-                  color: "#000000",
+                  color: theme.palette.brand.dark,
                   mb: 1,
                 }}
               >
@@ -206,6 +202,71 @@ export function SignUp() {
                     label="Cidade"
                     onChange={(e) => setCity(e.target.value)}
                     required
+                    MenuProps={{
+                      PaperProps: {
+                        sx: {
+                          maxHeight: "200px !important",
+                          width: "auto",
+                          minWidth: "100%",
+                          boxShadow: theme.palette.brand.shadow,
+                          border: `1px solid ${theme.palette.brand.border}`,
+                          borderRadius: 2,
+                          mt: 0.5,
+                          overflow: "auto !important",
+                          "& .MuiMenuItem-root": {
+                            padding: "8px 16px",
+                            fontSize: "14px",
+                            "&:hover": {
+                              backgroundColor: `${theme.palette.brand.secondary}14`,
+                            },
+                            "&.Mui-selected": {
+                              backgroundColor: `${theme.palette.brand.secondary}1F`,
+                              "&:hover": {
+                                backgroundColor: `${theme.palette.brand.secondary}29`,
+                              },
+                            },
+                          },
+                        },
+                        style: {
+                          maxHeight: "200px",
+                          overflow: "auto",
+                        },
+                      },
+                      anchorOrigin: {
+                        vertical: "bottom",
+                        horizontal: "left",
+                      },
+                      transformOrigin: {
+                        vertical: "top",
+                        horizontal: "left",
+                      },
+                      slotProps: {
+                        paper: {
+                          sx: {
+                            maxHeight: "200px !important",
+                            overflow: "auto !important",
+                            "&::-webkit-scrollbar": {
+                              width: "8px",
+                            },
+                            "&::-webkit-scrollbar-track": {
+                              background: theme.palette.brand.light,
+                              borderRadius: "4px",
+                            },
+                            "&::-webkit-scrollbar-thumb": {
+                              background: theme.palette.brand.primary,
+                              borderRadius: "4px",
+                              "&:hover": {
+                                background: theme.palette.brand.secondary,
+                              },
+                            },
+                          },
+                          style: {
+                            maxHeight: "200px",
+                            overflow: "auto",
+                          },
+                        },
+                      },
+                    }}
                     sx={{
                       borderRadius: 3,
                       transition: "all 0.3s ease",
@@ -216,6 +277,11 @@ export function SignUp() {
                       "&.Mui-focused": {
                         transform: "translateY(-2px)",
                         boxShadow: theme.palette.brand.shadowFocus,
+                      },
+                      "& .MuiSelect-select": {
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1,
                       },
                     }}
                     startAdornment={
@@ -284,16 +350,16 @@ export function SignUp() {
                     mb: 3,
                     py: 1.8,
                     borderRadius: 3,
-                    borderColor: "#E0E0E0",
-                    color: "#333333",
-                    backgroundColor: "#FFFFFF",
-                    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
+                    borderColor: theme.palette.brand.border,
+                    color: theme.palette.brand.dark,
+                    backgroundColor: theme.palette.brand.surface,
+                    boxShadow: theme.palette.brand.shadow,
                     transition: "all 0.3s ease",
                     "&:hover": {
-                      backgroundColor: "#F8F9FA",
-                      borderColor: "#DADCE0",
+                      backgroundColor: theme.palette.brand.light,
+                      borderColor: theme.palette.brand.primary,
                       transform: "translateY(-2px)",
-                      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+                      boxShadow: theme.palette.brand.shadowHover,
                     },
                   }}
                   startIcon={

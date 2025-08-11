@@ -1,6 +1,16 @@
 import { createTheme } from "@mui/material/styles";
 
-// Estender o tema para incluir cores personalizadas
+// Cores principais do tema
+const COLORS = {
+  PRIMARY: "#262353",
+  SECONDARY: "#E3003A",
+  ACCENT: "#C70033",
+  DARK: "#A6002A",
+  LIGHT: "#F8F9FA",
+  WHITE: "#FFFFFF",
+  BORDER: "#E0E0E0",
+} as const;
+
 declare module "@mui/material/styles" {
   interface Palette {
     brand: {
@@ -45,30 +55,29 @@ declare module "@mui/material/styles" {
 export const theme = createTheme({
   palette: {
     primary: {
-      main: "#262353", // rgba(38, 35, 83, 1)
-      contrastText: "#FFFFFF",
+      main: COLORS.PRIMARY,
+      contrastText: COLORS.WHITE,
     },
     secondary: {
-      main: "#FFFFFF", // rgba(255, 255, 255, 1)
-      contrastText: "#262353",
+      main: COLORS.WHITE,
+      contrastText: COLORS.PRIMARY,
     },
     error: {
-      main: "#E3003A", // rgba(227, 0, 58, 1)
+      main: COLORS.SECONDARY,
     },
     background: {
-      default: "#FFFFFF",
-      paper: "#FFFFFF",
+      default: COLORS.WHITE,
+      paper: COLORS.WHITE,
     },
-    // Cores personalizadas da marca
     brand: {
-      primary: "#262353",
-      secondary: "#E3003A",
-      accent: "#C70033",
-      dark: "#A6002A",
-      light: "#F8F9FA",
-      gradient: "linear-gradient(135deg, #E3003A, #C70033)",
-      gradientHover: "linear-gradient(135deg, #C70033, #A6002A)",
-      background: "#262353",
+      primary: COLORS.PRIMARY,
+      secondary: COLORS.SECONDARY,
+      accent: COLORS.ACCENT,
+      dark: COLORS.DARK,
+      light: COLORS.LIGHT,
+      gradient: `linear-gradient(135deg, ${COLORS.SECONDARY}, ${COLORS.ACCENT})`,
+      gradientHover: `linear-gradient(135deg, ${COLORS.ACCENT}, ${COLORS.DARK})`,
+      background: COLORS.PRIMARY,
       surface: "rgba(255, 255, 255, 0.95)",
       border: "rgba(255, 255, 255, 0.2)",
       shadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
@@ -82,10 +91,10 @@ export const theme = createTheme({
     MuiButton: {
       styleOverrides: {
         root: {
-          backgroundColor: "#E3003A",
-          color: "#FFFFFF",
+          backgroundColor: COLORS.SECONDARY,
+          color: COLORS.WHITE,
           "&:hover": {
-            backgroundColor: "#C70033",
+            backgroundColor: COLORS.ACCENT,
           },
           textTransform: "none",
           borderRadius: 8,
@@ -94,11 +103,11 @@ export const theme = createTheme({
           fontWeight: 600,
         },
         outlined: {
-          borderColor: "#E3003A",
-          color: "#E3003A",
+          borderColor: COLORS.SECONDARY,
+          color: COLORS.SECONDARY,
           "&:hover": {
             backgroundColor: "rgba(227, 0, 58, 0.04)",
-            borderColor: "#C70033",
+            borderColor: COLORS.ACCENT,
           },
         },
       },
@@ -109,13 +118,13 @@ export const theme = createTheme({
           "& .MuiOutlinedInput-root": {
             borderRadius: 8,
             "& fieldset": {
-              borderColor: "#E0E0E0",
+              borderColor: COLORS.BORDER,
             },
             "&:hover fieldset": {
-              borderColor: "#262353",
+              borderColor: COLORS.PRIMARY,
             },
             "&.Mui-focused fieldset": {
-              borderColor: "#262353",
+              borderColor: COLORS.PRIMARY,
             },
           },
         },
@@ -125,6 +134,67 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: 8,
+        },
+        select: {
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+        },
+      },
+    },
+    MuiMenuItem: {
+      styleOverrides: {
+        root: {
+          fontSize: "14px",
+          padding: "8px 16px",
+          "&:hover": {
+            backgroundColor: "rgba(227, 0, 58, 0.08)",
+          },
+          "&.Mui-selected": {
+            backgroundColor: "rgba(227, 0, 58, 0.12)",
+            "&:hover": {
+              backgroundColor: "rgba(227, 0, 58, 0.16)",
+            },
+          },
+        },
+      },
+    },
+    MuiMenu: {
+      styleOverrides: {
+        paper: {
+          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+          border: "1px solid rgba(255, 255, 255, 0.2)",
+          borderRadius: 8,
+          maxHeight: "200px !important",
+          overflow: "auto !important",
+          "&::-webkit-scrollbar": {
+            width: "8px",
+          },
+          "&::-webkit-scrollbar-track": {
+            background: COLORS.LIGHT,
+            borderRadius: "4px",
+          },
+          "&::-webkit-scrollbar-thumb": {
+            background: COLORS.PRIMARY,
+            borderRadius: "4px",
+            "&:hover": {
+              background: COLORS.SECONDARY,
+            },
+          },
+        },
+        root: {
+          "& .MuiPaper-root": {
+            maxHeight: "200px !important",
+            overflow: "auto !important",
+          },
+        },
+      },
+      defaultProps: {
+        PaperProps: {
+          style: {
+            maxHeight: "200px",
+            overflow: "auto",
+          },
         },
       },
     },
