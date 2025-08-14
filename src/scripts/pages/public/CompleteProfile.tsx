@@ -6,18 +6,18 @@ import {
   TextField,
   Typography,
   Paper,
-  Divider,
   useTheme,
-  InputAdornment,
-  Link,
+  Alert,
 } from "@mui/material";
-import { Email, Send } from "@mui/icons-material";
+import { Person, PersonAdd } from "@mui/icons-material";
 import { useNavigate } from "react-router";
 import isketLogo from "../../../assets/isket.svg";
-import { GoogleButton } from "../../library/components/google-button";
+import { CitySelect } from "../../library/components/city-select";
 
-export function SignUp() {
-  const [email, setEmail] = useState("");
+export function CompleteProfile() {
+  const [name, setName] = useState("");
+  const [city, setCity] = useState("");
+  const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
   const theme = useTheme();
@@ -25,30 +25,29 @@ export function SignUp() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!email) return;
+    if (!name || !city) {
+      setError("Preencha todos os campos obrigatórios");
+      return;
+    }
 
     setIsSubmitting(true);
+    setError("");
 
     try {
-      // Simular envio do código
+      // Simular cadastro
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      // Redirecionar para verificação de email
-      navigate("/email-verification", {
+      // Redirecionar para login após sucesso
+      navigate("/", {
         state: {
-          email,
+          message: "Perfil completado com sucesso! Faça login para continuar.",
         },
       });
     } catch {
-      // Em caso de erro, continuar na mesma tela
+      setError("Erro ao completar perfil. Tente novamente.");
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleGoogleSignUp = () => {
-    // Redirecionar para completar perfil após Google
-    navigate("/complete-profile");
   };
 
   return (
@@ -118,7 +117,7 @@ export function SignUp() {
               mb: 1,
             }}
           >
-            Crie sua conta
+            Complete seu perfil
           </Typography>
 
           <Typography
@@ -127,22 +126,27 @@ export function SignUp() {
             textAlign="center"
             sx={{ mb: 4, opacity: 0.8 }}
           >
-            Digite seu email para receber um código de verificação
+            Preencha os dados para finalizar seu cadastro
           </Typography>
+
+          {error && (
+            <Alert severity="error" sx={{ mb: 3, width: "100%" }}>
+              {error}
+            </Alert>
+          )}
 
           <Box component="form" onSubmit={handleSubmit} sx={{ width: "100%" }}>
             <TextField
               margin="normal"
               required
               fullWidth
-              id="email"
-              label="Email"
-              name="email"
-              type="email"
-              autoComplete="email"
+              id="name"
+              label="Nome completo"
+              name="name"
+              autoComplete="name"
               autoFocus
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
               sx={{
                 mb: 3,
                 "& .MuiOutlinedInput-root": {
@@ -161,19 +165,25 @@ export function SignUp() {
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <Email sx={{ color: "primary.main", opacity: 0.7 }} />
+                    <Person sx={{ color: "primary.main", opacity: 0.7 }} />
                   </InputAdornment>
                 ),
               }}
+            />
+
+            <CitySelect
+              value={city}
+              onChange={setCity}
+              required
+              sx={{ mb: 4 }}
             />
 
             <Button
               type="submit"
               fullWidth
               variant="contained"
-              disabled={isSubmitting || !email}
+              disabled={isSubmitting || !name || !city}
               sx={{
-                mb: 3,
                 py: 1.8,
                 borderRadius: 3,
                 background: theme.palette.brand.gradient,
@@ -188,50 +198,10 @@ export function SignUp() {
                   transform: "translateY(0)",
                 },
               }}
-              endIcon={<Send />}
+              endIcon={<PersonAdd />}
             >
-              {isSubmitting ? "Enviando..." : "Verificar"}
+              {isSubmitting ? "Completando..." : "Registrar"}
             </Button>
-
-            <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
-              <Divider sx={{ flex: 1 }} />
-              <Typography
-                variant="body2"
-                sx={{ mx: 2, color: "text.secondary" }}
-              >
-                ou
-              </Typography>
-              <Divider sx={{ flex: 1 }} />
-            </Box>
-
-            <GoogleButton onClick={handleGoogleSignUp} variant="signup" />
-
-            <Box sx={{ textAlign: "center", mt: 3 }}>
-              <Typography variant="body2" color="text.secondary">
-                Já tem uma conta?{" "}
-                <Link
-                  component="button"
-                  variant="body2"
-                  onClick={() => navigate("/")}
-                  sx={{
-                    color: theme.palette.brand.secondary,
-                    textDecoration: "none",
-                    fontWeight: 600,
-                    transition: "all 0.3s ease",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 1,
-                    "&:hover": {
-                      color: theme.palette.brand.accent,
-                      textDecoration: "underline",
-                      transform: "translateY(-1px)",
-                    },
-                  }}
-                >
-                  Faça login
-                </Link>
-              </Typography>
-            </Box>
           </Box>
         </Paper>
       </Container>
