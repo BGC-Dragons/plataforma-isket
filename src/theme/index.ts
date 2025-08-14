@@ -9,6 +9,7 @@ const COLORS = {
   LIGHT: "#F8F9FA",
   WHITE: "#FFFFFF",
   BORDER: "#E0E0E0",
+  TEXT_PRIMARY: "#333333",
 } as const;
 
 declare module "@mui/material/styles" {
@@ -29,6 +30,7 @@ declare module "@mui/material/styles" {
       shadowFocus: string;
       shadowButton: string;
       shadowButtonHover: string;
+      textPrimary: string;
     };
   }
   interface PaletteOptions {
@@ -48,6 +50,7 @@ declare module "@mui/material/styles" {
       shadowFocus: string;
       shadowButton: string;
       shadowButtonHover: string;
+      textPrimary: string;
     };
   }
 }
@@ -85,6 +88,7 @@ export const theme = createTheme({
       shadowFocus: "0 8px 25px rgba(227, 0, 58, 0.2)",
       shadowButton: "0 8px 25px rgba(227, 0, 58, 0.3)",
       shadowButtonHover: "0 12px 35px rgba(227, 0, 58, 0.4)",
+      textPrimary: COLORS.TEXT_PRIMARY,
     },
   },
   components: {

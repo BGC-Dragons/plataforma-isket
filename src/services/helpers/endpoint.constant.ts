@@ -10,13 +10,13 @@ const configEndpoints: Record<
   }
 > = {
   local: {
-    api: "http://localhost:1443",
+    api: "http://localhost:80",
   },
   dev: {
-    api: "https://api-plataforma-distribuicao-dev.captal.tech",
+    api: "https://api-staging.isket.com.br",
   },
   prod: {
-    api: "https://api-plataforma-distribuicao-prod.captal.tech",
+    api: "https://api.isket.com.br/auth/login",
   },
 };
 
