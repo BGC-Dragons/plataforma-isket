@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   Box,
   Button,
@@ -7,26 +7,64 @@ import {
   Typography,
   Paper,
   useTheme,
+  Alert,
 } from "@mui/material";
 import { useNavigate, useLocation } from "react-router";
 import isketLogo from "../../../assets/isket.svg";
 
 export function EmailVerification() {
-  const [verificationCode, setVerificationCode] = useState("");
+  const [verificationCode, setVerificationCode] = useState(["", "", "", ""]);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
 
-  // Pegar o email que veio da tela anterior
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
   const email = location.state?.email;
+
+  const handleCodeChange = (index: number, value: string) => {
+    if (value.length > 1) return; // Não permite mais de 1 caractere por campo
+
+    const newCode = [...verificationCode];
+    newCode[index] = value;
+    setVerificationCode(newCode);
+
+    // Mover para o próximo campo se digitou algo
+    if (value && index < 3) {
+      inputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData("text");
+    const numbers = pastedData.replace(/\D/g, "").slice(0, 4).split("");
+
+    if (numbers.length === 4) {
+      setVerificationCode([...numbers, ...Array(4 - numbers.length).fill("")]);
+      // Focar no último campo preenchido
+      const lastFilledIndex = numbers.length - 1;
+      inputRefs.current[lastFilledIndex]?.focus();
+    }
+  };
+
+  const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === "Backspace" && !verificationCode[index] && index > 0) {
+      // Voltar para o campo anterior se apagou
+      inputRefs.current[index - 1]?.focus();
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!verificationCode || verificationCode.length !== 4) return;
+    const code = verificationCode.join("");
+    if (code.length !== 4) return;
 
     setIsVerifying(true);
+    setError("");
 
     try {
       // Simular verificação do código
@@ -40,7 +78,7 @@ export function EmailVerification() {
         },
       });
     } catch {
-      // Em caso de erro, continuar na mesma tela
+      setError("Erro ao verificar código. Tente novamente.");
     } finally {
       setIsVerifying(false);
     }
@@ -125,46 +163,56 @@ export function EmailVerification() {
             Digite o código de 4 dígitos enviado para {email}
           </Typography>
 
+          {error && (
+            <Alert severity="error" sx={{ mb: 3, width: "100%" }}>
+              {error}
+            </Alert>
+          )}
+
           <Box component="form" onSubmit={handleSubmit} sx={{ width: "100%" }}>
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              id="verificationCode"
-              label="Código de verificação"
-              name="verificationCode"
-              autoComplete="off"
-              autoFocus
-              value={verificationCode}
-              onChange={(e) => setVerificationCode(e.target.value)}
-              inputProps={{
-                maxLength: 4,
-                pattern: "[0-9]*",
-                inputMode: "numeric",
-              }}
-              sx={{
-                mb: 4,
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: 3,
-                  transition: "all 0.3s ease",
-                  "&:hover": {
-                    transform: "translateY(-2px)",
-                    boxShadow: theme.palette.brand.shadowHover,
-                  },
-                  "&.Mui-focused": {
-                    transform: "translateY(-2px)",
-                    boxShadow: theme.palette.brand.shadowFocus,
-                  },
-                },
-              }}
-              placeholder="0000"
-            />
+            <Box
+              sx={{ display: "flex", gap: 2, mb: 4, justifyContent: "center" }}
+            >
+              {verificationCode.map((digit, index) => (
+                <TextField
+                  key={index}
+                  inputRef={(el) => (inputRefs.current[index] = el)}
+                  value={digit}
+                  onChange={(e) => handleCodeChange(index, e.target.value)}
+                  onPaste={handlePaste}
+                  onKeyDown={(e) => handleKeyDown(index, e)}
+                  inputProps={{
+                    maxLength: 1,
+                    pattern: "[0-9]*",
+                    inputMode: "numeric",
+                    style: { textAlign: "center" },
+                  }}
+                  sx={{
+                    width: "60px",
+                    "& .MuiOutlinedInput-root": {
+                      borderRadius: 3,
+                      transition: "all 0.3s ease",
+                      "&:hover": {
+                        transform: "translateY(-2px)",
+                        boxShadow: theme.palette.brand.shadowHover,
+                      },
+                      "&.Mui-focused": {
+                        transform: "translateY(-2px)",
+                        boxShadow: theme.palette.brand.shadowFocus,
+                      },
+                    },
+                  }}
+                  placeholder="0"
+                  autoFocus={index === 0}
+                />
+              ))}
+            </Box>
 
             <Button
               type="submit"
               fullWidth
               variant="contained"
-              disabled={isVerifying || verificationCode.length !== 4}
+              disabled={isVerifying || verificationCode.join("").length !== 4}
               sx={{
                 py: 1.8,
                 borderRadius: 3,

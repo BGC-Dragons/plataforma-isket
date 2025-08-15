@@ -10,15 +10,18 @@ import {
   useTheme,
   InputAdornment,
   Link,
+  Alert,
 } from "@mui/material";
 import { Email, Send } from "@mui/icons-material";
 import { useNavigate } from "react-router";
 import isketLogo from "../../../assets/isket.svg";
 import { GoogleButton } from "../../library/components/google-button";
+import { postAuthSendVerificationCode } from "../../../services/post-auth-send-verification-code.service";
 
 export function SignUp() {
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
   const theme = useTheme();
 
@@ -28,10 +31,14 @@ export function SignUp() {
     if (!email) return;
 
     setIsSubmitting(true);
+    setError("");
 
     try {
-      // Simular envio do código
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Enviar código de verificação via API
+      await postAuthSendVerificationCode({
+        emailOrPhone: email,
+        method: "EMAIL",
+      });
 
       // Redirecionar para verificação de email
       navigate("/email-verification", {
@@ -39,8 +46,9 @@ export function SignUp() {
           email,
         },
       });
-    } catch {
-      // Em caso de erro, continuar na mesma tela
+    } catch (err) {
+      setError("Erro ao enviar código de verificação. Tente novamente.");
+      console.error("Erro ao enviar código:", err);
     } finally {
       setIsSubmitting(false);
     }
@@ -129,6 +137,12 @@ export function SignUp() {
           >
             Digite seu email para receber um código de verificação
           </Typography>
+
+          {error && (
+            <Alert severity="error" sx={{ mb: 3, width: "100%" }}>
+              {error}
+            </Alert>
+          )}
 
           <Box component="form" onSubmit={handleSubmit} sx={{ width: "100%" }}>
             <TextField
