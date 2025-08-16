@@ -3,24 +3,17 @@ import {
   Box,
   Button,
   Container,
-  TextField,
   Typography,
   Paper,
   useTheme,
   Alert,
-  IconButton,
-  InputAdornment as MuiInputAdornment,
 } from "@mui/material";
-import {
-  Person,
-  PersonAdd,
-  Visibility,
-  VisibilityOff,
-  Email,
-} from "@mui/icons-material";
+import { PersonAdd } from "@mui/icons-material";
 import { useNavigate, useLocation } from "react-router";
 import isketLogo from "../../../assets/isket.svg";
 import { CitySelect } from "../../library/components/city-select";
+import { CustomTextField } from "../../library/components/custom-text-field";
+import { postAuthRegister } from "../../../services/post-auth-register.service";
 
 export function CompleteSignUp() {
   const [name, setName] = useState("");
@@ -28,8 +21,7 @@ export function CompleteSignUp() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [city, setCity] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
@@ -39,6 +31,7 @@ export function CompleteSignUp() {
   // Verificar se veio da verificação de email
   const isFromEmailVerification = location.state?.isEmailVerified;
   const verifiedEmail = location.state?.email;
+  const verificationCode = location.state?.verificationCode;
 
   useEffect(() => {
     if (verifiedEmail) {
@@ -59,12 +52,26 @@ export function CompleteSignUp() {
       return;
     }
 
+    if (!name.trim() || !email.trim() || !city.trim()) {
+      setError("Preencha todos os campos obrigatórios");
+      return;
+    }
+
     setIsSubmitting(true);
     setError("");
 
     try {
-      // Simular cadastro
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Chamar API de registro
+      const response = await postAuthRegister({
+        name: name.trim(),
+        email: email.trim(),
+        password,
+        verificationCode: verificationCode || "1234", // Código da verificação ou fallback
+        defaultCityStateCode: city,
+        // Campos opcionais podem ser adicionados aqui
+      });
+
+      console.log("Registro realizado com sucesso:", response.data);
 
       // Redirecionar para login após sucesso
       navigate("/", {
@@ -72,8 +79,19 @@ export function CompleteSignUp() {
           message: "Conta criada com sucesso! Faça login para continuar.",
         },
       });
-    } catch {
-      setError("Erro ao criar conta. Tente novamente.");
+    } catch (err: unknown) {
+      // Tratar erros específicos da API
+      if (err && typeof err === "object" && "response" in err) {
+        const apiError = err as { response?: { data?: { message?: string } } };
+        if (apiError.response?.data?.message) {
+          setError(apiError.response.data.message);
+        } else {
+          setError("Erro ao criar conta. Tente novamente.");
+        }
+      } else {
+        setError("Erro ao criar conta. Tente novamente.");
+      }
+      console.error("Erro no registro:", err);
     } finally {
       setIsSubmitting(false);
     }
@@ -165,8 +183,7 @@ export function CompleteSignUp() {
           )}
 
           <Box component="form" onSubmit={handleSubmit} sx={{ width: "100%" }}>
-            <TextField
-              margin="normal"
+            <CustomTextField
               required
               fullWidth
               id="email"
@@ -176,32 +193,9 @@ export function CompleteSignUp() {
               autoComplete="email"
               value={email}
               disabled={isFromEmailVerification}
-              sx={{
-                mb: 2,
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: 3,
-                  transition: "all 0.3s ease",
-                  "&:hover": {
-                    transform: "translateY(-2px)",
-                    boxShadow: theme.palette.brand.shadowHover,
-                  },
-                  "&.Mui-focused": {
-                    transform: "translateY(-2px)",
-                    boxShadow: theme.palette.brand.shadowFocus,
-                  },
-                },
-              }}
-              InputProps={{
-                startAdornment: (
-                  <MuiInputAdornment position="start">
-                    <Email sx={{ color: "primary.main", opacity: 0.7 }} />
-                  </MuiInputAdornment>
-                ),
-              }}
             />
 
-            <TextField
-              margin="normal"
+            <CustomTextField
               required
               fullWidth
               id="name"
@@ -210,117 +204,37 @@ export function CompleteSignUp() {
               autoComplete="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              sx={{
-                mb: 2,
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: 3,
-                  transition: "all 0.3s ease",
-                  "&:hover": {
-                    transform: "translateY(-2px)",
-                    boxShadow: theme.palette.brand.shadowHover,
-                  },
-                  "&.Mui-focused": {
-                    transform: "translateY(-2px)",
-                    boxShadow: theme.palette.brand.shadowFocus,
-                  },
-                },
-              }}
-              InputProps={{
-                startAdornment: (
-                  <MuiInputAdornment position="start">
-                    <Person sx={{ color: "primary.main", opacity: 0.7 }} />
-                  </MuiInputAdornment>
-                ),
-              }}
             />
 
-            <TextField
-              margin="normal"
+            <CustomTextField
               required
               fullWidth
               id="password"
               label="Senha"
               name="password"
-              type={showPassword ? "text" : "password"}
               autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              sx={{
-                mb: 2,
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: 3,
-                  transition: "all 0.3s ease",
-                  "&:hover": {
-                    transform: "translateY(-2px)",
-                    boxShadow: theme.palette.brand.shadowHover,
-                  },
-                  "&.Mui-focused": {
-                    transform: "translateY(-2px)",
-                    boxShadow: theme.palette.brand.shadowFocus,
-                  },
-                },
-              }}
-              InputProps={{
-                endAdornment: (
-                  <MuiInputAdornment position="end">
-                    <IconButton
-                      onClick={() => setShowPassword(!showPassword)}
-                      edge="end"
-                    >
-                      {showPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </MuiInputAdornment>
-                ),
-              }}
+              showPasswordToggle
             />
 
-            <TextField
-              margin="normal"
+            <CustomTextField
               required
               fullWidth
               id="confirmPassword"
               label="Confirmar senha"
               name="confirmPassword"
-              type={showConfirmPassword ? "text" : "password"}
               autoComplete="new-password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              sx={{
-                mb: 2,
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: 3,
-                  transition: "all 0.3s ease",
-                  "&:hover": {
-                    transform: "translateY(-2px)",
-                    boxShadow: theme.palette.brand.shadowHover,
-                  },
-                  "&.Mui-focused": {
-                    transform: "translateY(-2px)",
-                    boxShadow: theme.palette.brand.shadowFocus,
-                  },
-                },
-              }}
-              InputProps={{
-                endAdornment: (
-                  <MuiInputAdornment position="end">
-                    <IconButton
-                      onClick={() =>
-                        setShowConfirmPassword(!showConfirmPassword)
-                      }
-                      edge="end"
-                    >
-                      {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </MuiInputAdornment>
-                ),
-              }}
+              showPasswordToggle
             />
 
             <CitySelect
               value={city}
               onChange={setCity}
               required
-              sx={{ mb: 4 }}
+              sx={{ mb: 2 }}
             />
 
             <Button

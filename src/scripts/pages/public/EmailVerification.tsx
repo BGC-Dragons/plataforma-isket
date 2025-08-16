@@ -3,7 +3,6 @@ import {
   Box,
   Button,
   Container,
-  TextField,
   Typography,
   Paper,
   useTheme,
@@ -11,6 +10,8 @@ import {
 } from "@mui/material";
 import { useNavigate, useLocation } from "react-router";
 import isketLogo from "../../../assets/isket.svg";
+import { postAuthVerifyCode } from "../../../services/post-auth-verify-code.service";
+import { CustomTextField } from "../../library/components/custom-text-field";
 
 export function EmailVerification() {
   const [verificationCode, setVerificationCode] = useState(["", "", "", ""]);
@@ -67,18 +68,40 @@ export function EmailVerification() {
     setError("");
 
     try {
-      // Simular verificação do código
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Redirecionar para tela de cadastro completo
-      navigate("/complete-signup", {
-        state: {
-          email,
-          isEmailVerified: true,
-        },
+      const response = await postAuthVerifyCode({
+        emailOrPhone: email,
+        code,
+        method: "EMAIL",
       });
-    } catch {
-      setError("Erro ao verificar código. Tente novamente.");
+
+      if (response.data.message === "verified code") {
+        navigate("/complete-signup", {
+          state: {
+            email,
+            isEmailVerified: true,
+            verificationCode: code, // Passar o código verificado
+          },
+        });
+      } else {
+        setError("Código inválido. Tente novamente.");
+      }
+    } catch (err: unknown) {
+      if (
+        err &&
+        typeof err === "object" &&
+        "response" in err &&
+        err.response &&
+        typeof err.response === "object" &&
+        "data" in err.response &&
+        err.response.data &&
+        typeof err.response.data === "object" &&
+        "message" in err.response.data
+      ) {
+        setError(String(err.response.data.message));
+      } else {
+        setError("Erro ao verificar código. Tente novamente.");
+      }
+      console.error("Erro ao verificar código:", err);
     } finally {
       setIsVerifying(false);
     }
@@ -171,10 +194,10 @@ export function EmailVerification() {
 
           <Box component="form" onSubmit={handleSubmit} sx={{ width: "100%" }}>
             <Box
-              sx={{ display: "flex", gap: 2, mb: 4, justifyContent: "center" }}
+              sx={{ display: "flex", gap: 3, mb: 4, justifyContent: "center" }}
             >
               {verificationCode.map((digit, index) => (
-                <TextField
+                <CustomTextField
                   key={index}
                   inputRef={(el) => (inputRefs.current[index] = el)}
                   value={digit}
@@ -188,19 +211,7 @@ export function EmailVerification() {
                     style: { textAlign: "center" },
                   }}
                   sx={{
-                    width: "60px",
-                    "& .MuiOutlinedInput-root": {
-                      borderRadius: 3,
-                      transition: "all 0.3s ease",
-                      "&:hover": {
-                        transform: "translateY(-2px)",
-                        boxShadow: theme.palette.brand.shadowHover,
-                      },
-                      "&.Mui-focused": {
-                        transform: "translateY(-2px)",
-                        boxShadow: theme.palette.brand.shadowFocus,
-                      },
-                    },
+                    width: "70px",
                   }}
                   placeholder="0"
                   autoFocus={index === 0}

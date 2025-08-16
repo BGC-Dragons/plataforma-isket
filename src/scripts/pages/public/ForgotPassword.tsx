@@ -3,16 +3,15 @@ import {
   Box,
   Button,
   Container,
-  TextField,
   Typography,
   Link,
   Paper,
-  InputAdornment,
   useTheme,
 } from "@mui/material";
-import { Email, ArrowBack, Send } from "@mui/icons-material";
+import { ArrowBack, Send } from "@mui/icons-material";
 import { useNavigate } from "react-router";
 import isketLogo from "../../../assets/isket.svg";
+import { CustomTextField } from "../../library/components/custom-text-field";
 
 export function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -108,8 +107,7 @@ export function ForgotPassword() {
           </Typography>
 
           <Box component="form" onSubmit={handleSubmit} sx={{ width: "100%" }}>
-            <TextField
-              margin="normal"
+            <CustomTextField
               required
               fullWidth
               id="email"
@@ -119,28 +117,7 @@ export function ForgotPassword() {
               autoFocus
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              sx={{
-                mb: 4,
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: 3,
-                  transition: "all 0.3s ease",
-                  "&:hover": {
-                    transform: "translateY(-2px)",
-                    boxShadow: theme.palette.brand.shadowHover,
-                  },
-                  "&.Mui-focused": {
-                    transform: "translateY(-2px)",
-                    boxShadow: theme.palette.brand.shadowFocus,
-                  },
-                },
-              }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Email sx={{ color: "primary.main", opacity: 0.7 }} />
-                  </InputAdornment>
-                ),
-              }}
+              sx={{ mb: 4 }}
             />
 
             <Button

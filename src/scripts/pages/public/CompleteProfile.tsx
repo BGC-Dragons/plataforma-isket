@@ -3,17 +3,16 @@ import {
   Box,
   Button,
   Container,
-  TextField,
   Typography,
   Paper,
   useTheme,
   Alert,
-  InputAdornment,
 } from "@mui/material";
-import { Person, PersonAdd } from "@mui/icons-material";
+import { PersonAdd } from "@mui/icons-material";
 import { useNavigate } from "react-router";
 import isketLogo from "../../../assets/isket.svg";
 import { CitySelect } from "../../library/components/city-select";
+import { CustomTextField } from "../../library/components/custom-text-field";
 
 export function CompleteProfile() {
   const [name, setName] = useState("");
@@ -137,8 +136,7 @@ export function CompleteProfile() {
           )}
 
           <Box component="form" onSubmit={handleSubmit} sx={{ width: "100%" }}>
-            <TextField
-              margin="normal"
+            <CustomTextField
               required
               fullWidth
               id="name"
@@ -148,28 +146,7 @@ export function CompleteProfile() {
               autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}
-              sx={{
-                mb: 3,
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: 3,
-                  transition: "all 0.3s ease",
-                  "&:hover": {
-                    transform: "translateY(-2px)",
-                    boxShadow: theme.palette.brand.shadowHover,
-                  },
-                  "&.Mui-focused": {
-                    transform: "translateY(-2px)",
-                    boxShadow: theme.palette.brand.shadowFocus,
-                  },
-                },
-              }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Person sx={{ color: "primary.main", opacity: 0.7 }} />
-                  </InputAdornment>
-                ),
-              }}
+              sx={{ mb: 3 }}
             />
 
             <CitySelect

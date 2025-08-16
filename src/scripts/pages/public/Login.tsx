@@ -3,24 +3,16 @@ import {
   Box,
   Button,
   Container,
-  TextField,
   Typography,
   Link,
   Paper,
-  InputAdornment,
   IconButton,
   Divider,
   useTheme,
   Alert,
   CircularProgress,
 } from "@mui/material";
-import {
-  Visibility,
-  VisibilityOff,
-  Email,
-  Lock,
-  ArrowForward,
-} from "@mui/icons-material";
+import { Visibility, VisibilityOff, ArrowForward } from "@mui/icons-material";
 import { useNavigate } from "react-router";
 import isketLogo from "../../../assets/isket.svg";
 import { GoogleButton } from "../../library/components/google-button";
@@ -28,6 +20,7 @@ import {
   postAuthLogin,
   type IPostAuthLoginParams,
 } from "../../../services/post-auth-login.service";
+import { CustomTextField } from "../../library/components/custom-text-field";
 
 export function Login() {
   const [email, setEmail] = useState("");
@@ -168,8 +161,7 @@ export function Login() {
                 {error}
               </Alert>
             )}
-            <TextField
-              margin="normal"
+            <CustomTextField
               required
               fullWidth
               id="email"
@@ -179,75 +171,20 @@ export function Login() {
               autoFocus
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              sx={{
-                mb: 2,
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: 3,
-                  transition: "all 0.3s ease",
-                  "&:hover": {
-                    transform: "translateY(-2px)",
-                    boxShadow: theme.palette.brand.shadowHover,
-                  },
-                  "&.Mui-focused": {
-                    transform: "translateY(-2px)",
-                    boxShadow: theme.palette.brand.shadowFocus,
-                  },
-                },
-              }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Email sx={{ color: "primary.main", opacity: 0.7 }} />
-                  </InputAdornment>
-                ),
-              }}
+              sx={{ mb: 2 }}
             />
 
-            <TextField
-              margin="normal"
+            <CustomTextField
               required
               fullWidth
               name="password"
               label="Senha"
-              type={showPassword ? "text" : "password"}
               id="password"
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              sx={{
-                mb: 2,
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: 3,
-                  transition: "all 0.3s ease",
-                  "&:hover": {
-                    transform: "translateY(-2px)",
-                    boxShadow: theme.palette.brand.shadowHover,
-                  },
-                  "&.Mui-focused": {
-                    transform: "translateY(-2px)",
-                    boxShadow: theme.palette.brand.shadowFocus,
-                  },
-                },
-              }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Lock sx={{ color: "primary.main", opacity: 0.7 }} />
-                  </InputAdornment>
-                ),
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      aria-label="toggle password visibility"
-                      onClick={() => setShowPassword(!showPassword)}
-                      edge="end"
-                      sx={{ color: "primary.main" }}
-                    >
-                      {showPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
+              showPasswordToggle
+              sx={{ mb: 2 }}
             />
 
             <Box sx={{ textAlign: "center", mb: 3 }}>

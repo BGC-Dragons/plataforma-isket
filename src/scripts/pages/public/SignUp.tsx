@@ -3,20 +3,19 @@ import {
   Box,
   Button,
   Container,
-  TextField,
   Typography,
   Paper,
   Divider,
   useTheme,
-  InputAdornment,
   Link,
   Alert,
 } from "@mui/material";
-import { Email, Send } from "@mui/icons-material";
+import { Send } from "@mui/icons-material";
 import { useNavigate } from "react-router";
 import isketLogo from "../../../assets/isket.svg";
 import { GoogleButton } from "../../library/components/google-button";
 import { postAuthSendVerificationCode } from "../../../services/post-auth-send-verification-code.service";
+import { CustomTextField } from "../../library/components/custom-text-field";
 
 export function SignUp() {
   const [email, setEmail] = useState("");
@@ -145,8 +144,7 @@ export function SignUp() {
           )}
 
           <Box component="form" onSubmit={handleSubmit} sx={{ width: "100%" }}>
-            <TextField
-              margin="normal"
+            <CustomTextField
               required
               fullWidth
               id="email"
@@ -157,28 +155,7 @@ export function SignUp() {
               autoFocus
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              sx={{
-                mb: 3,
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: 3,
-                  transition: "all 0.3s ease",
-                  "&:hover": {
-                    transform: "translateY(-2px)",
-                    boxShadow: theme.palette.brand.shadowHover,
-                  },
-                  "&.Mui-focused": {
-                    transform: "translateY(-2px)",
-                    boxShadow: theme.palette.brand.shadowFocus,
-                  },
-                },
-              }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Email sx={{ color: "primary.main", opacity: 0.7 }} />
-                  </InputAdornment>
-                ),
-              }}
+              sx={{ mb: 3 }}
             />
 
             <Button
