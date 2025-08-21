@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { useGoogleLogin } from "@react-oauth/google";
-import { postAuthGoogle } from "../services/post-auth-google.service";
-import type { GoogleAuthResponse } from "../services/post-auth-google.service";
+import { postAuthGoogle } from "../../../services/post-auth-google.service";
+import type { GoogleAuthResponse } from "../../../services/post-auth-google.service";
 
 interface UseGoogleAuthReturn {
   loginWithGoogle: () => void;

@@ -20,7 +20,7 @@ import {
   type IPostAuthLoginParams,
 } from "../../../services/post-auth-login.service";
 import { CustomTextField } from "../../library/components/custom-text-field";
-import type { GoogleAuthResponse } from "../../../services/post-auth-google.service";
+import { useAuth } from "../../modules/access-manager/auth.hook";
 
 export function Login() {
   const [email, setEmail] = useState("");
@@ -29,6 +29,7 @@ export function Login() {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const theme = useTheme();
+  const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,8 +50,21 @@ export function Login() {
       };
       const response = await postAuthLogin(params);
       console.log("Login successful:", response.data);
-      // Login successful, redirect to signup for now (you can change this later)
-      navigate("/cadastro");
+
+      // Usar o AuthContext para fazer login
+      const user = {
+        id: response.data.user?.id || "temp-id",
+        name: response.data.user?.name || email,
+        email: response.data.user?.email || email,
+      };
+
+      login(
+        {
+          accessToken: response.data.accessToken,
+          refreshToken: response.data.refreshToken,
+        },
+        user
+      );
     } catch (err: unknown) {
       if (err && typeof err === "object" && "response" in err) {
         const axiosError = err as {
@@ -70,34 +84,6 @@ export function Login() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleGoogleAuthSuccess = (response: GoogleAuthResponse) => {
-    console.log("Google auth response:", response);
-
-    if (response.accessToken && response.refreshToken) {
-      // Usuário existente - login bem-sucedido
-      console.log("Login com Google bem-sucedido");
-      // Aqui você pode salvar os tokens e redirecionar
-      // localStorage.setItem('accessToken', response.accessToken);
-      // localStorage.setItem('refreshToken', response.refreshToken);
-      navigate("/cadastro"); // ou para onde quiser redirecionar após login
-    } else if (response.newAccount) {
-      // Usuário novo - precisa completar cadastro
-      console.log("Novo usuário Google:", response.newAccount);
-      // Aqui você pode redirecionar para completar o perfil
-      // ou salvar os dados temporariamente
-      navigate("/completar-perfil", {
-        state: {
-          googleUser: response.newAccount,
-        },
-      });
-    }
-  };
-
-  const handleGoogleAuthError = (error: string) => {
-    console.error("Erro na autenticação Google:", error);
-    setError(`Erro na autenticação Google: ${error}`);
   };
 
   const handleForgotPassword = () => {
@@ -274,11 +260,7 @@ export function Login() {
               <Divider sx={{ flex: 1 }} />
             </Box>
 
-            <GoogleButton
-              onSuccess={handleGoogleAuthSuccess}
-              onError={handleGoogleAuthError}
-              variant="login"
-            />
+            <GoogleButton variant="login" />
 
             <Box sx={{ textAlign: "center" }}>
               <Typography variant="body2" color="text.secondary">
