@@ -3,9 +3,7 @@ import type { SxProps, Theme } from "@mui/material";
 import { LocationOn } from "@mui/icons-material";
 import { useEffect, useRef, useState } from "react";
 import { Loader } from "@googlemaps/js-api-loader";
-
-// Google Maps API Key
-const GOOGLE_MAPS_API_KEY = "AIzaSyBp8wPork-ZIdEo1XOdR-83jJKl5MnRE-I";
+import { GOOGLE_CONFIG } from "../../config/google.constant";
 
 interface CityOption {
   place_id: string;
@@ -44,7 +42,7 @@ export function CitySelect({
   // Carregar Google Maps API
   useEffect(() => {
     const loader = new Loader({
-      apiKey: GOOGLE_MAPS_API_KEY,
+      apiKey: GOOGLE_CONFIG.MAPS_API_KEY,
       version: "weekly",
       libraries: ["places"],
     });

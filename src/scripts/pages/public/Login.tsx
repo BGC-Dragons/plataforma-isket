@@ -6,13 +6,12 @@ import {
   Typography,
   Link,
   Paper,
-  IconButton,
   Divider,
   useTheme,
   Alert,
   CircularProgress,
 } from "@mui/material";
-import { Visibility, VisibilityOff, ArrowForward } from "@mui/icons-material";
+import { ArrowForward } from "@mui/icons-material";
 import { useNavigate } from "react-router";
 import isketLogo from "../../../assets/isket.svg";
 import { GoogleButton } from "../../library/components/google-button";
@@ -21,11 +20,11 @@ import {
   type IPostAuthLoginParams,
 } from "../../../services/post-auth-login.service";
 import { CustomTextField } from "../../library/components/custom-text-field";
+import type { GoogleAuthResponse } from "../../../services/post-auth-google.service";
 
 export function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -73,8 +72,32 @@ export function Login() {
     }
   };
 
-  const handleGoogleLogin = () => {
-    console.log("Login com Google");
+  const handleGoogleAuthSuccess = (response: GoogleAuthResponse) => {
+    console.log("Google auth response:", response);
+
+    if (response.accessToken && response.refreshToken) {
+      // Usuário existente - login bem-sucedido
+      console.log("Login com Google bem-sucedido");
+      // Aqui você pode salvar os tokens e redirecionar
+      // localStorage.setItem('accessToken', response.accessToken);
+      // localStorage.setItem('refreshToken', response.refreshToken);
+      navigate("/cadastro"); // ou para onde quiser redirecionar após login
+    } else if (response.newAccount) {
+      // Usuário novo - precisa completar cadastro
+      console.log("Novo usuário Google:", response.newAccount);
+      // Aqui você pode redirecionar para completar o perfil
+      // ou salvar os dados temporariamente
+      navigate("/completar-perfil", {
+        state: {
+          googleUser: response.newAccount,
+        },
+      });
+    }
+  };
+
+  const handleGoogleAuthError = (error: string) => {
+    console.error("Erro na autenticação Google:", error);
+    setError(`Erro na autenticação Google: ${error}`);
   };
 
   const handleForgotPassword = () => {
@@ -177,8 +200,8 @@ export function Login() {
             <CustomTextField
               required
               fullWidth
-              name="password"
               label="Senha"
+              name="password"
               id="password"
               autoComplete="current-password"
               value={password}
@@ -251,7 +274,11 @@ export function Login() {
               <Divider sx={{ flex: 1 }} />
             </Box>
 
-            <GoogleButton onClick={handleGoogleLogin} variant="login" />
+            <GoogleButton
+              onSuccess={handleGoogleAuthSuccess}
+              onError={handleGoogleAuthError}
+              variant="login"
+            />
 
             <Box sx={{ textAlign: "center" }}>
               <Typography variant="body2" color="text.secondary">

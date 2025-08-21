@@ -16,6 +16,7 @@ import isketLogo from "../../../assets/isket.svg";
 import { GoogleButton } from "../../library/components/google-button";
 import { postAuthSendVerificationCode } from "../../../services/post-auth-send-verification-code.service";
 import { CustomTextField } from "../../library/components/custom-text-field";
+import type { GoogleAuthResponse } from "../../../services/post-auth-google.service";
 
 export function SignUp() {
   const [email, setEmail] = useState("");
@@ -53,9 +54,32 @@ export function SignUp() {
     }
   };
 
-  const handleGoogleSignUp = () => {
-    // Redirecionar para completar perfil após Google
-    navigate("/complete-profile");
+  const handleGoogleAuthSuccess = (response: GoogleAuthResponse) => {
+    console.log("Google auth response:", response);
+
+    if (response.accessToken && response.refreshToken) {
+      // Usuário existente - login bem-sucedido
+      console.log("Login com Google bem-sucedido");
+      // Aqui você pode salvar os tokens e redirecionar
+      // localStorage.setItem('accessToken', response.accessToken);
+      // localStorage.setItem('refreshToken', response.refreshToken);
+      navigate("/cadastro"); // ou para onde quiser redirecionar após login
+    } else if (response.newAccount) {
+      // Usuário novo - precisa completar cadastro
+      console.log("Novo usuário Google:", response.newAccount);
+      // Aqui você pode redirecionar para completar o perfil
+      // ou salvar os dados temporariamente
+      navigate("/completar-perfil", {
+        state: {
+          googleUser: response.newAccount,
+        },
+      });
+    }
+  };
+
+  const handleGoogleAuthError = (error: string) => {
+    console.error("Erro na autenticação Google:", error);
+    setError(`Erro na autenticação Google: ${error}`);
   };
 
   return (
@@ -195,7 +219,11 @@ export function SignUp() {
               <Divider sx={{ flex: 1 }} />
             </Box>
 
-            <GoogleButton onClick={handleGoogleSignUp} variant="signup" />
+            <GoogleButton
+              onSuccess={handleGoogleAuthSuccess}
+              onError={handleGoogleAuthError}
+              variant="signup"
+            />
 
             <Box sx={{ textAlign: "center", mt: 3 }}>
               <Typography variant="body2" color="text.secondary">
