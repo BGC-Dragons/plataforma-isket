@@ -8,9 +8,10 @@ import { CompleteSignUp } from "../../pages/public/CompleteSignUp";
 import { Error404 } from "../../pages/public/Error404";
 import { AccessManager } from "../../modules/access-manager/access-manager.component";
 import { AuthProvider } from "../../modules/access-manager/auth.context";
-import { useAuth } from "../../modules/access-manager/auth.hook";
+import { PrivateLayout } from "../../library/components/private-layout";
 import { Button, Box, Typography, Paper, useTheme } from "@mui/material";
 import { Logout } from "@mui/icons-material";
+import { useAuth } from "../../modules/access-manager/auth.hook";
 
 // Página temporária do Dashboard
 function DashboardPage() {
@@ -18,92 +19,218 @@ function DashboardPage() {
   const theme = useTheme();
 
   return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        background: theme.palette.brand.background,
-        padding: "2rem",
-      }}
-    >
-      <Paper
-        elevation={8}
-        sx={{
-          padding: "3rem",
-          textAlign: "center",
-          borderRadius: 4,
-          background: theme.palette.brand.surface,
-          border: `1px solid ${theme.palette.brand.border}`,
-          boxShadow: theme.palette.brand.shadow,
-        }}
-      >
-        <Typography
-          variant="h3"
-          gutterBottom
-          sx={{ color: theme.palette.brand.primary }}
-        >
-          Dashboard
-        </Typography>
-
-        <Typography
-          variant="h6"
-          gutterBottom
-          sx={{ color: theme.palette.brand.dark, mb: 3 }}
-        >
-          Bem-vindo ao seu painel de controle!
-        </Typography>
-
-        <Typography variant="body1" sx={{ color: "text.secondary", mb: 4 }}>
-          Esta é uma página temporária. Implemente o dashboard real aqui.
-        </Typography>
-
-        {/* Informações do usuário */}
-        {store.user && (
-          <Box
-            sx={{ mb: 4, p: 2, bgcolor: "background.paper", borderRadius: 2 }}
-          >
-            <Typography
-              variant="h6"
-              gutterBottom
-              sx={{ color: theme.palette.brand.secondary }}
-            >
-              Informações do Usuário
-            </Typography>
-            <Typography variant="body2" sx={{ color: "text.secondary" }}>
-              <strong>Nome:</strong> {store.user.name}
-            </Typography>
-            <Typography variant="body2" sx={{ color: "text.secondary" }}>
-              <strong>Email:</strong> {store.user.email}
-            </Typography>
-            <Typography variant="body2" sx={{ color: "text.secondary" }}>
-              <strong>ID:</strong> {store.user.id}
-            </Typography>
-          </Box>
-        )}
-
-        {/* Botão de Logout */}
-        <Button
-          variant="contained"
-          size="large"
-          startIcon={<Logout />}
-          onClick={logout}
+    <PrivateLayout>
+      <Box sx={{ maxWidth: "1200px", mx: "auto" }}>
+        <Paper
+          elevation={8}
           sx={{
-            py: 1.5,
-            px: 4,
-            borderRadius: 3,
-            background: theme.palette.brand.gradient,
-            boxShadow: theme.palette.brand.shadowButton,
-            transition: "all 0.3s ease",
-            "&:hover": {
-              background: theme.palette.brand.gradientHover,
-              transform: "translateY(-2px)",
-              boxShadow: theme.palette.brand.shadowButtonHover,
-            },
+            padding: "3rem",
+            textAlign: "center",
+            borderRadius: 4,
+            background: theme.palette.background.paper,
+            border: `1px solid ${theme.palette.divider}`,
+            boxShadow: theme.shadows[8],
           }}
         >
-          Fazer Logout
-        </Button>
-      </Paper>
-    </Box>
+          <Typography
+            variant="h3"
+            gutterBottom
+            sx={{ color: theme.palette.primary.main }}
+          >
+            Dashboard
+          </Typography>
+          <Typography
+            variant="h6"
+            gutterBottom
+            sx={{ color: theme.palette.text.primary, mb: 3 }}
+          >
+            Bem-vindo ao seu painel de controle!
+          </Typography>
+          <Typography variant="body1" sx={{ color: "text.secondary", mb: 4 }}>
+            Esta é uma página temporária. Implemente o dashboard real aqui.
+          </Typography>
+          {store.user && (
+            <Box
+              sx={{ mb: 4, p: 2, bgcolor: "background.paper", borderRadius: 2 }}
+            >
+              <Typography
+                variant="h6"
+                gutterBottom
+                sx={{ color: theme.palette.secondary.main }}
+              >
+                Informações do Usuário
+              </Typography>
+              <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                <strong>Nome:</strong> {store.user.name}
+              </Typography>
+              <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                <strong>Email:</strong> {store.user.email}
+              </Typography>
+              <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                <strong>ID:</strong> {store.user.id}
+              </Typography>
+            </Box>
+          )}
+          <Button
+            variant="contained"
+            size="large"
+            startIcon={<Logout />}
+            onClick={logout}
+            sx={{
+              py: 1.5,
+              px: 4,
+              borderRadius: 3,
+              background: theme.palette.primary.main,
+              boxShadow: theme.shadows[4],
+              transition: "all 0.3s ease",
+              "&:hover": {
+                background: theme.palette.primary.dark,
+                transform: "translateY(-2px)",
+                boxShadow: theme.shadows[8],
+              },
+            }}
+          >
+            Fazer Logout
+          </Button>
+        </Paper>
+      </Box>
+    </PrivateLayout>
+  );
+}
+
+// Páginas temporárias para as rotas do menu
+function AnalisesPage() {
+  return (
+    <PrivateLayout>
+      <Box sx={{ maxWidth: "1200px", mx: "auto" }}>
+        <Paper
+          elevation={8}
+          sx={{
+            padding: "3rem",
+            textAlign: "center",
+            borderRadius: 4,
+            background: "background.paper",
+            border: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          <Typography variant="h3" gutterBottom>
+            📊 Análises
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Página de análises em desenvolvimento...
+          </Typography>
+        </Paper>
+      </Box>
+    </PrivateLayout>
+  );
+}
+
+function PesquisarAnunciosPage() {
+  return (
+    <PrivateLayout>
+      <Box sx={{ maxWidth: "1200px", mx: "auto" }}>
+        <Paper
+          elevation={8}
+          sx={{
+            padding: "3rem",
+            textAlign: "center",
+            borderRadius: 4,
+            background: "background.paper",
+            border: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          <Typography variant="h3" gutterBottom>
+            🔍 Pesquisar Anúncios
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Página de pesquisa de anúncios em desenvolvimento...
+          </Typography>
+        </Paper>
+      </Box>
+    </PrivateLayout>
+  );
+}
+
+function CaptacaoPage() {
+  return (
+    <PrivateLayout>
+      <Box sx={{ maxWidth: "1200px", mx: "auto" }}>
+        <Paper
+          elevation={8}
+          sx={{
+            padding: "3rem",
+            textAlign: "center",
+            borderRadius: 4,
+            background: "background.paper",
+            border: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          <Typography variant="h3" gutterBottom>
+            👥 Captação
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Página de captação em desenvolvimento...
+          </Typography>
+        </Paper>
+      </Box>
+    </PrivateLayout>
+  );
+}
+
+function AvaliacaoPage() {
+  return (
+    <PrivateLayout>
+      <Box sx={{ maxWidth: "1200px", mx: "auto" }}>
+        <Paper
+          elevation={8}
+          sx={{
+            padding: "3rem",
+            textAlign: "center",
+            borderRadius: 4,
+            background: "background.paper",
+            border: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          <Typography variant="h3" gutterBottom>
+            ⭐ Avaliação
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Página de avaliação em desenvolvimento...
+          </Typography>
+        </Paper>
+      </Box>
+    </PrivateLayout>
+  );
+}
+
+function ConfiguracoesPage() {
+  return (
+    <PrivateLayout>
+      <Box sx={{ maxWidth: "1200px", mx: "auto" }}>
+        <Paper
+          elevation={8}
+          sx={{
+            padding: "3rem",
+            textAlign: "center",
+            borderRadius: 4,
+            background: "background.paper",
+            border: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          <Typography variant="h3" gutterBottom>
+            ⚙️ Configurações
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Página de configurações em desenvolvimento...
+          </Typography>
+        </Paper>
+      </Box>
+    </PrivateLayout>
   );
 }
 
@@ -118,12 +245,48 @@ export function AppRouter() {
           <Route path="/complete-profile" element={<CompleteProfile />} />
           <Route path="/email-verification" element={<EmailVerification />} />
           <Route path="/complete-signup" element={<CompleteSignUp />} />
+
+          {/* Rotas Privadas */}
           <Route
             path="/dashboard"
             element={
               <AccessManager component={DashboardPage} requireAuth={true} />
             }
           />
+          <Route
+            path="/analises"
+            element={
+              <AccessManager component={AnalisesPage} requireAuth={true} />
+            }
+          />
+          <Route
+            path="/pesquisar-anuncios"
+            element={
+              <AccessManager
+                component={PesquisarAnunciosPage}
+                requireAuth={true}
+              />
+            }
+          />
+          <Route
+            path="/captacao"
+            element={
+              <AccessManager component={CaptacaoPage} requireAuth={true} />
+            }
+          />
+          <Route
+            path="/avaliacao"
+            element={
+              <AccessManager component={AvaliacaoPage} requireAuth={true} />
+            }
+          />
+          <Route
+            path="/configuracoes"
+            element={
+              <AccessManager component={ConfiguracoesPage} requireAuth={true} />
+            }
+          />
+
           <Route path="*" element={<Error404 />} />
         </Routes>
       </AuthProvider>
