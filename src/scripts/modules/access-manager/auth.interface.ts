@@ -19,7 +19,7 @@ export interface IAuth {
     user: IAuthUser,
     redirect?: string
   ) => void;
-  loginWithGoogle: (googleResponse: any) => Promise<void>;
+  loginWithGoogle: (googleResponse: Record<string, unknown>) => Promise<void>;
   isLogged: boolean;
   logout: () => void;
   refreshAuth: () => Promise<void>;

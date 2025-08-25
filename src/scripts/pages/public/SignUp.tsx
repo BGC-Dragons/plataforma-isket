@@ -16,7 +16,6 @@ import isketLogo from "../../../assets/isket.svg";
 import { GoogleButton } from "../../library/components/google-button";
 import { postAuthSendVerificationCode } from "../../../services/post-auth-send-verification-code.service";
 import { CustomTextField } from "../../library/components/custom-text-field";
-import { useAuth } from "../../modules/access-manager/auth.hook";
 
 export function SignUp() {
   const [email, setEmail] = useState("");

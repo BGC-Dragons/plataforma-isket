@@ -1,19 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { postAuthGoogle } from "../../../services/post-auth-google.service";
-import { createRequiredContext } from "../../library/helpers/create-required-context.function";
-import type { IAuth, IAuthStore, IAuthUser } from "./auth.interface";
-
-const [AuthContext] = createRequiredContext<IAuth>();
-
-// Exportar o contexto para uso no hook
-export { AuthContext };
+import { postAuthRefreshToken } from "../../../services/post-auth-refresh-token.service";
+import { setupAxiosInterceptors } from "../../../services/helpers/axios-interceptor.function";
+import type { IAuthStore, IAuthUser } from "./auth.interface";
+import type { IAuth } from "./auth-context.types";
+import { AuthContext } from "./auth-context-definition";
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const navigate = useNavigate();
-
   const [store, setStore] = useState<IAuthStore>({
     token: localStorage.getItem("auth_token") || null,
     refreshToken: localStorage.getItem("auth_refresh_token") || null,
@@ -22,54 +19,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       : null,
   });
 
-  // Usar o estado diretamente para isLogged
-  const isLogged = !!store.token;
+  // Configurar interceptors do Axios
+  useEffect(() => {
+    setupAxiosInterceptors();
+  }, []);
 
   const handleUpdateStore = useCallback(
     (
       user: IAuthUser | null,
-      tokens: { accessToken: string; refreshToken: string },
+      accessToken: string,
+      refreshToken: string,
       fromLocalStorage = false
     ) => {
       if (!fromLocalStorage) {
         localStorage.setItem("auth_user", JSON.stringify(user));
-        localStorage.setItem("auth_token", tokens.accessToken);
-        localStorage.setItem("auth_refresh_token", tokens.refreshToken);
+        localStorage.setItem("auth_token", accessToken);
+        localStorage.setItem("auth_refresh_token", refreshToken);
       }
 
-      setStore((prevStore) => ({
-        ...prevStore,
-        token: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
+      setStore((store) => ({
+        ...store,
+        token: accessToken,
+        refreshToken: refreshToken,
         user,
       }));
     },
     []
   );
 
-  // Verificar se há tokens salvos ao inicializar
+  // Inicializar estado do localStorage
   useEffect(() => {
+    const user = localStorage.getItem("auth_user");
     const token = localStorage.getItem("auth_token");
     const refreshToken = localStorage.getItem("auth_refresh_token");
-    const user = localStorage.getItem("auth_user");
 
-    if (token && refreshToken && user) {
-      const userData = JSON.parse(user);
-      handleUpdateStore(userData, { accessToken: token, refreshToken }, true);
+    if (user && token && refreshToken) {
+      const parsedUser = JSON.parse(user);
+      handleUpdateStore(parsedUser, token, refreshToken, true);
     }
   }, [handleUpdateStore]);
 
   const login = useCallback(
     (
       tokens: { accessToken: string; refreshToken: string },
-      user: IAuthUser,
-      redirect = ""
+      user: IAuthUser
     ) => {
-      handleUpdateStore(user, tokens);
-
-      // Redirecionar para a página desejada ou para o dashboard
-      const targetPath = redirect || "/dashboard";
-      navigate(targetPath);
+      handleUpdateStore(user, tokens.accessToken, tokens.refreshToken);
+      navigate("/dashboard");
     },
     [handleUpdateStore, navigate]
   );
@@ -85,10 +81,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
         if (authResponse.accessToken && authResponse.refreshToken) {
           // Usuário existente - login bem-sucedido
+          // O backend deve retornar os dados reais do usuário
           const user: IAuthUser = {
-            id: "temp-id", // O backend deve retornar o ID real
-            name: "Usuário Google",
-            email: "user@google.com",
+            id: authResponse.user?.id || "temp-id",
+            name: authResponse.user?.name || "Usuário Google",
+            email: authResponse.user?.email || "",
+            picture: authResponse.user?.picture,
+            sub: authResponse.user?.sub,
           };
 
           login(
@@ -115,27 +114,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const logout = useCallback(() => {
-    // Limpar estado local
     setStore({
       token: null,
       refreshToken: null,
       user: null,
     });
-
-    // Limpar localStorage
     localStorage.removeItem("auth_token");
     localStorage.removeItem("auth_refresh_token");
     localStorage.removeItem("auth_user");
-
-    // Redirecionar para a página inicial
     navigate("/");
   }, [navigate]);
 
-  const refreshAuth = useCallback(async () => {
-    // Implementar refresh de token se necessário
-    // Por enquanto, apenas retorna
-    return Promise.resolve();
-  }, []);
+  const refreshAuth = useCallback(async (): Promise<boolean> => {
+    try {
+      if (!store.refreshToken) {
+        return false;
+      }
+
+      const response = await postAuthRefreshToken({
+        refreshToken: store.refreshToken,
+      });
+
+      // Atualizar tokens
+      handleUpdateStore(
+        store.user,
+        response.data.accessToken,
+        response.data.refreshToken
+      );
+
+      return true;
+    } catch (error) {
+      console.error("Erro ao renovar token:", error);
+      logout();
+      return false;
+    }
+  }, [store.refreshToken, store.user, handleUpdateStore, logout]);
+
+  const isLogged = !!store.token;
 
   const value = useMemo((): IAuth => {
     return {

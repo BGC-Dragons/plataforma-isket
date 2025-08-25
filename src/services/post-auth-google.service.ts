@@ -11,6 +11,13 @@ export interface GoogleAuthRequest {
 export interface GoogleAuthResponse {
   accessToken?: string;
   refreshToken?: string;
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+    picture?: string;
+    sub?: string;
+  };
   newAccount?: {
     name: string;
     picture: string;

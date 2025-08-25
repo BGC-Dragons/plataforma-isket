@@ -19,6 +19,7 @@ import {
   postAuthLogin,
   type IPostAuthLoginParams,
 } from "../../../services/post-auth-login.service";
+import { getAuthMe } from "../../../services/get-auth-me.service";
 import { CustomTextField } from "../../library/components/custom-text-field";
 import { useAuth } from "../../modules/access-manager/auth.hook";
 
@@ -49,22 +50,45 @@ export function Login() {
         pass: password,
       };
       const response = await postAuthLogin(params);
-      console.log("Login successful:", response.data);
 
-      // Usar o AuthContext para fazer login
-      const user = {
-        id: response.data.user?.id || "temp-id",
-        name: response.data.user?.name || email,
-        email: response.data.user?.email || email,
-      };
+      // Se o login for bem-sucedido, buscar dados do usuário e fazer login
+      if (response.data.accessToken && response.data.refreshToken) {
+        try {
+          // Buscar dados do usuário usando o token
+          const userResponse = await getAuthMe(response.data.accessToken);
 
-      login(
-        {
-          accessToken: response.data.accessToken,
-          refreshToken: response.data.refreshToken,
-        },
-        user
-      );
+          const user = {
+            id: userResponse.data.id,
+            name: userResponse.data.name,
+            email: userResponse.data.email || email, // Fallback para email do formulário
+          };
+
+          login(
+            {
+              accessToken: response.data.accessToken,
+              refreshToken: response.data.refreshToken,
+            },
+            user
+          );
+        } catch (userError) {
+          console.error("Erro ao buscar dados do usuário:", userError);
+
+          // Fallback: usar dados do formulário
+          const user = {
+            id: email,
+            name: email.split("@")[0],
+            email: email,
+          };
+
+          login(
+            {
+              accessToken: response.data.accessToken,
+              refreshToken: response.data.refreshToken,
+            },
+            user
+          );
+        }
+      }
     } catch (err: unknown) {
       if (err && typeof err === "object" && "response" in err) {
         const axiosError = err as {

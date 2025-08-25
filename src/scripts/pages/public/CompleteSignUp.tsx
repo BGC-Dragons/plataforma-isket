@@ -14,6 +14,9 @@ import isketLogo from "../../../assets/isket.svg";
 import { CitySelect } from "../../library/components/city-select";
 import { CustomTextField } from "../../library/components/custom-text-field";
 import { postAuthRegister } from "../../../services/post-auth-register.service";
+import { postAuthLogin } from "../../../services/post-auth-login.service";
+import { getAuthMe } from "../../../services/get-auth-me.service";
+import { useAuth } from "../../modules/access-manager/auth.hook";
 
 export function CompleteSignUp() {
   const [name, setName] = useState("");
@@ -27,6 +30,7 @@ export function CompleteSignUp() {
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
+  const { login } = useAuth();
 
   // Verificar se veio da verificação de email
   const isFromEmailVerification = location.state?.isEmailVerified;
@@ -62,7 +66,7 @@ export function CompleteSignUp() {
 
     try {
       // Chamar API de registro
-      const response = await postAuthRegister({
+      await postAuthRegister({
         name: name.trim(),
         email: email.trim(),
         password,
@@ -71,14 +75,62 @@ export function CompleteSignUp() {
         // Campos opcionais podem ser adicionados aqui
       });
 
-      console.log("Registro realizado com sucesso:", response.data);
+      // Após registro bem-sucedido, fazer login automático
+      try {
+        const loginResponse = await postAuthLogin({
+          authenticator: email.trim(),
+          pass: password,
+        });
 
-      // Redirecionar para login após sucesso
-      navigate("/", {
-        state: {
-          message: "Conta criada com sucesso! Faça login para continuar.",
-        },
-      });
+        if (loginResponse.data.accessToken && loginResponse.data.refreshToken) {
+          try {
+            // Buscar dados do usuário usando o token
+            const userResponse = await getAuthMe(
+              loginResponse.data.accessToken
+            );
+
+            const user = {
+              id: userResponse.data.id,
+              name: userResponse.data.name,
+              email: userResponse.data.email || email.trim(),
+            };
+
+            // Fazer login automático e redirecionar para o dashboard
+            login(
+              {
+                accessToken: loginResponse.data.accessToken,
+                refreshToken: loginResponse.data.refreshToken,
+              },
+              user
+            );
+          } catch (userError) {
+            console.error("Erro ao buscar dados do usuário:", userError);
+
+            // Fallback: usar dados do formulário
+            const user = {
+              id: email.trim(),
+              name: name.trim(),
+              email: email.trim(),
+            };
+
+            login(
+              {
+                accessToken: loginResponse.data.accessToken,
+                refreshToken: loginResponse.data.refreshToken,
+              },
+              user
+            );
+          }
+        }
+      } catch (loginError) {
+        console.error("Erro no login automático:", loginError);
+        // Se falhar o login automático, redirecionar para login com mensagem
+        navigate("/", {
+          state: {
+            message: "Conta criada com sucesso! Faça login para continuar.",
+          },
+        });
+      }
     } catch (err: unknown) {
       // Tratar erros específicos da API
       if (err && typeof err === "object" && "response" in err) {
@@ -261,7 +313,9 @@ export function CompleteSignUp() {
               }}
               endIcon={<PersonAdd />}
             >
-              {isSubmitting ? "Criando conta..." : "Criar conta"}
+              {isSubmitting
+                ? "Criando conta e fazendo login..."
+                : "Criar conta e entrar"}
             </Button>
           </Box>
         </Paper>
