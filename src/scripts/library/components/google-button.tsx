@@ -1,8 +1,7 @@
 import { Button, CircularProgress, Alert } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { useGoogleLogin } from "@react-oauth/google";
+import { useGoogleAuth } from "../hooks/useGoogleAuth";
 import { useAuth } from "../../modules/access-manager/auth.hook";
-import { useState } from "react";
 import googleLogo from "../../../assets/google.svg";
 
 interface GoogleButtonProps {
@@ -17,39 +16,26 @@ export function GoogleButton({
   variant = "login",
 }: GoogleButtonProps) {
   const theme = useTheme();
-  const { loginWithGoogle } = useAuth();
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { loginWithGoogle: authLoginWithGoogle } = useAuth();
 
-  const googleLogin = useGoogleLogin({
-    onSuccess: async (response: { access_token: string }) => {
+  const { loginWithGoogle, isLoading, error, clearError } = useGoogleAuth(
+    async (response: { code: string }) => {
       try {
-        setIsLoading(true);
-        setError(null);
-        await loginWithGoogle(response);
+        await authLoginWithGoogle(response);
       } catch (err) {
-        const errorMessage =
-          err instanceof Error
-            ? err.message
-            : "Erro na autenticação com Google";
-        setError(errorMessage);
-      } finally {
-        setIsLoading(false);
+        // O erro será tratado pelo hook useGoogleAuth
+        throw err;
       }
     },
-    onError: () => {
-      const errorMessage = "Erro ao fazer login com Google";
-      setError(errorMessage);
-    },
-    flow: "implicit",
-  });
+    (errorMessage: string) => {
+      // Tratamento de erro já está no hook
+    }
+  );
 
   const getButtonText = () => {
     if (text) return text;
     return variant === "login" ? "Entrar com Google" : "Cadastrar com Google";
   };
-
-  const clearError = () => setError(null);
 
   return (
     <>
@@ -66,7 +52,7 @@ export function GoogleButton({
       <Button
         fullWidth={fullWidth}
         variant="outlined"
-        onClick={() => googleLogin()}
+        onClick={() => loginWithGoogle()}
         disabled={isLoading}
         sx={{
           mb: 3,

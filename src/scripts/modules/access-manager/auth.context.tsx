@@ -62,22 +62,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const login = useCallback(
     (
       tokens: { accessToken: string; refreshToken: string },
-      user: IAuthUser
+      user: IAuthUser,
+      redirect?: string
     ) => {
       handleUpdateStore(user, tokens.accessToken, tokens.refreshToken);
-      navigate("/dashboard");
+      navigate(redirect || "/dashboard");
     },
     [handleUpdateStore, navigate]
   );
 
   const loginWithGoogle = useCallback(
-    async (googleResponse: { access_token: string }) => {
+    async (googleResponse: { code: string }) => {
       try {
-        // Extrair o access token da resposta do Google
-        const accessToken = googleResponse.access_token;
+        // Extrair o code da resposta do Google
+        const code = googleResponse.code;
 
-        // Chamar o backend com o access token
-        const authResponse = await postAuthGoogle({ accessToken });
+        // Chamar o backend com o code
+        const authResponse = await postAuthGoogle({ code });
 
         if (authResponse.accessToken && authResponse.refreshToken) {
           // Usuário existente - login bem-sucedido
@@ -122,7 +123,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.removeItem("auth_token");
     localStorage.removeItem("auth_refresh_token");
     localStorage.removeItem("auth_user");
-    navigate("/");
+    navigate("/login"); // Redirect to login page
   }, [navigate]);
 
   const refreshAuth = useCallback(async (): Promise<boolean> => {

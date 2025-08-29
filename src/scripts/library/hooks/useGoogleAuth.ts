@@ -1,7 +1,5 @@
 import { useCallback, useState } from "react";
 import { useGoogleLogin } from "@react-oauth/google";
-import { postAuthGoogle } from "../../../services/post-auth-google.service";
-import type { GoogleAuthResponse } from "../../../services/post-auth-google.service";
 
 interface UseGoogleAuthReturn {
   loginWithGoogle: () => void;
@@ -11,7 +9,7 @@ interface UseGoogleAuthReturn {
 }
 
 export const useGoogleAuth = (
-  onSuccess: (response: GoogleAuthResponse) => void,
+  onSuccess: (response: { code: string }) => void,
   onError?: (error: string) => void
 ): UseGoogleAuthReturn => {
   const [isLoading, setIsLoading] = useState(false);
@@ -22,19 +20,13 @@ export const useGoogleAuth = (
   }, []);
 
   const handleGoogleSuccess = useCallback(
-    async (response: { access_token: string }) => {
+    async (response: { code: string }) => {
       try {
         setIsLoading(true);
         setError(null);
 
-        // Extrair o access token da resposta do Google
-        const accessToken = response.access_token;
-
-        // Chamar o backend com o access token
-        const authResponse = await postAuthGoogle({ accessToken });
-
-        // Chamar callback de sucesso
-        onSuccess(authResponse);
+        // Chamar callback de sucesso com o code
+        onSuccess(response);
       } catch (err) {
         const errorMessage =
           err instanceof Error
@@ -56,7 +48,7 @@ export const useGoogleAuth = (
       setError(errorMessage);
       onError?.(errorMessage);
     },
-    flow: "implicit",
+    flow: "auth-code", // Mudança para fluxo de autorização
   });
 
   return {

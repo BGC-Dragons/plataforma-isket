@@ -2,10 +2,8 @@ import axios from "axios";
 import { getHeader } from "./helpers/get-header-function";
 import { endpoints } from "./helpers/endpoint.constant";
 
-export interface GoogleAuthRequest {
-  code?: string;
-  idToken?: string;
-  accessToken?: string;
+export interface IPostAuthGoogleParams {
+  code: string;
 }
 
 export interface GoogleAuthResponse {
@@ -27,7 +25,7 @@ export interface GoogleAuthResponse {
 }
 
 export const postAuthGoogle = async (
-  data: GoogleAuthRequest
+  data: IPostAuthGoogleParams
 ): Promise<GoogleAuthResponse> => {
   try {
     const response = await axios.post<GoogleAuthResponse>(

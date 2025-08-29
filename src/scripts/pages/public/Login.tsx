@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Box,
   Button,
@@ -12,7 +12,7 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { ArrowForward } from "@mui/icons-material";
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import isketLogo from "../../../assets/isket.svg";
 import { GoogleButton } from "../../library/components/google-button";
 import {
@@ -29,8 +29,27 @@ export function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const location = useLocation();
   const theme = useTheme();
   const { login } = useAuth();
+
+  // Verificar se há redirecionamento
+  const redirectTo = location.search.includes("redirect=")
+    ? new URLSearchParams(location.search).get("redirect")
+    : "/dashboard";
+
+  // Verificar se há mensagem de sucesso
+  const successMessage = location.state?.message;
+
+  useEffect(() => {
+    if (successMessage) {
+      // Mostrar mensagem de sucesso temporariamente
+      setTimeout(() => {
+        // Limpar a mensagem após 5 segundos
+        navigate(location.pathname, { replace: true });
+      }, 5000);
+    }
+  }, [successMessage, navigate, location.pathname]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,7 +87,8 @@ export function Login() {
               accessToken: response.data.accessToken,
               refreshToken: response.data.refreshToken,
             },
-            user
+            user,
+            redirectTo || undefined
           );
         } catch (userError) {
           console.error("Erro ao buscar dados do usuário:", userError);
@@ -190,8 +210,14 @@ export function Login() {
 
           <Box component="form" onSubmit={handleSubmit} sx={{ width: "100%" }}>
             {error && (
-              <Alert severity="error" sx={{ mb: 2 }}>
+              <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
                 {error}
+              </Alert>
+            )}
+
+            {successMessage && (
+              <Alert severity="success" sx={{ mb: 3, borderRadius: 2 }}>
+                {successMessage}
               </Alert>
             )}
             <CustomTextField

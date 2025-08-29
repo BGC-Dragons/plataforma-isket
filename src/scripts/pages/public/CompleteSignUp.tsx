@@ -125,7 +125,7 @@ export function CompleteSignUp() {
       } catch (loginError) {
         console.error("Erro no login automático:", loginError);
         // Se falhar o login automático, redirecionar para login com mensagem
-        navigate("/", {
+        navigate("/login", {
           state: {
             message: "Conta criada com sucesso! Faça login para continuar.",
           },

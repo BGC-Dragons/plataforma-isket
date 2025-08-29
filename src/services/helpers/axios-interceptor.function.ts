@@ -63,8 +63,7 @@ export const setupAxiosInterceptors = () => {
         if (!refreshToken) {
           processQueue(new Error("Sem refresh token"), null);
           isRefreshing = false;
-          // Redirecionar para login
-          window.location.href = "/";
+          window.location.href = "/login"; // Redirect to login
           return Promise.reject(error);
         }
 
@@ -94,7 +93,7 @@ export const setupAxiosInterceptors = () => {
           localStorage.removeItem("auth_refresh_token");
           localStorage.removeItem("auth_user");
 
-          window.location.href = "/";
+          window.location.href = "/login"; // Redirect to login
           return Promise.reject(refreshError);
         } finally {
           isRefreshing = false;

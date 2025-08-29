@@ -239,7 +239,8 @@ export function AppRouter() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          <Route path="/" element={<Login />} />
+          <Route path="/" element={<DashboardPage />} />
+          <Route path="/login" element={<Login />} />
           <Route path="/esqueceu-senha" element={<ForgotPassword />} />
           <Route path="/cadastro" element={<SignUp />} />
           <Route path="/complete-profile" element={<CompleteProfile />} />

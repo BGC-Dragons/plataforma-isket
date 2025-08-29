@@ -16,7 +16,7 @@ const configEndpoints: Record<
     api: "https://api-staging.isket.com.br",
   },
   prod: {
-    api: "https://api.isket.com.br/auth/login",
+    api: "https://api.isket.com.br",
   },
 };
 

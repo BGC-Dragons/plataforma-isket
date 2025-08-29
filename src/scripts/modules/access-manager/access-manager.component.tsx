@@ -21,7 +21,7 @@ export const AccessManager: React.FC<AccessManagerProps> = ({
 
     // Se requer autenticação mas não está logado, redireciona para a página inicial
     case requireAuth && !isLogged:
-      return <Navigate to={`/?redirect=${pathname + search}`} replace />;
+      return <Navigate to={`/login?redirect=${pathname + search}`} replace />; // Redirect to login
 
     // Se passou por todas as validações, renderiza o componente
     default:
