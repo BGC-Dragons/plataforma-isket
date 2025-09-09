@@ -1,4 +1,5 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router";
 import {
   Box,
   Button,
@@ -9,46 +10,118 @@ import {
   useTheme,
   Alert,
   CircularProgress,
+  InputAdornment,
+  IconButton,
 } from "@mui/material";
-import { ArrowBack, Send } from "@mui/icons-material";
-import { useNavigate } from "react-router";
+import {
+  Visibility,
+  VisibilityOff,
+  ArrowBack,
+  Lock,
+} from "@mui/icons-material";
 import isketLogo from "../../../assets/isket.svg";
 import { CustomTextField } from "../../library/components/custom-text-field";
-import { postAuthRecoveryPassword } from "../../../services/post-auth-recovery-password.service";
+import { postAuthVerifyChangePassword } from "../../../services/post-auth-verify-change-password.service";
 
-export function ForgotPassword() {
-  const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
+export const ResetPassword: React.FC = () => {
+  const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
   const theme = useTheme();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const [formData, setFormData] = useState({
+    password: "",
+    confirmPassword: "",
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    if (!token) {
+      navigate("/login");
+    }
+  }, [token, navigate]);
+
+  const handleInputChange =
+    (field: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
+      setFormData((prev) => ({
+        ...prev,
+        [field]: event.target.value,
+      }));
+      setError("");
+    };
+
+  const validatePassword = (password: string): string[] => {
+    const errors: string[] = [];
+
+    if (password.length < 8) {
+      errors.push("Mínimo 8 caracteres");
+    }
+    if (!/[a-z]/.test(password)) {
+      errors.push("Pelo menos 1 letra minúscula");
+    }
+    if (!/[A-Z]/.test(password)) {
+      errors.push("Pelo menos 1 letra maiúscula");
+    }
+    if (!/\d/.test(password)) {
+      errors.push("Pelo menos 1 número");
+    }
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+      errors.push("Pelo menos 1 caractere especial");
+    }
+
+    return errors;
+  };
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setError("");
+
+    if (!token) {
+      setError("Token inválido");
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setError("As senhas não coincidem");
+      return;
+    }
+
+    const passwordErrors = validatePassword(formData.password);
+    if (passwordErrors.length > 0) {
+      setError(`Senha deve ter: ${passwordErrors.join(", ")}`);
+      return;
+    }
+
     setLoading(true);
 
     try {
-      await postAuthRecoveryPassword({ email });
-      setSuccess(true);
-    } catch (error: any) {
-      console.error("Erro ao solicitar recuperação:", error);
+      await postAuthVerifyChangePassword({
+        token,
+        password: formData.password,
+      });
 
-      if (error.response?.status === 404) {
-        setError("Nenhuma conta encontrada com este email");
-      } else if (error.response?.status === 503) {
-        setError("Falha no envio do email. Tente novamente mais tarde");
+      setSuccess(true);
+      setTimeout(() => {
+        navigate("/login");
+      }, 2000);
+    } catch (error: any) {
+      console.error("Erro ao redefinir senha:", error);
+
+      if (error.response?.status === 400) {
+        setError("A nova senha deve ser diferente da senha atual");
+      } else if (error.response?.status === 403) {
+        setError("Token inválido ou expirado");
+      } else if (error.response?.status === 404) {
+        setError("Usuário não encontrado");
       } else {
-        setError("Erro ao enviar email de recuperação. Tente novamente");
+        setError("Erro ao redefinir senha. Tente novamente.");
       }
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleBackToLogin = () => {
-    navigate("/login");
   };
 
   if (success) {
@@ -119,7 +192,7 @@ export function ForgotPassword() {
                 mb: 1,
               }}
             >
-              Email Enviado!
+              Senha Redefinida!
             </Typography>
 
             <Typography
@@ -128,14 +201,14 @@ export function ForgotPassword() {
               textAlign="center"
               sx={{ mb: 4, opacity: 0.8 }}
             >
-              Enviamos um link para redefinir sua senha para{" "}
-              <strong>{email}</strong>. Verifique sua caixa de entrada e spam.
+              Sua senha foi redefinida com sucesso. Você será redirecionado para
+              o login.
             </Typography>
 
             <Button
               fullWidth
               variant="contained"
-              onClick={handleBackToLogin}
+              onClick={() => navigate("/login")}
               sx={{
                 mb: 3,
                 py: 1.8,
@@ -153,7 +226,7 @@ export function ForgotPassword() {
                 },
               }}
             >
-              Voltar ao Login
+              Ir para Login
             </Button>
           </Paper>
         </Container>
@@ -228,7 +301,7 @@ export function ForgotPassword() {
               mb: 1,
             }}
           >
-            Recuperar senha
+            Redefinir Senha
           </Typography>
 
           <Typography
@@ -237,7 +310,7 @@ export function ForgotPassword() {
             textAlign="center"
             sx={{ mb: 4, opacity: 0.8 }}
           >
-            Digite seu email e enviaremos um link para redefinir sua senha.
+            Digite sua nova senha abaixo
           </Typography>
 
           {error && (
@@ -248,17 +321,77 @@ export function ForgotPassword() {
 
           <Box component="form" onSubmit={handleSubmit} sx={{ width: "100%" }}>
             <CustomTextField
-              required
               fullWidth
-              id="email"
-              label="Email"
-              name="email"
-              autoComplete="email"
-              autoFocus
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              sx={{ mb: 4 }}
+              label="Nova Senha"
+              type={showPassword ? "text" : "password"}
+              value={formData.password}
+              onChange={handleInputChange("password")}
+              required
+              sx={{ mb: 3 }}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={() => setShowPassword(!showPassword)}
+                      edge="end"
+                    >
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
             />
+
+            <CustomTextField
+              fullWidth
+              label="Confirmar Nova Senha"
+              type={showConfirmPassword ? "text" : "password"}
+              value={formData.confirmPassword}
+              onChange={handleInputChange("confirmPassword")}
+              required
+              sx={{ mb: 3 }}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={() =>
+                        setShowConfirmPassword(!showConfirmPassword)
+                      }
+                      edge="end"
+                    >
+                      {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
+
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="caption" color="text.secondary">
+                A senha deve ter:
+              </Typography>
+              <Typography
+                variant="caption"
+                display="block"
+                color="text.secondary"
+              >
+                • Mínimo 8 caracteres
+              </Typography>
+              <Typography
+                variant="caption"
+                display="block"
+                color="text.secondary"
+              >
+                • Pelo menos 1 letra minúscula e 1 maiúscula
+              </Typography>
+              <Typography
+                variant="caption"
+                display="block"
+                color="text.secondary"
+              >
+                • Pelo menos 1 número e 1 caractere especial
+              </Typography>
+            </Box>
 
             <Button
               type="submit"
@@ -285,18 +418,18 @@ export function ForgotPassword() {
                 loading ? (
                   <CircularProgress size={20} color="inherit" />
                 ) : (
-                  <Send />
+                  <Lock />
                 )
               }
             >
-              {loading ? "Enviando..." : "Enviar link de recuperação"}
+              {loading ? "Redefinindo..." : "Redefinir Senha"}
             </Button>
 
             <Box sx={{ textAlign: "center" }}>
               <Link
                 component="button"
                 variant="body2"
-                onClick={handleBackToLogin}
+                onClick={() => navigate("/login")}
                 sx={{
                   color: theme.palette.brand.secondary,
                   textDecoration: "none",
@@ -321,4 +454,4 @@ export function ForgotPassword() {
       </Container>
     </Box>
   );
-}
+};
