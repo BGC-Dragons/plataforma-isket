@@ -11,4 +11,5 @@ export interface IAuth {
   isLogged: boolean;
   logout: () => void;
   refreshAuth: () => Promise<boolean>;
+  isValidating: boolean;
 }

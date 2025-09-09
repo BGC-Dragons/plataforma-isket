@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { postAuthGoogle } from "../../../services/post-auth-google.service";
 import { postAuthRefreshToken } from "../../../services/post-auth-refresh-token.service";
+import { getAuthMe } from "../../../services/get-auth-me.service";
 import { setupAxiosInterceptors } from "../../../services/helpers/axios-interceptor.function";
 import type { IAuthStore, IAuthUser } from "./auth.interface";
 import type { IAuth } from "./auth-context.types";
@@ -12,14 +13,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const navigate = useNavigate();
   const [store, setStore] = useState<IAuthStore>({
-    token: localStorage.getItem("auth_token") || null,
-    refreshToken: localStorage.getItem("auth_refresh_token") || null,
-    user: localStorage.getItem("auth_user")
-      ? JSON.parse(localStorage.getItem("auth_user")!)
-      : null,
+    token: null,
+    refreshToken: null,
+    user: null,
   });
+  const [isValidating, setIsValidating] = useState(true);
 
-  // Configurar interceptors do Axios
   useEffect(() => {
     setupAxiosInterceptors();
   }, []);
@@ -47,17 +46,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     []
   );
 
-  // Inicializar estado do localStorage
-  useEffect(() => {
-    const user = localStorage.getItem("auth_user");
-    const token = localStorage.getItem("auth_token");
-    const refreshToken = localStorage.getItem("auth_refresh_token");
+  const validateToken = useCallback(async (token: string) => {
+    try {
+      const response = await getAuthMe(token);
+      const userData = response.data;
 
-    if (user && token && refreshToken) {
-      const parsedUser = JSON.parse(user);
-      handleUpdateStore(parsedUser, token, refreshToken, true);
+      const user: IAuthUser = {
+        id: userData.id,
+        name: userData.name,
+        email: userData.email,
+        picture: undefined,
+        sub: undefined,
+      };
+
+      return user;
+    } catch (error) {
+      console.error("Token inválido:", error);
+      return null;
     }
-  }, [handleUpdateStore]);
+  }, []);
+
+  useEffect(() => {
+    const initializeAuth = async () => {
+      const token = localStorage.getItem("auth_token");
+      const refreshToken = localStorage.getItem("auth_refresh_token");
+
+      if (token && refreshToken) {
+        const user = await validateToken(token);
+
+        if (user) {
+          handleUpdateStore(user, token, refreshToken, true);
+        } else {
+          localStorage.removeItem("auth_token");
+          localStorage.removeItem("auth_refresh_token");
+          localStorage.removeItem("auth_user");
+        }
+      }
+
+      setIsValidating(false);
+    };
+
+    initializeAuth();
+  }, [validateToken, handleUpdateStore]);
 
   const login = useCallback(
     (
@@ -81,8 +111,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         const authResponse = await postAuthGoogle({ code });
 
         if (authResponse.accessToken && authResponse.refreshToken) {
-          // Usuário existente - login bem-sucedido
-          // O backend deve retornar os dados reais do usuário
           const user: IAuthUser = {
             id: authResponse.user?.id || "temp-id",
             name: authResponse.user?.name || "Usuário Google",
@@ -99,7 +127,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             user
           );
         } else if (authResponse.newAccount) {
-          // Usuário novo - redirecionar para completar perfil
           navigate("/completar-perfil", {
             state: {
               googleUser: authResponse.newAccount,
@@ -123,7 +150,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.removeItem("auth_token");
     localStorage.removeItem("auth_refresh_token");
     localStorage.removeItem("auth_user");
-    navigate("/login"); // Redirect to login page
+    navigate("/login");
   }, [navigate]);
 
   const refreshAuth = useCallback(async (): Promise<boolean> => {
@@ -136,7 +163,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         refreshToken: store.refreshToken,
       });
 
-      // Atualizar tokens
       handleUpdateStore(
         store.user,
         response.data.accessToken,
@@ -151,7 +177,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [store.refreshToken, store.user, handleUpdateStore, logout]);
 
-  const isLogged = !!store.token;
+  const isLogged = !!store.token && !isValidating;
 
   const value = useMemo((): IAuth => {
     return {
@@ -161,8 +187,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       isLogged,
       logout,
       refreshAuth,
+      isValidating,
     };
-  }, [store, login, loginWithGoogle, isLogged, logout, refreshAuth]);
+  }, [
+    store,
+    login,
+    loginWithGoogle,
+    isLogged,
+    logout,
+    refreshAuth,
+    isValidating,
+  ]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

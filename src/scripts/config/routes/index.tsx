@@ -239,7 +239,6 @@ export function AppRouter() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          <Route path="/" element={<DashboardPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/esqueceu-senha" element={<ForgotPassword />} />
           <Route path="/cadastro" element={<SignUp />} />
@@ -249,7 +248,7 @@ export function AppRouter() {
 
           {/* Rotas Privadas */}
           <Route
-            path="/dashboard"
+            path="/"
             element={
               <AccessManager component={DashboardPage} requireAuth={true} />
             }
