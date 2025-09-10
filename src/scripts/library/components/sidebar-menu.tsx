@@ -12,8 +12,6 @@ import {
   Paper,
   Button,
   useTheme,
-  useMediaQuery,
-  IconButton,
   Tooltip,
   Popper,
   ClickAwayListener,
@@ -25,7 +23,6 @@ import {
   PersonAdd,
   Assessment,
   Settings,
-  Menu as MenuIcon,
   Close,
 } from "@mui/icons-material";
 import { useNavigate, useLocation } from "react-router";
@@ -34,12 +31,9 @@ import isketLogo from "../../../assets/simbolo-isket.svg";
 
 const DRAWER_WIDTH = 80; // Menu compacto
 
-interface SidebarMenuProps {
-  open: boolean;
-  onToggle: () => void;
-}
+interface SidebarMenuProps {}
 
-export function SidebarMenu({ open, onToggle }: SidebarMenuProps) {
+export function SidebarMenu({}: SidebarMenuProps) {
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -48,7 +42,6 @@ export function SidebarMenu({ open, onToggle }: SidebarMenuProps) {
   const [profileAnchorEl, setProfileAnchorEl] = useState<HTMLElement | null>(
     null
   );
-  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
   const menuItems = [
     {
@@ -75,9 +68,6 @@ export function SidebarMenu({ open, onToggle }: SidebarMenuProps) {
 
   const handleNavigation = (path: string) => {
     navigate(path);
-    if (isMobile) {
-      onToggle();
-    }
   };
 
   const handleProfileClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -277,32 +267,10 @@ export function SidebarMenu({ open, onToggle }: SidebarMenuProps) {
 
   return (
     <>
-      {/* Botão de Menu para Mobile */}
-      {isMobile && (
-        <IconButton
-          onClick={onToggle}
-          sx={{
-            position: "fixed",
-            top: 16,
-            left: 16,
-            zIndex: 1200,
-            backgroundColor: theme.palette.background.paper,
-            border: `1px solid ${theme.palette.divider}`,
-            boxShadow: theme.shadows[4],
-            "&:hover": {
-              backgroundColor: theme.palette.action.hover,
-            },
-          }}
-        >
-          <MenuIcon />
-        </IconButton>
-      )}
-
       {/* Drawer */}
       <Drawer
-        variant={isMobile ? "temporary" : "permanent"}
-        open={isMobile ? open : true}
-        onClose={isMobile ? onToggle : undefined}
+        variant="permanent"
+        open={true}
         sx={{
           width: DRAWER_WIDTH,
           flexShrink: 0,
