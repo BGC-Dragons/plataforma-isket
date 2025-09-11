@@ -1,6 +1,7 @@
 import React from "react";
 import { Navigate, useLocation } from "react-router";
 import { useAuth } from "./auth.hook";
+import { AnimatedIsketLogo } from "../../library/components/animated-isket-logo";
 
 export type AccessManagerProps = {
   component: React.ComponentType;
@@ -15,19 +16,7 @@ export const AccessManager: React.FC<AccessManagerProps> = ({
   const { pathname, search } = useLocation();
 
   if (isValidating) {
-    return (
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "100vh",
-          fontSize: "18px",
-        }}
-      >
-        Validando autenticação...
-      </div>
-    );
+    return <AnimatedIsketLogo />;
   }
 
   switch (true) {
