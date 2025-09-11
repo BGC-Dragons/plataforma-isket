@@ -36,7 +36,7 @@ export function Login() {
   // Verificar se há redirecionamento
   const redirectTo = location.search.includes("redirect=")
     ? new URLSearchParams(location.search).get("redirect")
-    : "/dashboard";
+    : "/";
 
   // Verificar se há mensagem de sucesso
   const successMessage = location.state?.message;

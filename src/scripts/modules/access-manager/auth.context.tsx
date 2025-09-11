@@ -18,6 +18,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     user: null,
   });
   const [isValidating, setIsValidating] = useState(true);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   useEffect(() => {
     setupAxiosInterceptors();
@@ -95,8 +96,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       user: IAuthUser,
       redirect?: string
     ) => {
+      // Marcar que estamos fazendo login para evitar interferências
+      setIsLoggingIn(true);
+      setIsValidating(false);
       handleUpdateStore(user, tokens.accessToken, tokens.refreshToken);
-      navigate(redirect || "/dashboard");
+
+      // Aguardar um tick para garantir que o estado foi atualizado
+      setTimeout(() => {
+        setIsLoggingIn(false);
+        navigate(redirect || "/");
+      }, 0);
     },
     [handleUpdateStore, navigate]
   );
@@ -127,6 +136,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             user
           );
         } else if (authResponse.newAccount) {
+          // Parar validação antes de navegar para completar perfil
+          setIsValidating(false);
           navigate("/completar-perfil", {
             state: {
               googleUser: authResponse.newAccount,
@@ -177,7 +188,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [store.refreshToken, store.user, handleUpdateStore, logout]);
 
-  const isLogged = !!store.token && !isValidating;
+  const isLogged = !!store.token && !isValidating && !isLoggingIn;
 
   const value = useMemo((): IAuth => {
     return {

@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router";
 import { Login } from "../../pages/public/Login";
 import { ForgotPassword } from "../../pages/public/ForgotPassword";
 import { SignUp } from "../../pages/public/SignUp";
@@ -255,6 +255,7 @@ export function AppRouter() {
               <AccessManager component={DashboardPage} requireAuth={true} />
             }
           />
+          <Route path="/dashboard" element={<Navigate to="/" replace />} />
           <Route
             path="/analises"
             element={
