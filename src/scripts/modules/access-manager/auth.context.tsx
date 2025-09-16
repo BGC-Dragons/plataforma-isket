@@ -55,8 +55,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const user: IAuthUser = {
         id: userData.id,
         name: userData.name,
-        email: userData.email,
-        picture: undefined,
+        email: userData.profile.email,
+        picture: userData.profile.imageURL || undefined,
         sub: undefined,
       };
 

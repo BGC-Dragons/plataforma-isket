@@ -16,6 +16,7 @@ import {
   Popper,
   ClickAwayListener,
   Grow,
+  IconButton,
 } from "@mui/material";
 import {
   Analytics,
@@ -29,11 +30,9 @@ import { useNavigate, useLocation } from "react-router";
 import { useAuth } from "../../modules/access-manager/auth.hook";
 import isketLogo from "../../../assets/simbolo-isket.svg";
 
-const DRAWER_WIDTH = 80; // Menu compacto
+const DRAWER_WIDTH = 80;
 
-interface SidebarMenuProps {}
-
-export function SidebarMenu({}: SidebarMenuProps) {
+export function SidebarMenu() {
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
