@@ -19,27 +19,7 @@ import { useAuth } from "../../../modules/access-manager/auth.hook";
 import { ProfileSection } from "./profile/profile.component";
 import { SecuritySection } from "./security/security.component";
 import { SubscriptionSection } from "./subscription/subscription.component";
-
-function UpgradeSection() {
-  const theme = useTheme();
-
-  return (
-    <Box>
-      <Typography
-        variant="h4"
-        gutterBottom
-        sx={{ color: theme.palette.primary.main, mb: 3 }}
-      >
-        Upgrade
-      </Typography>
-      <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
-        <Typography variant="body1" color="text.secondary">
-          Seção de upgrade em desenvolvimento...
-        </Typography>
-      </Paper>
-    </Box>
-  );
-}
+import { UpgradeSection } from "./upgrade/upgrade.component";
 
 type ManagementSection = "profile" | "security" | "subscription" | "upgrade";
 

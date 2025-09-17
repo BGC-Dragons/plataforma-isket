@@ -40,9 +40,9 @@ export function SecuritySection() {
   return (
     <Box>
       <Typography
-        variant="h4"
+        variant="h5"
         gutterBottom
-        sx={{ color: theme.palette.primary.main, mb: 3 }}
+        sx={{ color: theme.palette.primary.main, mb: 1.5 }}
       >
         Segurança
       </Typography>

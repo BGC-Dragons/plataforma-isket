@@ -6,7 +6,6 @@ import {
   useTheme,
   Chip,
   Card,
-  CardContent,
   Button,
   List,
   ListItem,
@@ -35,7 +34,6 @@ export function SubscriptionSection() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Carregar dados das compras
   useEffect(() => {
     const loadPurchases = async () => {
       if (!store.token) return;
@@ -68,7 +66,6 @@ export function SubscriptionSection() {
   };
 
   const getPeriodType = (purchase: IGetPurchasesResponseSuccess): string => {
-    // Verificar se há gateway prices para determinar se é mensal ou anual
     const hasYearly = purchase.product.gatewayPrices.some(
       (price) => price.type === "YEARLY"
     );
@@ -76,11 +73,9 @@ export function SubscriptionSection() {
       (price) => price.type === "MONTHLY"
     );
 
-    // Lógica para determinar o período baseado nos dados disponíveis
     if (hasYearly && !hasMonthly) return "Anual";
     if (hasMonthly && !hasYearly) return "Mensal";
 
-    // Fallback: assumir mensal se não conseguir determinar
     return "Mensal";
   };
 
@@ -121,14 +116,12 @@ export function SubscriptionSection() {
         RADARS: { remaining: 0, total: 0 },
       };
 
-    // Preencher totais com os limites do produto
     purchase.product.units.forEach((unit) => {
       if (units[unit.type]) {
         units[unit.type].total = unit.limit;
       }
     });
 
-    // Preencher valores restantes
     purchase.remainingUnits.forEach((unit) => {
       if (units[unit.type]) {
         units[unit.type].remaining = unit.unitsRemaining;
@@ -189,49 +182,49 @@ export function SubscriptionSection() {
     );
   }
 
-  const purchase = purchases[0]; // Assumindo que há apenas uma compra ativa
+  const purchase = purchases[0];
   const units = getRemainingUnits(purchase);
 
   return (
     <Box>
       <Typography
-        variant="h4"
+        variant="h5"
         gutterBottom
-        sx={{ color: theme.palette.primary.main, mb: 3 }}
+        sx={{ color: theme.palette.primary.main, mb: 1.5 }}
       >
         Assinatura
       </Typography>
 
-      {/* Seção 1: Tipo de Produto e Conta */}
-      <Paper elevation={2} sx={{ p: 3, borderRadius: 2, mb: 3 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
-          <Typography variant="h5" sx={{ fontWeight: 600 }}>
+      <Paper elevation={2} sx={{ p: 2, borderRadius: 2, mb: 1.5 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1 }}>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>
             {purchase.product.title}
           </Typography>
           <Chip
             label={translateProductType(purchase.product.productType)}
             color="primary"
             variant="outlined"
+            size="small"
           />
           <Chip
             label={translateAccountType(purchase.product.accountType)}
             color="secondary"
             variant="outlined"
+            size="small"
           />
         </Box>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
           {translateAccountType(purchase.product.accountType)}
         </Typography>
-        <Typography variant="body1" color="text.secondary">
+        <Typography variant="body2" color="text.secondary">
           {purchase.product.description}
         </Typography>
       </Paper>
 
-      {/* Seção 2: Renovação e Período */}
-      <Paper elevation={2} sx={{ p: 4, borderRadius: 2, mb: 3 }}>
+      <Paper elevation={2} sx={{ p: 2, borderRadius: 2, mb: 1.5 }}>
         <Typography
-          variant="h6"
-          sx={{ fontWeight: 600, mb: 3, color: theme.palette.text.primary }}
+          variant="subtitle1"
+          sx={{ fontWeight: 600, mb: 2, color: theme.palette.text.primary }}
         >
           Informações do Plano
         </Typography>
@@ -240,125 +233,149 @@ export function SubscriptionSection() {
           sx={{
             display: "grid",
             gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
-            gap: 4,
+            gap: 2,
           }}
         >
-          {/* Card de Renovação */}
           <Card
             variant="outlined"
-            sx={{ p: 3, backgroundColor: theme.palette.background.default }}
+            sx={{ p: 2, backgroundColor: theme.palette.background.default }}
           >
-            <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-              <Typography
-                variant="subtitle1"
-                sx={{ fontWeight: 600, color: theme.palette.text.primary }}
-              >
-                Renovação
-              </Typography>
-            </Box>
             <Typography
-              variant="h5"
-              sx={{ fontWeight: 700, color: theme.palette.primary.main, mb: 1 }}
+              variant="subtitle2"
+              sx={{ fontWeight: 600, color: theme.palette.text.primary, mb: 1 }}
+            >
+              Renovação
+            </Typography>
+            <Typography
+              variant="h6"
+              sx={{
+                fontWeight: 700,
+                color: theme.palette.primary.main,
+                mb: 0.5,
+              }}
             >
               {formatDate(purchase.planPeriodEnd)}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="caption" color="text.secondary">
               Data de vencimento do seu plano atual
             </Typography>
           </Card>
 
-          {/* Card de Período */}
           <Card
             variant="outlined"
-            sx={{ p: 3, backgroundColor: theme.palette.background.default }}
+            sx={{ p: 2, backgroundColor: theme.palette.background.default }}
           >
-            <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-              <Typography
-                variant="subtitle1"
-                sx={{ fontWeight: 600, color: theme.palette.text.primary }}
-              >
-                Período
-              </Typography>
-            </Box>
             <Typography
-              variant="h5"
-              sx={{ fontWeight: 700, color: theme.palette.primary.main, mb: 1 }}
+              variant="subtitle2"
+              sx={{ fontWeight: 600, color: theme.palette.text.primary, mb: 1 }}
+            >
+              Período
+            </Typography>
+            <Typography
+              variant="h6"
+              sx={{
+                fontWeight: 700,
+                color: theme.palette.primary.main,
+                mb: 0.5,
+              }}
             >
               {getPeriodType(purchase)}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="caption" color="text.secondary">
               Frequência de cobrança do plano
             </Typography>
           </Card>
         </Box>
       </Paper>
 
-      {/* Seção 3: Créditos do Plano */}
-      <Paper elevation={2} sx={{ p: 3, borderRadius: 2, mb: 3 }}>
-        <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
+      <Paper elevation={2} sx={{ p: 2, borderRadius: 2, mb: 1.5 }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1.5 }}>
           Créditos do seu plano
         </Typography>
-        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5 }}>
           {Object.entries(units).map(([type, data]) => (
-            <Card
-              variant="outlined"
+            <Box
               key={type}
-              sx={{ minWidth: 200, flex: "1 1 200px" }}
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                px: 2,
+                py: 1,
+                backgroundColor: theme.palette.background.default,
+                borderRadius: 1,
+                border: `1px solid ${theme.palette.divider}`,
+                minWidth: "fit-content",
+              }}
             >
-              <CardContent>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
-                  {translateUnitType(type as ProductUnitType)}
-                </Typography>
-                <Typography variant="h4" color="primary" sx={{ mb: 1 }}>
-                  {data.remaining}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  disponíveis de {data.total} contratados
-                </Typography>
-              </CardContent>
-            </Card>
+              <Typography
+                variant="body2"
+                sx={{ fontWeight: 600, color: theme.palette.text.primary }}
+              >
+                {translateUnitType(type as ProductUnitType)}:
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{ fontWeight: 700, color: theme.palette.primary.main }}
+              >
+                {data.remaining} disponíveis de {data.total} contratados
+              </Typography>
+            </Box>
           ))}
         </Box>
       </Paper>
 
-      {/* Seção 4: Cidades */}
-      <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+      <Paper elevation={2} sx={{ p: 2, borderRadius: 2 }}>
         <Box
           sx={{
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            mb: 2,
+            mb: 1.5,
           }}
         >
-          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
             Cidades
           </Typography>
           <Button
             variant="contained"
             startIcon={<Add />}
-            sx={{ textTransform: "none" }}
+            size="small"
+            sx={{ textTransform: "none", minWidth: "auto", px: 1.5, py: 0.5 }}
           >
-            Adicionar Cidade
+            Adicionar
           </Button>
         </Box>
 
         {(purchase.chosenCityCodes && purchase.chosenCityCodes.length > 0) ||
         purchase.defaultCityStateCode ? (
-          <List>
-            {/* Cidade padrão */}
+          <List dense>
             {purchase.defaultCityStateCode && (
               <ListItem
+                sx={{ py: 0.5 }}
                 secondaryAction={
-                  <IconButton edge="end" aria-label="edit">
-                    <Edit />
+                  <IconButton
+                    edge="end"
+                    aria-label="edit"
+                    size="small"
+                    sx={{ p: 0.5 }}
+                  >
+                    <Edit sx={{ fontSize: 16 }} />
                   </IconButton>
                 }
               >
-                <LocationOn sx={{ mr: 2, color: theme.palette.primary.main }} />
+                <LocationOn
+                  sx={{
+                    mr: 1.5,
+                    color: theme.palette.primary.main,
+                    fontSize: 20,
+                  }}
+                />
                 <ListItemText
                   primary={purchase.defaultCityStateCode}
                   secondary="Cidade padrão"
+                  primaryTypographyProps={{ variant: "body2" }}
+                  secondaryTypographyProps={{ variant: "caption" }}
                 />
               </ListItem>
             )}
@@ -367,22 +384,35 @@ export function SubscriptionSection() {
               purchase.chosenCityCodes.map((city, index) => (
                 <ListItem
                   key={index}
+                  sx={{ py: 0.5 }}
                   secondaryAction={
-                    <IconButton edge="end" aria-label="edit">
-                      <Edit />
+                    <IconButton
+                      edge="end"
+                      aria-label="edit"
+                      size="small"
+                      sx={{ p: 0.5 }}
+                    >
+                      <Edit sx={{ fontSize: 16 }} />
                     </IconButton>
                   }
                 >
                   <LocationOn
-                    sx={{ mr: 2, color: theme.palette.primary.main }}
+                    sx={{
+                      mr: 1.5,
+                      color: theme.palette.primary.main,
+                      fontSize: 20,
+                    }}
                   />
-                  <ListItemText primary={city} />
+                  <ListItemText
+                    primary={city}
+                    primaryTypographyProps={{ variant: "body2" }}
+                  />
                 </ListItem>
               ))}
           </List>
         ) : (
-          <Box sx={{ textAlign: "center", py: 4 }}>
-            <Typography variant="body1" color="text.secondary">
+          <Box sx={{ textAlign: "center", py: 2 }}>
+            <Typography variant="body2" color="text.secondary">
               Nenhuma cidade selecionada
             </Typography>
           </Box>

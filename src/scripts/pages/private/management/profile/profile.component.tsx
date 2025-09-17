@@ -34,7 +34,6 @@ export function ProfileSection() {
   const [profileInfo, setProfileInfo] =
     useState<IGetAuthMeResponseSuccess | null>(null);
 
-  // Carregar dados do perfil
   useEffect(() => {
     const loadProfile = async () => {
       if (!store.token) return;
@@ -64,10 +63,8 @@ export function ProfileSection() {
   }, [store.token]);
 
   const formatPhoneNumber = (value: string) => {
-    // Remove todos os caracteres não numéricos
     const numbers = value.replace(/\D/g, "");
 
-    // Aplica a máscara (99) 99999-9999
     if (numbers.length <= 2) {
       return numbers;
     } else if (numbers.length <= 7) {
@@ -84,7 +81,6 @@ export function ProfileSection() {
     (field: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
       let value = event.target.value;
 
-      // Aplicar máscara apenas para o campo de telefone
       if (field === "phone") {
         value = formatPhoneNumber(value);
       }
@@ -133,14 +129,13 @@ export function ProfileSection() {
   return (
     <Box>
       <Typography
-        variant="h4"
+        variant="h5"
         gutterBottom
-        sx={{ color: theme.palette.primary.main, mb: 3 }}
+        sx={{ color: theme.palette.primary.main, mb: 1.5 }}
       >
         Perfil
       </Typography>
 
-      {/* Informações do usuário */}
       <Paper elevation={2} sx={{ p: 3, borderRadius: 2, mb: 3 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 3, mb: 3 }}>
           <Avatar
@@ -170,13 +165,11 @@ export function ProfileSection() {
 
         <Divider sx={{ my: 2 }} />
 
-        {/* Aviso */}
         <Alert severity="info" sx={{ mb: 3 }}>
           Atualize suas informações de perfil. As alterações feitas na foto,
           e-mail e celular serão consideradas nas novas avaliações de imóveis.
         </Alert>
 
-        {/* Campos editáveis */}
         <Stack spacing={3}>
           <TextField
             label="E-mail"
@@ -208,7 +201,6 @@ export function ProfileSection() {
           />
         </Stack>
 
-        {/* Botão salvar */}
         <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 4 }}>
           <Button
             variant="contained"
@@ -226,7 +218,6 @@ export function ProfileSection() {
           </Button>
         </Box>
 
-        {/* Mensagem de sucesso */}
         {showSuccess && (
           <Alert severity="success" sx={{ mt: 2 }}>
             Perfil atualizado com sucesso!
