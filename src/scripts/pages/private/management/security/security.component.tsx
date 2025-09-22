@@ -9,6 +9,10 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { useAuth } from "../../../../modules/access-manager/auth.hook";
+import {
+  postAuthRecoveryPassword,
+  type IRecoveryPasswordRequest,
+} from "../../../../../services/post-auth-recovery-password.service";
 
 export function SecuritySection() {
   const theme = useTheme();
@@ -16,22 +20,34 @@ export function SecuritySection() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSendRecoveryLink = async () => {
+    if (!store.user?.email) {
+      setError("Email não encontrado. Faça login novamente.");
+      return;
+    }
+
     setIsLoading(true);
     setShowSuccess(false);
+    setError(null);
 
     try {
-      // TODO: Implementar chamada para API de envio de link de recuperação
-      console.log("Enviando link de recuperação para:", store.user?.email);
+      const requestData: IRecoveryPasswordRequest = {
+        email: store.user.email,
+      };
 
-      // Simular delay da API
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await postAuthRecoveryPassword(requestData);
 
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 5000);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Erro ao enviar link de recuperação:", error);
+      const errorMessage =
+        (error as { response?: { data?: { message?: string } } })?.response
+          ?.data?.message ||
+        "Erro ao enviar link de recuperação. Tente novamente.";
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -54,7 +70,7 @@ export function SecuritySection() {
             color="text.secondary"
             sx={{ mb: 4, fontSize: "1.1rem", lineHeight: 1.6 }}
           >
-            Enviaremos um link de recuperação de senha para o seu email
+            Enviaremos um link de alteração de senha para o seu email
             cadastrado.
           </Typography>
 
@@ -77,13 +93,20 @@ export function SecuritySection() {
                 Enviando...
               </Box>
             ) : (
-              "Enviar link de recuperação de senha"
+              "Enviar link de alteração de senha"
             )}
           </Button>
 
           {showSuccess && (
             <Alert severity="success" sx={{ mt: 3 }}>
-              Link de recuperação enviado com sucesso! Verifique seu email.
+              Link de alteração de senha enviado com sucesso! Verifique seu
+              email.
+            </Alert>
+          )}
+
+          {error && (
+            <Alert severity="error" sx={{ mt: 3 }}>
+              {error}
             </Alert>
           )}
         </Box>

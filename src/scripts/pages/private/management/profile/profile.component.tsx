@@ -17,6 +17,10 @@ import {
   getAuthMe,
   type IGetAuthMeResponseSuccess,
 } from "../../../../../services/get-auth-me.service";
+import {
+  patchProfile,
+  type IPatchProfileRequest,
+} from "../../../../../services/patch-auth-profile.service";
 
 export function ProfileSection() {
   const theme = useTheme();
@@ -92,20 +96,33 @@ export function ProfileSection() {
     };
 
   const handleSave = async () => {
+    if (!store.token) return;
+
     setIsLoading(true);
     setShowSuccess(false);
 
     try {
-      // TODO: Implementar chamada para API de atualização do perfil
-      console.log("Salvando dados do perfil:", profileData);
+      // Preparar dados para envio
+      const updateData: IPatchProfileRequest = {
+        profile: {
+          email: profileData.email,
+          phoneNumber: profileData.phone.replace(/\D/g, ""), // Remove formatação
+          formattedAddress: profileData.address,
+        },
+      };
 
-      // Simular delay da API
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Chamar API de atualização
+      await patchProfile(store.token, updateData);
+
+      // Recarregar dados completos do perfil
+      const updatedProfile = await getAuthMe(store.token);
+      setProfileInfo(updatedProfile.data);
 
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
     } catch (error) {
       console.error("Erro ao salvar perfil:", error);
+      // TODO: Adicionar tratamento de erro para o usuário
     } finally {
       setIsLoading(false);
     }
@@ -139,12 +156,20 @@ export function ProfileSection() {
       <Paper elevation={2} sx={{ p: 3, borderRadius: 2, mb: 3 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 3, mb: 3 }}>
           <Avatar
-            src={store.user?.picture}
+            src={profileInfo?.profile?.imageURL || store.user?.picture}
             sx={{
               width: 80,
               height: 80,
               bgcolor: theme.palette.primary.main,
               fontSize: "2rem",
+              cursor: "pointer",
+              "&:hover": {
+                opacity: 0.8,
+              },
+            }}
+            onClick={() => {
+              // TODO: Implementar upload de foto
+              console.log("Clicou na foto para atualizar");
             }}
           >
             {(profileInfo?.name || store.user?.name)
