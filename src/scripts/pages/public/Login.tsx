@@ -15,10 +15,7 @@ import { ArrowForward } from "@mui/icons-material";
 import { useNavigate, useLocation } from "react-router";
 import isketLogo from "../../../assets/isket.svg";
 import { GoogleButton } from "../../library/components/google-button";
-import {
-  postAuthLogin,
-  type IPostAuthLoginParams,
-} from "../../../services/post-auth-login.service";
+import { postAuthLogin } from "../../../services/post-auth-login.service";
 import { getAuthMe } from "../../../services/get-auth-me.service";
 import { CustomTextField } from "../../library/components/custom-text-field";
 import { useAuth } from "../../modules/access-manager/auth.hook";
@@ -33,19 +30,28 @@ export function Login() {
   const theme = useTheme();
   const { login } = useAuth();
 
-  // Verificar se há redirecionamento
-  const redirectTo = location.search.includes("redirect=")
-    ? new URLSearchParams(location.search).get("redirect")
-    : "/";
+  const redirectTo = (() => {
+    if (!location.search.includes("redirect=")) return "/";
 
-  // Verificar se há mensagem de sucesso
+    const redirect = new URLSearchParams(location.search).get("redirect");
+    const invalidRedirects = [
+      "/esqueceu-senha",
+      "/cadastro",
+      "/login",
+      "/reset-password",
+    ];
+
+    return redirect &&
+      !invalidRedirects.some((invalid) => redirect.includes(invalid))
+      ? redirect
+      : "/";
+  })();
+
   const successMessage = location.state?.message;
 
   useEffect(() => {
     if (successMessage) {
-      // Mostrar mensagem de sucesso temporariamente
       setTimeout(() => {
-        // Limpar a mensagem após 5 segundos
         navigate(location.pathname, { replace: true });
       }, 5000);
     }
@@ -54,7 +60,6 @@ export function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validação básica
     if (!email.trim() || !password.trim()) {
       setError("Por favor, preencha todos os campos.");
       return;
@@ -64,22 +69,18 @@ export function Login() {
     setError(null);
 
     try {
-      const params: IPostAuthLoginParams = {
+      const response = await postAuthLogin({
         authenticator: email,
         pass: password,
-      };
-      const response = await postAuthLogin(params);
+      });
 
-      // Se o login for bem-sucedido, buscar dados do usuário e fazer login
       if (response.data.accessToken && response.data.refreshToken) {
         try {
-          // Buscar dados do usuário usando o token
           const userResponse = await getAuthMe(response.data.accessToken);
-
           const user = {
             id: userResponse.data.id,
             name: userResponse.data.name,
-            email: userResponse.data.email || email, // Fallback para email do formulário
+            email: userResponse.data.email || email,
           };
 
           login(
@@ -88,12 +89,11 @@ export function Login() {
               refreshToken: response.data.refreshToken,
             },
             user,
-            redirectTo || undefined
+            redirectTo !== "/" ? redirectTo : undefined
           );
         } catch (userError) {
           console.error("Erro ao buscar dados do usuário:", userError);
 
-          // Fallback: usar dados do formulário
           const user = {
             id: email,
             name: email.split("@")[0],
@@ -110,20 +110,18 @@ export function Login() {
         }
       }
     } catch (err: unknown) {
-      if (err && typeof err === "object" && "response" in err) {
-        const axiosError = err as {
-          response?: { data?: { message?: string; error?: string } };
-        };
-        if (axiosError.response?.data?.message) {
-          setError(axiosError.response.data.message);
-        } else if (axiosError.response?.data?.error) {
-          setError(axiosError.response.data.error);
-        } else {
-          setError("Erro ao fazer login. Tente novamente.");
-        }
+      const axiosError = err as {
+        response?: { data?: { message?: string; error?: string } };
+      };
+
+      if (axiosError.response?.data?.message) {
+        setError(axiosError.response.data.message);
+      } else if (axiosError.response?.data?.error) {
+        setError(axiosError.response.data.error);
       } else {
         setError("Erro ao fazer login. Tente novamente.");
       }
+
       console.error("Login error:", err);
     } finally {
       setLoading(false);
@@ -188,10 +186,7 @@ export function Login() {
             <img
               src={isketLogo}
               alt="isket"
-              style={{
-                width: "120px",
-                height: "45px",
-              }}
+              style={{ width: "120px", height: "45px" }}
             />
           </Box>
 
@@ -199,11 +194,7 @@ export function Login() {
             component="h1"
             variant="h6"
             gutterBottom
-            sx={{
-              fontWeight: 500,
-              color: theme.palette.brand.dark,
-              mb: 1,
-            }}
+            sx={{ fontWeight: 500, color: theme.palette.brand.dark, mb: 1 }}
           >
             Entre na sua conta
           </Typography>
@@ -246,27 +237,6 @@ export function Login() {
               sx={{ mb: 2 }}
             />
 
-            <Box sx={{ textAlign: "center", mb: 3 }}>
-              <Link
-                component="button"
-                variant="body2"
-                onClick={handleForgotPassword}
-                sx={{
-                  color: theme.palette.brand.secondary,
-                  textDecoration: "none",
-                  fontWeight: 500,
-                  transition: "all 0.3s ease",
-                  "&:hover": {
-                    color: theme.palette.brand.accent,
-                    textDecoration: "underline",
-                    transform: "translateY(-1px)",
-                  },
-                }}
-              >
-                Esqueceu sua senha?
-              </Link>
-            </Box>
-
             <Button
               type="submit"
               fullWidth
@@ -298,6 +268,27 @@ export function Login() {
             >
               {loading ? "Entrando..." : "Entrar"}
             </Button>
+
+            <Box sx={{ textAlign: "center", mb: 3 }}>
+              <Link
+                component="button"
+                variant="body2"
+                onClick={handleForgotPassword}
+                sx={{
+                  color: theme.palette.brand.secondary,
+                  textDecoration: "none",
+                  fontWeight: 500,
+                  transition: "all 0.3s ease",
+                  "&:hover": {
+                    color: theme.palette.brand.accent,
+                    textDecoration: "underline",
+                    transform: "translateY(-1px)",
+                  },
+                }}
+              >
+                Esqueceu sua senha?
+              </Link>
+            </Box>
 
             <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
               <Divider sx={{ flex: 1 }} />
