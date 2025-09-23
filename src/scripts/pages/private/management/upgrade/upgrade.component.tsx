@@ -185,7 +185,7 @@ export function UpgradeSection() {
   };
 
   return (
-    <Box>
+    <Box sx={{ width: "100%", maxWidth: "100%", pb: 4 }}>
       <Typography
         variant="h5"
         gutterBottom
@@ -194,7 +194,10 @@ export function UpgradeSection() {
         Escolha seu Plano
       </Typography>
 
-      <Paper elevation={2} sx={{ p: 2, borderRadius: 2, mb: 2 }}>
+      <Paper
+        elevation={2}
+        sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2, mb: 2, width: "100%" }}
+      >
         <Stack direction={{ xs: "column", sm: "row" }} spacing={3}>
           <Box>
             <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
@@ -243,8 +246,9 @@ export function UpgradeSection() {
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" },
+          gridTemplateColumns: { xs: "1fr", sm: "1fr", md: "repeat(3, 1fr)" },
           gap: 2,
+          width: "100%",
         }}
       >
         {getCurrentPlans().map((plan: PlanType, index: number) => {
@@ -367,6 +371,7 @@ export function UpgradeSection() {
                       mt: "auto",
                       textTransform: "none",
                       fontWeight: 600,
+                      py: 1.5,
                     }}
                   >
                     Escolher Plano

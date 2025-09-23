@@ -144,7 +144,7 @@ export function ProfileSection() {
   }
 
   return (
-    <Box>
+    <Box sx={{ width: "100%", maxWidth: "100%", pb: 4 }}>
       <Typography
         variant="h5"
         gutterBottom
@@ -153,15 +153,27 @@ export function ProfileSection() {
         Perfil
       </Typography>
 
-      <Paper elevation={2} sx={{ p: 3, borderRadius: 2, mb: 3 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 3, mb: 3 }}>
+      <Paper
+        elevation={2}
+        sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2, mb: 3, width: "100%" }}
+      >
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: { xs: 2, sm: 3 },
+            mb: 3,
+            flexDirection: { xs: "column", sm: "row" },
+            textAlign: { xs: "center", sm: "left" },
+          }}
+        >
           <Avatar
             src={profileInfo?.profile?.imageURL || store.user?.picture}
             sx={{
-              width: 80,
-              height: 80,
+              width: { xs: 60, sm: 80 },
+              height: { xs: 60, sm: 80 },
               bgcolor: theme.palette.primary.main,
-              fontSize: "2rem",
+              fontSize: { xs: "1.5rem", sm: "2rem" },
               cursor: "pointer",
               "&:hover": {
                 opacity: 0.8,
@@ -176,11 +188,26 @@ export function ProfileSection() {
               ?.charAt(0)
               ?.toUpperCase() || "U"}
           </Avatar>
-          <Box>
-            <Typography variant="h5" sx={{ fontWeight: 600, mb: 1 }}>
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Typography
+              variant="h5"
+              sx={{
+                fontWeight: 600,
+                mb: 1,
+                wordBreak: "break-word",
+                fontSize: { xs: "1.25rem", sm: "1.5rem" },
+              }}
+            >
               {profileInfo?.name || store.user?.name || "Usuário"}
             </Typography>
-            <Typography variant="body1" color="text.secondary">
+            <Typography
+              variant="body1"
+              color="text.secondary"
+              sx={{
+                wordBreak: "break-all",
+                fontSize: { xs: "0.875rem", sm: "1rem" },
+              }}
+            >
               {profileInfo?.profile?.email ||
                 store.user?.email ||
                 "email@exemplo.com"}
@@ -203,6 +230,11 @@ export function ProfileSection() {
             fullWidth
             variant="outlined"
             type="email"
+            sx={{
+              "& .MuiInputBase-input": {
+                wordBreak: "break-all",
+              },
+            }}
           />
 
           <TextField
@@ -226,17 +258,24 @@ export function ProfileSection() {
           />
         </Stack>
 
-        <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 4 }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: { xs: "center", sm: "flex-end" },
+            mt: 4,
+          }}
+        >
           <Button
             variant="contained"
             onClick={handleSave}
             disabled={isLoading}
             sx={{
-              px: 4,
+              px: { xs: 3, sm: 4 },
               py: 1.5,
               borderRadius: 2,
               textTransform: "none",
               fontWeight: 600,
+              width: { xs: "100%", sm: "auto" },
             }}
           >
             {isLoading ? "Salvando..." : "Salvar"}

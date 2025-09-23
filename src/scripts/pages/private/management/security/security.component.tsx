@@ -54,7 +54,7 @@ export function SecuritySection() {
   };
 
   return (
-    <Box>
+    <Box sx={{ width: "100%", maxWidth: "100%", pb: 4 }}>
       <Typography
         variant="h5"
         gutterBottom
@@ -63,12 +63,27 @@ export function SecuritySection() {
         Segurança
       </Typography>
 
-      <Paper elevation={2} sx={{ p: 4, borderRadius: 2 }}>
-        <Box sx={{ textAlign: "center", maxWidth: 500, mx: "auto" }}>
+      <Paper
+        elevation={2}
+        sx={{ p: { xs: 2, sm: 4 }, borderRadius: 2, width: "100%" }}
+      >
+        <Box
+          sx={{
+            textAlign: "center",
+            maxWidth: 500,
+            mx: "auto",
+            width: "100%",
+          }}
+        >
           <Typography
             variant="body1"
             color="text.secondary"
-            sx={{ mb: 4, fontSize: "1.1rem", lineHeight: 1.6 }}
+            sx={{
+              mb: 4,
+              fontSize: { xs: "1rem", sm: "1.1rem" },
+              lineHeight: 1.6,
+              px: { xs: 1, sm: 0 },
+            }}
           >
             Enviaremos um link de alteração de senha para o seu email
             cadastrado.
@@ -79,12 +94,14 @@ export function SecuritySection() {
             onClick={handleSendRecoveryLink}
             disabled={isLoading}
             sx={{
-              px: 4,
+              px: { xs: 2, sm: 4 },
               py: 1.5,
               borderRadius: 2,
               textTransform: "none",
               fontWeight: 600,
-              minWidth: 280,
+              minWidth: { xs: "100%", sm: 280 },
+              maxWidth: { xs: "100%", sm: "none" },
+              fontSize: { xs: "0.875rem", sm: "1rem" },
             }}
           >
             {isLoading ? (
@@ -98,14 +115,14 @@ export function SecuritySection() {
           </Button>
 
           {showSuccess && (
-            <Alert severity="success" sx={{ mt: 3 }}>
+            <Alert severity="success" sx={{ mt: 3, textAlign: "left" }}>
               Link de alteração de senha enviado com sucesso! Verifique seu
               email.
             </Alert>
           )}
 
           {error && (
-            <Alert severity="error" sx={{ mt: 3 }}>
+            <Alert severity="error" sx={{ mt: 3, textAlign: "left" }}>
               {error}
             </Alert>
           )}

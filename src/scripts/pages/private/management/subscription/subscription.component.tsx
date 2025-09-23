@@ -58,9 +58,9 @@ export function SubscriptionSection() {
   const translateProductType = (type: ProductType): string => {
     const translations: Record<ProductType, string> = {
       FIXED_PLAN: "Plano Fixo",
-      CUSTOM_PLAN: "Plano Personalizado",
-      TRIAL_PLAN: "Plano de Teste",
-      CREDIT_PACKAGE: "Pacote de Créditos",
+      CUSTOM_PLAN: "Personalizado",
+      TRIAL_PLAN: "Teste",
+      CREDIT_PACKAGE: "Créditos",
     };
     return translations[type] || type;
   };
@@ -186,7 +186,7 @@ export function SubscriptionSection() {
   const units = getRemainingUnits(purchase);
 
   return (
-    <Box>
+    <Box sx={{ width: "100%", maxWidth: "100%", pb: 4 }}>
       <Typography
         variant="h5"
         gutterBottom
@@ -195,33 +195,64 @@ export function SubscriptionSection() {
         Assinatura
       </Typography>
 
-      <Paper elevation={2} sx={{ p: 2, borderRadius: 2, mb: 1.5 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1 }}>
-          <Typography variant="h6" sx={{ fontWeight: 600 }}>
-            {purchase.product.title}
-          </Typography>
-          <Chip
-            label={translateProductType(purchase.product.productType)}
-            color="primary"
-            variant="outlined"
-            size="small"
-          />
-          <Chip
-            label={translateAccountType(purchase.product.accountType)}
-            color="secondary"
-            variant="outlined"
-            size="small"
-          />
+      <Paper
+        elevation={2}
+        sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2, mb: 1.5, width: "100%" }}
+      >
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 2,
+            mb: 2,
+            flexDirection: { xs: "column", sm: "row" },
+          }}
+        >
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography
+              variant="h6"
+              sx={{
+                fontWeight: 600,
+                mb: 1,
+                wordBreak: "break-word",
+              }}
+            >
+              {purchase.product.title}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              {purchase.product.description}
+            </Typography>
+          </Box>
+          <Box
+            sx={{
+              display: "flex",
+              gap: 1,
+              flexWrap: "wrap",
+              alignItems: "flex-start",
+            }}
+          >
+            <Chip
+              label={translateProductType(purchase.product.productType)}
+              color="primary"
+              variant="outlined"
+              size="small"
+              sx={{ fontWeight: 600 }}
+            />
+            <Chip
+              label={translateAccountType(purchase.product.accountType)}
+              color="secondary"
+              variant="outlined"
+              size="small"
+              sx={{ fontWeight: 600 }}
+            />
+          </Box>
         </Box>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          {translateAccountType(purchase.product.accountType)}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          {purchase.product.description}
-        </Typography>
       </Paper>
 
-      <Paper elevation={2} sx={{ p: 2, borderRadius: 2, mb: 1.5 }}>
+      <Paper
+        elevation={2}
+        sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2, mb: 1.5, width: "100%" }}
+      >
         <Typography
           variant="subtitle1"
           sx={{ fontWeight: 600, mb: 2, color: theme.palette.text.primary }}
@@ -288,11 +319,21 @@ export function SubscriptionSection() {
         </Box>
       </Paper>
 
-      <Paper elevation={2} sx={{ p: 2, borderRadius: 2, mb: 1.5 }}>
+      <Paper
+        elevation={2}
+        sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2, mb: 1.5, width: "100%" }}
+      >
         <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1.5 }}>
           Créditos do seu plano
         </Typography>
-        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5 }}>
+        <Box
+          sx={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 1.5,
+            justifyContent: { xs: "center", sm: "flex-start" },
+          }}
+        >
           {Object.entries(units).map(([type, data]) => (
             <Box
               key={type}
@@ -325,13 +366,18 @@ export function SubscriptionSection() {
         </Box>
       </Paper>
 
-      <Paper elevation={2} sx={{ p: 2, borderRadius: 2 }}>
+      <Paper
+        elevation={2}
+        sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2, width: "100%" }}
+      >
         <Box
           sx={{
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
             mb: 1.5,
+            flexDirection: { xs: "column", sm: "row" },
+            gap: { xs: 2, sm: 0 },
           }}
         >
           <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
@@ -341,7 +387,13 @@ export function SubscriptionSection() {
             variant="contained"
             startIcon={<Add />}
             size="small"
-            sx={{ textTransform: "none", minWidth: "auto", px: 1.5, py: 0.5 }}
+            sx={{
+              textTransform: "none",
+              minWidth: "auto",
+              px: 1.5,
+              py: 0.5,
+              width: { xs: "100%", sm: "auto" },
+            }}
           >
             Adicionar
           </Button>
