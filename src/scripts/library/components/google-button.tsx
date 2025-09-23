@@ -20,15 +20,8 @@ export function GoogleButton({
 
   const { loginWithGoogle, isLoading, error, clearError } = useGoogleAuth(
     async (response: { code: string }) => {
-      try {
-        await authLoginWithGoogle(response);
-      } catch (err) {
-        // O erro será tratado pelo hook useGoogleAuth
-        throw err;
-      }
-    },
-    (errorMessage: string) => {
-      // Tratamento de erro já está no hook
+      await authLoginWithGoogle(response);
+      // TODO: tratar erro
     }
   );
 

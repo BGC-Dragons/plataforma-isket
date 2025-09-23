@@ -16,6 +16,7 @@ export interface IGetAuthMeResponseSuccess {
   }>;
   createdAt: string;
   id: string;
+  email: string;
   inactive: string | null;
   name: string;
   personalId: string | null;
