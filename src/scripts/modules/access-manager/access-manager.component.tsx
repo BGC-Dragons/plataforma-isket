@@ -12,7 +12,7 @@ export const AccessManager: React.FC<AccessManagerProps> = ({
   component: Component,
   requireAuth = true,
 }) => {
-  const { isLogged, isValidating, store } = useAuth();
+  const { isLogged, isValidating } = useAuth();
   const { pathname, search } = useLocation();
 
   if (isValidating) {
@@ -25,9 +25,16 @@ export const AccessManager: React.FC<AccessManagerProps> = ({
 
     case requireAuth && !isLogged:
       // Evitar redirecionamento para páginas de autenticação
-      const invalidRedirects = ["/esqueceu-senha", "/cadastro", "/login", "/reset-password"];
-      const shouldRedirect = !invalidRedirects.some(invalid => pathname.includes(invalid));
-      
+      const invalidRedirects = [
+        "/esqueceu-senha",
+        "/cadastro",
+        "/login",
+        "/reset-password",
+      ];
+      const shouldRedirect = !invalidRedirects.some((invalid) =>
+        pathname.includes(invalid)
+      );
+
       if (shouldRedirect) {
         return <Navigate to={`/login?redirect=${pathname + search}`} replace />;
       } else {
