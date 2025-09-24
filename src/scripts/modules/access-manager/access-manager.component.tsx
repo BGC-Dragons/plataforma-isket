@@ -22,7 +22,7 @@ export const AccessManager: React.FC<AccessManagerProps> = ({
   switch (true) {
     case !requireAuth:
       return <Component />;
-
+    //TODO: corrigir essa logica denecessaria
     case requireAuth && !isLogged:
       // Evitar redirecionamento para páginas de autenticação
       const invalidRedirects = [

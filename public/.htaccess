@@ -1,0 +1,79 @@
+# .htaccess para proteção contra bots e crawlers
+# Bloqueia acesso de robôs e ferramentas automatizadas
+
+# Bloquear user agents suspeitos
+RewriteEngine On
+
+# Bloquear bots conhecidos
+RewriteCond %{HTTP_USER_AGENT} (googlebot|bingbot|slurp|duckduckbot|baiduspider|yandexbot|facebookexternalhit|twitterbot|linkedinbot|whatsapp|applebot) [NC]
+RewriteRule .* - [F,L]
+
+# Bloquear scrapers e ferramentas de teste
+RewriteCond %{HTTP_USER_AGENT} (ahrefsbot|semrushbot|mj12bot|dotbot|scrapy|python-urllib|curl|wget|postmanruntime|insomnia) [NC]
+RewriteRule .* - [F,L]
+
+# Bloquear requisições sem User-Agent
+RewriteCond %{HTTP_USER_AGENT} ^$ [NC]
+RewriteRule .* - [F,L]
+
+# Bloquear requisições com User-Agent muito curto (suspeito)
+RewriteCond %{HTTP_USER_AGENT} ^.{1,10}$ [NC]
+RewriteRule .* - [F,L]
+
+# Bloquear acesso direto a arquivos sensíveis
+<FilesMatch "\.(env|log|sql|bak|backup|old|tmp)$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+
+# Bloquear acesso a diretórios sensíveis
+RedirectMatch 403 ^/.*\.(env|log|sql|bak|backup|old|tmp)$
+
+# Headers de segurança
+<IfModule mod_headers.c>
+    # Prevenir clickjacking
+    Header always append X-Frame-Options SAMEORIGIN
+    
+    # Prevenir MIME type sniffing
+    Header set X-Content-Type-Options nosniff
+    
+    # Habilitar XSS protection
+    Header set X-XSS-Protection "1; mode=block"
+    
+    # Referrer Policy
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    
+    # Content Security Policy básico
+    Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:;"
+</IfModule>
+
+# Limitar métodos HTTP permitidos
+<LimitExcept GET POST HEAD>
+    Order Allow,Deny
+    Deny from all
+</LimitExcept>
+
+# Bloquear requisições com parâmetros suspeitos
+RewriteCond %{QUERY_STRING} (union|select|insert|delete|update|drop|create|alter|exec|script) [NC]
+RewriteRule .* - [F,L]
+
+# Bloquear tentativas de SQL injection
+RewriteCond %{QUERY_STRING} (\<|%3C).*script.*(\>|%3E) [NC,OR]
+RewriteCond %{QUERY_STRING} GLOBALS(=|\[|\%[0-9A-Z]{0,2}) [OR]
+RewriteCond %{QUERY_STRING} _REQUEST(=|\[|\%[0-9A-Z]{0,2}) [OR]
+RewriteCond %{QUERY_STRING} proc/self/environ [OR]
+RewriteCond %{QUERY_STRING} mosConfig_[a-zA-Z_]{1,21}(=|\%3D) [OR]
+RewriteCond %{QUERY_STRING} base64_(en|de)code[^(]*\([^)]*\) [OR]
+RewriteCond %{QUERY_STRING} (<|%3C)([^s]*s)+cript.*(>|%3E) [NC,OR]
+RewriteCond %{QUERY_STRING} (\<|%3C).*iframe.*(\>|%3E) [NC]
+RewriteRule .* - [F,L]
+
+# Rate limiting básico (requer mod_evasive)
+# <IfModule mod_evasive24.c>
+#     DOSHashTableSize    2048
+#     DOSPageCount        3
+#     DOSSiteCount        50
+#     DOSPageInterval     1
+#     DOSSiteInterval     1
+#     DOSBlockingPeriod   600
+# </IfModule>

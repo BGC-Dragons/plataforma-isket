@@ -1,0 +1,84 @@
+# Robots.txt para app-isket
+# Bloqueia acesso de robôs à aplicação
+
+User-agent: *
+Disallow: /
+
+# Bloquear bots específicos conhecidos
+User-agent: Googlebot
+Disallow: /
+
+User-agent: Bingbot
+Disallow: /
+
+User-agent: Slurp
+Disallow: /
+
+User-agent: DuckDuckBot
+Disallow: /
+
+User-agent: Baiduspider
+Disallow: /
+
+User-agent: YandexBot
+Disallow: /
+
+User-agent: facebookexternalhit
+Disallow: /
+
+User-agent: Twitterbot
+Disallow: /
+
+User-agent: LinkedInBot
+Disallow: /
+
+User-agent: WhatsApp
+Disallow: /
+
+User-agent: Applebot
+Disallow: /
+
+# Bloquear crawlers de SEO
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /
+
+# Bloquear scrapers
+User-agent: Scrapy
+Disallow: /
+
+User-agent: Python-urllib
+Disallow: /
+
+User-agent: curl
+Disallow: /
+
+User-agent: wget
+Disallow: /
+
+# Bloquear ferramentas de teste
+User-agent: PostmanRuntime
+Disallow: /
+
+User-agent: Insomnia
+Disallow: /
+
+# Permitir apenas acesso a arquivos estáticos essenciais (se necessário)
+# User-agent: *
+# Allow: /favicon.ico
+# Allow: /assets/
+# Disallow: /
+
+# Sitemap (opcional - descomente se tiver)
+# Sitemap: https://seudominio.com/sitemap.xml
+
+# Crawl-delay para bots que não respeitam o Disallow
+Crawl-delay: 86400
