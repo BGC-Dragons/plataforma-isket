@@ -25,10 +25,20 @@ export function Login() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showError, setShowError] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
   const { login } = useAuth();
+
+  // Carregar erro do localStorage quando o componente monta
+  useEffect(() => {
+    const savedError = localStorage.getItem("login_error");
+    if (savedError) {
+      setError(savedError);
+      setShowError(true);
+    }
+  }, []);
 
   const redirectTo = (() => {
     if (!location.search.includes("redirect=")) return "/";
@@ -61,12 +71,17 @@ export function Login() {
     e.preventDefault();
 
     if (!email.trim() || !password.trim()) {
-      setError("Por favor, preencha todos os campos.");
+      const errorMessage = "Por favor, preencha todos os campos.";
+      setError(errorMessage);
+      setShowError(true);
+      localStorage.setItem("login_error", errorMessage);
       return;
     }
 
     setLoading(true);
     setError(null);
+    setShowError(false);
+    localStorage.removeItem("login_error");
 
     try {
       const response = await postAuthLogin({
@@ -114,14 +129,25 @@ export function Login() {
         response?: { data?: { message?: string; error?: string } };
       };
 
+      let errorMessage = "Erro ao fazer login. Tente novamente.";
+
       if (axiosError.response?.data?.message) {
-        setError(axiosError.response.data.message);
+        errorMessage = axiosError.response.data.message;
+        if (errorMessage === "Invalid credentials") {
+          errorMessage =
+            "Senha incorreta. Verifique sua senha e tente novamente.";
+        }
       } else if (axiosError.response?.data?.error) {
-        setError(axiosError.response.data.error);
-      } else {
-        setError("Erro ao fazer login. Tente novamente.");
+        errorMessage = axiosError.response.data.error;
+        if (errorMessage === "Invalid credentials") {
+          errorMessage =
+            "Senha incorreta. Verifique sua senha e tente novamente.";
+        }
       }
 
+      setError(errorMessage);
+      setShowError(true);
+      localStorage.setItem("login_error", errorMessage);
       console.error("Login error:", err);
     } finally {
       setLoading(false);
@@ -200,7 +226,7 @@ export function Login() {
           </Typography>
 
           <Box component="form" onSubmit={handleSubmit} sx={{ width: "100%" }}>
-            {error && (
+            {showError && error && (
               <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
                 {error}
               </Alert>
