@@ -23,6 +23,8 @@ import {
   type ProductType,
   type AccountType,
 } from "../../../../../services/get-purchases.service";
+import { postPurchasesAddCity } from "../../../../../services/post-purchases-add-city.service";
+import { AddCitiesModal } from "../../../../library/components/add-cities-modal";
 
 export function SubscriptionSection() {
   const theme = useTheme();
@@ -33,6 +35,64 @@ export function SubscriptionSection() {
   );
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isAddCitiesModalOpen, setIsAddCitiesModalOpen] = useState(false);
+  const [isAddingCity, setIsAddingCity] = useState(false);
+  const [addCityError, setAddCityError] = useState<string | null>(null);
+
+  const handleSaveCities = async (cities: string[]) => {
+    if (!store.token || purchases.length === 0) return;
+
+    const purchase = purchases[0];
+    setIsAddingCity(true);
+    setAddCityError(null);
+
+    try {
+      const city = cities[0];
+      const addCityResponse = await postPurchasesAddCity(
+        purchase.id,
+        city,
+        store.token
+      );
+
+      if ((addCityResponse.data as { status?: number })?.status === 402) {
+        const errorMessage =
+          "Você esgotou seus créditos. Por favor, adquira créditos adicionais para adicionar uma nova cidade.";
+        setAddCityError(errorMessage);
+        return;
+      }
+
+      const response = await getPurchases(store.token);
+      setPurchases(response.data);
+    } catch (err: unknown) {
+      console.error("Erro ao adicionar cidade:", err);
+
+      let errorMessage = "Erro ao adicionar cidade. Tente novamente.";
+
+      const axiosError = err as {
+        response?: { status?: number; data?: { message?: string } };
+      };
+
+      if (
+        (axiosError.response?.data as { status?: number })?.status === 402 ||
+        axiosError.response?.status === 402
+      ) {
+        errorMessage =
+          "Você esgotou seus créditos. Por favor, adquira créditos adicionais para adicionar uma nova cidade.";
+      } else if (axiosError.response?.status === 409) {
+        errorMessage = "Esta cidade já foi adicionada anteriormente.";
+      } else if (axiosError.response?.status === 422) {
+        errorMessage = "Limite de cidades atingido para seu plano.";
+      } else if (axiosError.response?.status === 404) {
+        errorMessage = "Compra não encontrada.";
+      } else if (axiosError.response?.data?.message) {
+        errorMessage = axiosError.response.data.message;
+      }
+
+      setAddCityError(errorMessage);
+    } finally {
+      setIsAddingCity(false);
+    }
+  };
 
   useEffect(() => {
     const loadPurchases = async () => {
@@ -387,6 +447,7 @@ export function SubscriptionSection() {
             variant="contained"
             startIcon={<Add />}
             size="small"
+            onClick={() => setIsAddCitiesModalOpen(true)}
             sx={{
               textTransform: "none",
               minWidth: "auto",
@@ -470,6 +531,20 @@ export function SubscriptionSection() {
           </Box>
         )}
       </Paper>
+
+      <AddCitiesModal
+        open={isAddCitiesModalOpen}
+        onClose={() => {
+          setIsAddCitiesModalOpen(false);
+          setAddCityError(null);
+        }}
+        onSave={handleSaveCities}
+        existingCities={
+          purchases.length > 0 ? purchases[0].chosenCityCodes : []
+        }
+        isLoading={isAddingCity}
+        apiError={addCityError}
+      />
     </Box>
   );
 }

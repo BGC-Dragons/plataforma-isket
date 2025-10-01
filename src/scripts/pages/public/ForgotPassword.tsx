@@ -32,6 +32,7 @@ export function ForgotPassword() {
     try {
       await postAuthRecoveryPassword({ email });
       setSuccess(true);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error("Erro ao solicitar recuperação:", error);
 

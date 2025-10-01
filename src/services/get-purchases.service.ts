@@ -22,14 +22,14 @@ export interface IRemainingUnit {
 }
 
 export interface IGatewayPrice {
-  type: "YEARLY" | "MONTHLY";
+  type: "YEARLY" | "MONTHLY" | "PACKAGE" | "UNIT";
   id: string;
-  link: string | null;
+  link?: string;
 }
 
 export interface IProductUnit {
   type: ProductUnitType;
-  priceType: "UNIT";
+  priceType: "YEARLY" | "MONTHLY" | "PACKAGE" | "UNIT";
   limit: number;
 }
 
@@ -40,27 +40,31 @@ export interface IProduct {
   productType: ProductType;
   accountType: AccountType;
   value: number;
-  recommended: boolean;
-  gatewayPrices: IGatewayPrice[];
+  recommended?: boolean;
   units: IProductUnit[];
+  gatewayPrices: IGatewayPrice[];
   createdAt: string;
   updatedAt: string;
-  deleted: string | null;
+}
+
+export interface IPrice {
+  type: "YEARLY" | "MONTHLY" | "PACKAGE" | "UNIT";
+  id: string;
+  link?: string;
 }
 
 export interface IGetPurchasesResponseSuccess {
   id: string;
   accountId: string;
   quantity: number;
-  contractUrl: string | null;
+  contractUrl?: string;
   defaultCityStateCode: string;
+  price?: IPrice;
   chosenCityCodes: string[];
-  stripeId: string | null;
-  ivaId: string | null;
+  stripeId?: string;
+  ivaId?: string;
   planPeriodEnd: number;
-  lastCityUpdate: string | null;
-  price: number | null;
-  productId: string;
+  lastCityUpdate?: string;
   purchasedAt: string;
   remainingUnits: IRemainingUnit[];
   product: IProduct;
