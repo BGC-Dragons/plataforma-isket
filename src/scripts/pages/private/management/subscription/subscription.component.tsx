@@ -13,8 +13,25 @@ import {
   IconButton,
   CircularProgress,
   Alert,
+  LinearProgress,
+  Avatar,
+  Tooltip,
+  Fade,
 } from "@mui/material";
-import { Edit, Add, LocationOn } from "@mui/icons-material";
+import {
+  Edit,
+  Add,
+  LocationOn,
+  People,
+  Business,
+  Assessment,
+  Search,
+  Radar,
+  Warning,
+  CheckCircle,
+  TrendingDown,
+  Schedule,
+} from "@mui/icons-material";
 import { useAuth } from "../../../../modules/access-manager/auth.hook";
 import {
   getPurchases,
@@ -190,6 +207,43 @@ export function SubscriptionSection() {
     return units;
   };
 
+  const getCreditStatus = (remaining: number, total: number) => {
+    if (total === 0)
+      return { status: "unavailable", color: "grey", icon: null };
+
+    const percentage = (remaining / total) * 100;
+
+    if (percentage === 0)
+      return { status: "exhausted", color: "error", icon: Warning };
+    if (percentage <= 20)
+      return { status: "low", color: "warning", icon: TrendingDown };
+    if (percentage <= 50)
+      return { status: "medium", color: "info", icon: null };
+    return { status: "good", color: "success", icon: CheckCircle };
+  };
+
+  const getCreditIcon = (type: ProductUnitType) => {
+    const icons = {
+      USERS: People,
+      CITIES: LocationOn,
+      PROPERTY_VALUATION: Assessment,
+      RESIDENT_SEARCH: Search,
+      RADARS: Radar,
+    };
+    return icons[type] || Business;
+  };
+
+  const getCreditColor = (status: string) => {
+    const colors = {
+      exhausted: "#f44336",
+      low: "#ff9800",
+      medium: "#2196f3",
+      good: "#4caf50",
+      unavailable: "#9e9e9e",
+    };
+    return colors[status as keyof typeof colors] || "#9e9e9e";
+  };
+
   if (isLoading) {
     return (
       <Box
@@ -246,25 +300,37 @@ export function SubscriptionSection() {
   const units = getRemainingUnits(purchase);
 
   return (
-    <Box sx={{ width: "100%", maxWidth: "100%", pb: 4 }}>
+    <Box
+      sx={{
+        width: "100%",
+        maxWidth: "100%",
+        pt: 2,
+        pb: 4,
+      }}
+    >
       <Typography
         variant="h5"
         gutterBottom
-        sx={{ color: theme.palette.primary.main, mb: 1.5 }}
+        sx={{ color: theme.palette.primary.main, mb: 3 }}
       >
         Assinatura
       </Typography>
 
-      <Paper
-        elevation={2}
-        sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2, mb: 1.5, width: "100%" }}
+      <Box
+        sx={{
+          p: { xs: 2, sm: 3 },
+          borderRadius: 2,
+          backgroundColor: theme.palette.background.paper,
+          border: `1px solid ${theme.palette.divider}`,
+        }}
       >
+        {/* Informações do Produto */}
         <Box
           sx={{
             display: "flex",
             alignItems: "flex-start",
             gap: 2,
-            mb: 2,
+            mb: 3,
             flexDirection: { xs: "column", sm: "row" },
           }}
         >
@@ -307,196 +373,380 @@ export function SubscriptionSection() {
             />
           </Box>
         </Box>
-      </Paper>
 
-      <Paper
-        elevation={2}
-        sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2, mb: 1.5, width: "100%" }}
-      >
-        <Typography
-          variant="subtitle1"
-          sx={{ fontWeight: 600, mb: 2, color: theme.palette.text.primary }}
-        >
-          Informações do Plano
-        </Typography>
-
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
-            gap: 2,
-          }}
-        >
-          <Card
-            variant="outlined"
-            sx={{ p: 2, backgroundColor: theme.palette.background.default }}
+        {/* Informações do Plano */}
+        <Box sx={{ mb: 3 }}>
+          <Typography
+            variant="subtitle1"
+            sx={{ fontWeight: 600, mb: 2, color: theme.palette.text.primary }}
           >
-            <Typography
-              variant="subtitle2"
-              sx={{ fontWeight: 600, color: theme.palette.text.primary, mb: 1 }}
-            >
-              Renovação
-            </Typography>
-            <Typography
-              variant="h6"
-              sx={{
-                fontWeight: 700,
-                color: theme.palette.primary.main,
-                mb: 0.5,
-              }}
-            >
-              {formatDate(purchase.planPeriodEnd)}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Data de vencimento do seu plano atual
-            </Typography>
-          </Card>
-
-          <Card
-            variant="outlined"
-            sx={{ p: 2, backgroundColor: theme.palette.background.default }}
-          >
-            <Typography
-              variant="subtitle2"
-              sx={{ fontWeight: 600, color: theme.palette.text.primary, mb: 1 }}
-            >
-              Período
-            </Typography>
-            <Typography
-              variant="h6"
-              sx={{
-                fontWeight: 700,
-                color: theme.palette.primary.main,
-                mb: 0.5,
-              }}
-            >
-              {getPeriodType(purchase)}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Frequência de cobrança do plano
-            </Typography>
-          </Card>
-        </Box>
-      </Paper>
-
-      <Paper
-        elevation={2}
-        sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2, mb: 1.5, width: "100%" }}
-      >
-        <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1.5 }}>
-          Créditos do seu plano
-        </Typography>
-        <Box
-          sx={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 1.5,
-            justifyContent: { xs: "center", sm: "flex-start" },
-          }}
-        >
-          {Object.entries(units).map(([type, data]) => (
-            <Box
-              key={type}
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 1,
-                px: 2,
-                py: 1,
-                backgroundColor: theme.palette.background.default,
-                borderRadius: 1,
-                border: `1px solid ${theme.palette.divider}`,
-                minWidth: "fit-content",
-              }}
-            >
-              <Typography
-                variant="body2"
-                sx={{ fontWeight: 600, color: theme.palette.text.primary }}
-              >
-                {translateUnitType(type as ProductUnitType)}:
-              </Typography>
-              <Typography
-                variant="body2"
-                sx={{ fontWeight: 700, color: theme.palette.primary.main }}
-              >
-                {data.remaining} disponíveis de {data.total} contratados
-              </Typography>
-            </Box>
-          ))}
-        </Box>
-      </Paper>
-
-      <Paper
-        elevation={2}
-        sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2, width: "100%" }}
-      >
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            mb: 1.5,
-            flexDirection: { xs: "column", sm: "row" },
-            gap: { xs: 2, sm: 0 },
-          }}
-        >
-          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-            Cidades
+            Informações do Plano
           </Typography>
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            size="small"
-            onClick={() => setIsAddCitiesModalOpen(true)}
+
+          <Box
             sx={{
-              textTransform: "none",
-              minWidth: "auto",
-              px: 1.5,
-              py: 0.5,
-              width: { xs: "100%", sm: "auto" },
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+              gap: 2,
             }}
           >
-            Adicionar
-          </Button>
+            {/* Card de Renovação */}
+            <Fade in timeout={400}>
+              <Card
+                sx={{
+                  p: 2.5,
+                  height: "100%",
+                  border: `2px solid ${theme.palette.primary.main}20`,
+                  backgroundColor: `${theme.palette.primary.main}05`,
+                  transition: "all 0.3s ease",
+                  "&:hover": {
+                    transform: "translateY(-2px)",
+                    boxShadow: theme.shadows[4],
+                    borderColor: theme.palette.primary.main,
+                  },
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+                  <Avatar
+                    sx={{
+                      bgcolor: theme.palette.primary.main,
+                      mr: 1.5,
+                      width: 40,
+                      height: 40,
+                    }}
+                  >
+                    <Typography sx={{ fontWeight: 700, fontSize: "1.1rem" }}>
+                      📅
+                    </Typography>
+                  </Avatar>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography
+                      variant="subtitle2"
+                      sx={{
+                        fontWeight: 600,
+                        color: theme.palette.text.primary,
+                        mb: 0.5,
+                      }}
+                    >
+                      Renovação
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Data de vencimento
+                    </Typography>
+                  </Box>
+                </Box>
+
+                <Typography
+                  variant="h5"
+                  sx={{
+                    fontWeight: 700,
+                    color: theme.palette.primary.main,
+                    mb: 1,
+                    textAlign: "center",
+                  }}
+                >
+                  {formatDate(purchase.planPeriodEnd)}
+                </Typography>
+
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 1,
+                    mt: 1,
+                  }}
+                >
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ fontWeight: 500 }}
+                  >
+                    Próxima cobrança
+                  </Typography>
+                </Box>
+              </Card>
+            </Fade>
+
+            {/* Card de Período */}
+            <Fade in timeout={500}>
+              <Card
+                sx={{
+                  p: 2.5,
+                  height: "100%",
+                  border: `2px solid ${theme.palette.secondary.main}20`,
+                  backgroundColor: `${theme.palette.secondary.main}05`,
+                  transition: "all 0.3s ease",
+                  "&:hover": {
+                    transform: "translateY(-2px)",
+                    boxShadow: theme.shadows[4],
+                    borderColor: theme.palette.secondary.main,
+                  },
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+                  <Avatar
+                    sx={{
+                      bgcolor: theme.palette.secondary.main,
+                      mr: 1.5,
+                      width: 40,
+                      height: 40,
+                    }}
+                  >
+                    <Schedule
+                      sx={{
+                        fontSize: 40,
+                        color: theme.palette.secondary.main,
+                        backgroundColor: theme.palette.primary.main,
+                      }}
+                    />
+                  </Avatar>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography
+                      variant="subtitle2"
+                      sx={{
+                        fontWeight: 600,
+                        color: theme.palette.text.primary,
+                        mb: 0.5,
+                      }}
+                    >
+                      Período
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Frequência de cobrança
+                    </Typography>
+                  </Box>
+                </Box>
+
+                <Typography
+                  variant="h5"
+                  sx={{
+                    fontWeight: 700,
+                    color: theme.palette.primary.main,
+                    mb: 1,
+                    textAlign: "center",
+                  }}
+                >
+                  {getPeriodType(purchase)}
+                </Typography>
+
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 1,
+                    mt: 1,
+                  }}
+                >
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ fontWeight: 500 }}
+                  >
+                    {getPeriodType(purchase) === "Anual"
+                      ? "Cobrança anual"
+                      : "Cobrança mensal"}
+                  </Typography>
+                </Box>
+              </Card>
+            </Fade>
+          </Box>
         </Box>
 
-        {(purchase.chosenCityCodes && purchase.chosenCityCodes.length > 0) ||
-        purchase.defaultCityStateCode ? (
-          <List dense>
-            {purchase.defaultCityStateCode && (
-              <ListItem
-                sx={{ py: 0.5 }}
-                secondaryAction={
-                  <IconButton
-                    edge="end"
-                    aria-label="edit"
-                    size="small"
-                    sx={{ p: 0.5 }}
-                  >
-                    <Edit sx={{ fontSize: 16 }} />
-                  </IconButton>
-                }
-              >
-                <LocationOn
-                  sx={{
-                    mr: 1.5,
-                    color: theme.palette.primary.main,
-                    fontSize: 20,
-                  }}
-                />
-                <ListItemText
-                  primary={purchase.defaultCityStateCode}
-                  secondary="Cidade padrão"
-                  primaryTypographyProps={{ variant: "body2" }}
-                  secondaryTypographyProps={{ variant: "caption" }}
-                />
-              </ListItem>
-            )}
-            {/* Cidades adicionais */}
-            {purchase.chosenCityCodes &&
-              purchase.chosenCityCodes.map((city, index) => (
+        {/* Créditos do Plano */}
+        <Box sx={{ mb: 3 }}>
+          <Typography
+            variant="subtitle1"
+            sx={{ fontWeight: 600, mb: 2, color: theme.palette.text.primary }}
+          >
+            Créditos do seu plano
+          </Typography>
+
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                sm: "repeat(2, 1fr)",
+                md: "repeat(3, 1fr)",
+              },
+              gap: 2,
+            }}
+          >
+            {Object.entries(units).map(([type, data]) => {
+              const status = getCreditStatus(data.remaining, data.total);
+              const IconComponent = getCreditIcon(type as ProductUnitType);
+              const StatusIcon = status.icon;
+              const percentage =
+                data.total > 0 ? (data.remaining / data.total) * 100 : 0;
+
+              return (
+                <Box key={type}>
+                  <Fade in timeout={300}>
+                    <Card
+                      sx={{
+                        p: 2,
+                        height: "100%",
+                        border: `2px solid ${getCreditColor(status.status)}20`,
+                        backgroundColor: `${getCreditColor(status.status)}05`,
+                        transition: "all 0.3s ease",
+                        "&:hover": {
+                          transform: "translateY(-2px)",
+                          boxShadow: theme.shadows[4],
+                          borderColor: getCreditColor(status.status),
+                        },
+                      }}
+                    >
+                      <Box
+                        sx={{ display: "flex", alignItems: "center", mb: 2 }}
+                      >
+                        <Avatar
+                          sx={{
+                            bgcolor: getCreditColor(status.status),
+                            mr: 1.5,
+                            width: 40,
+                            height: 40,
+                          }}
+                        >
+                          <IconComponent />
+                        </Avatar>
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography
+                            variant="subtitle2"
+                            sx={{
+                              fontWeight: 600,
+                              color: theme.palette.text.primary,
+                              mb: 0.5,
+                            }}
+                          >
+                            {translateUnitType(type as ProductUnitType)}
+                          </Typography>
+                          {StatusIcon && (
+                            <Tooltip title={`Status: ${status.status}`}>
+                              <StatusIcon
+                                sx={{
+                                  fontSize: 16,
+                                  color: getCreditColor(status.status),
+                                }}
+                              />
+                            </Tooltip>
+                          )}
+                        </Box>
+                      </Box>
+
+                      <Box sx={{ mb: 2 }}>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            mb: 1,
+                          }}
+                        >
+                          <Typography variant="body2" color="text.secondary">
+                            Disponível
+                          </Typography>
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              fontWeight: 600,
+                              color: getCreditColor(status.status),
+                            }}
+                          >
+                            {data.remaining} / {data.total}
+                          </Typography>
+                        </Box>
+
+                        <LinearProgress
+                          variant="determinate"
+                          value={percentage}
+                          sx={{
+                            height: 8,
+                            borderRadius: 4,
+                            backgroundColor: `${getCreditColor(
+                              status.status
+                            )}20`,
+                            "& .MuiLinearProgress-bar": {
+                              backgroundColor: getCreditColor(status.status),
+                              borderRadius: 4,
+                            },
+                          }}
+                        />
+
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            display: "block",
+                            textAlign: "right",
+                            mt: 0.5,
+                            color: getCreditColor(status.status),
+                            fontWeight: 600,
+                          }}
+                        >
+                          {percentage.toFixed(0)}% restante
+                        </Typography>
+                      </Box>
+
+                      {status.status === "exhausted" && (
+                        <Alert severity="error" sx={{ mt: 1, py: 0.5 }}>
+                          <Typography variant="caption">
+                            Créditos esgotados
+                          </Typography>
+                        </Alert>
+                      )}
+
+                      {status.status === "low" && (
+                        <Alert severity="warning" sx={{ mt: 1, py: 0.5 }}>
+                          <Typography variant="caption">
+                            Créditos baixos
+                          </Typography>
+                        </Alert>
+                      )}
+                    </Card>
+                  </Fade>
+                </Box>
+              );
+            })}
+          </Box>
+        </Box>
+
+        {/* Cidades */}
+        <Box>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              mb: 1.5,
+              flexDirection: { xs: "column", sm: "row" },
+              gap: { xs: 2, sm: 0 },
+            }}
+          >
+            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+              Cidades
+            </Typography>
+            <Button
+              variant="contained"
+              startIcon={<Add />}
+              size="small"
+              onClick={() => setIsAddCitiesModalOpen(true)}
+              sx={{
+                textTransform: "none",
+                minWidth: "auto",
+                px: 1.5,
+                py: 0.5,
+                width: { xs: "100%", sm: "auto" },
+              }}
+            >
+              Adicionar
+            </Button>
+          </Box>
+
+          {(purchase.chosenCityCodes && purchase.chosenCityCodes.length > 0) ||
+          purchase.defaultCityStateCode ? (
+            <List dense>
+              {purchase.defaultCityStateCode && (
                 <ListItem
-                  key={index}
                   sx={{ py: 0.5 }}
                   secondaryAction={
                     <IconButton
@@ -517,20 +767,53 @@ export function SubscriptionSection() {
                     }}
                   />
                   <ListItemText
-                    primary={city}
+                    primary={purchase.defaultCityStateCode}
+                    secondary="Cidade padrão"
                     primaryTypographyProps={{ variant: "body2" }}
+                    secondaryTypographyProps={{ variant: "caption" }}
                   />
                 </ListItem>
-              ))}
-          </List>
-        ) : (
-          <Box sx={{ textAlign: "center", py: 2 }}>
-            <Typography variant="body2" color="text.secondary">
-              Nenhuma cidade selecionada
-            </Typography>
-          </Box>
-        )}
-      </Paper>
+              )}
+              {/* Cidades adicionais */}
+              {purchase.chosenCityCodes &&
+                purchase.chosenCityCodes.map((city, index) => (
+                  <ListItem
+                    key={index}
+                    sx={{ py: 0.5 }}
+                    secondaryAction={
+                      <IconButton
+                        edge="end"
+                        aria-label="edit"
+                        size="small"
+                        sx={{ p: 0.5 }}
+                      >
+                        <Edit sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    }
+                  >
+                    <LocationOn
+                      sx={{
+                        mr: 1.5,
+                        color: theme.palette.primary.main,
+                        fontSize: 20,
+                      }}
+                    />
+                    <ListItemText
+                      primary={city}
+                      primaryTypographyProps={{ variant: "body2" }}
+                    />
+                  </ListItem>
+                ))}
+            </List>
+          ) : (
+            <Box sx={{ textAlign: "center", py: 2 }}>
+              <Typography variant="body2" color="text.secondary">
+                Nenhuma cidade selecionada
+              </Typography>
+            </Box>
+          )}
+        </Box>
+      </Box>
 
       <AddCitiesModal
         open={isAddCitiesModalOpen}

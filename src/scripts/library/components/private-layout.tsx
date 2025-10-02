@@ -11,27 +11,18 @@ export function PrivateLayout({ children }: PrivateLayoutProps) {
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh" }}>
-      {/* Menu Lateral */}
       <SidebarMenu />
 
-      {/* Conteúdo Principal */}
       <Box
         component="main"
         sx={{
           flexGrow: 1,
-          width: `calc(100% - 80px)`, // Sempre considera o menu
+          width: `calc(100% - 80px)`,
           minHeight: "100vh",
           backgroundColor: theme.palette.background.default,
         }}
       >
-        {/* Área de Conteúdo */}
-        <Box
-          sx={{
-            p: { xs: 2, sm: 3, md: 4 },
-          }}
-        >
-          {children}
-        </Box>
+        <Box>{children}</Box>
       </Box>
     </Box>
   );

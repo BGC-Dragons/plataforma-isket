@@ -1,7 +1,6 @@
 import { useState } from "react";
 import {
   Box,
-  Paper,
   List,
   ListItem,
   ListItemButton,
@@ -10,8 +9,6 @@ import {
   Typography,
   useTheme,
   Avatar,
-  AppBar,
-  Toolbar,
   Button,
   Drawer,
   IconButton,
@@ -103,168 +100,203 @@ export function ManagementComponent() {
 
   const renderSidebar = () => (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
-      <Box sx={{ p: 3, borderBottom: `1px solid ${theme.palette.divider}` }}>
-        <Typography
-          variant="h5"
-          sx={{ fontWeight: 600, color: theme.palette.text.primary }}
-        >
-          Configurações
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-          Gerencie sua conta e preferências
-        </Typography>
-      </Box>
-
-      <Box sx={{ p: 3, borderBottom: `1px solid ${theme.palette.divider}` }}>
+      {/* User Profile Section */}
+      <Box
+        sx={{
+          p: 3,
+          borderBottom: `1px solid ${theme.palette.divider}`,
+          backgroundColor: theme.palette.background.paper,
+        }}
+      >
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
           <Avatar
             src={store.user?.picture}
             sx={{
-              width: 48,
-              height: 48,
+              width: 52,
+              height: 52,
               bgcolor: theme.palette.primary.main,
+              border: `2px solid ${theme.palette.primary.main}20`,
             }}
           >
             {store.user?.name?.charAt(0)?.toUpperCase() || "U"}
           </Avatar>
-          <Box>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography
+              variant="subtitle1"
+              sx={{
+                fontWeight: 600,
+                color: theme.palette.text.primary,
+                mb: 0.5,
+                wordBreak: "break-word",
+              }}
+            >
               {store.user?.name || "Usuário"}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{
+                fontSize: "0.8rem",
+                wordBreak: "break-word",
+              }}
+            >
               {store.user?.email || "email@exemplo.com"}
             </Typography>
           </Box>
         </Box>
       </Box>
 
-      <List sx={{ p: 2, flex: 1 }}>
-        {menuItems.map((item) => (
-          <ListItem key={item.id} disablePadding sx={{ mb: 1 }}>
-            <ListItemButton
-              onClick={() => handleSectionChange(item.id)}
-              selected={selectedSection === item.id}
-              sx={{
-                borderRadius: 2,
-                py: 1.5,
-                px: 2,
-                backgroundColor:
-                  selectedSection === item.id
-                    ? theme.palette.primary.main + "15"
-                    : "transparent",
-                "&:hover": {
+      {/* Navigation Menu */}
+      <Box
+        sx={{ flex: 1, p: 2, backgroundColor: theme.palette.background.paper }}
+      >
+        <List sx={{ p: 0 }}>
+          {menuItems.map((item) => (
+            <ListItem key={item.id} disablePadding sx={{ mb: 1 }}>
+              <ListItemButton
+                onClick={() => handleSectionChange(item.id)}
+                selected={selectedSection === item.id}
+                sx={{
+                  borderRadius: 2,
+                  py: 1.5,
+                  px: 2,
                   backgroundColor:
                     selectedSection === item.id
-                      ? theme.palette.primary.main + "25"
-                      : theme.palette.action.hover,
-                },
-                "&.Mui-selected": {
-                  backgroundColor: theme.palette.primary.main + "15",
-                  "&:hover": {
-                    backgroundColor: theme.palette.primary.main + "25",
-                  },
-                },
-                transition: "all 0.2s ease",
-              }}
-            >
-              <ListItemIcon
-                sx={{
-                  color:
+                      ? theme.palette.primary.main + "12"
+                      : "transparent",
+                  border:
                     selectedSection === item.id
-                      ? theme.palette.primary.main
-                      : theme.palette.text.secondary,
-                  minWidth: 40,
+                      ? `1px solid ${theme.palette.primary.main}30`
+                      : "1px solid transparent",
+                  "&:hover": {
+                    backgroundColor:
+                      selectedSection === item.id
+                        ? theme.palette.primary.main + "20"
+                        : theme.palette.action.hover,
+                    borderColor:
+                      selectedSection === item.id
+                        ? theme.palette.primary.main + "50"
+                        : theme.palette.divider,
+                  },
+                  "&.Mui-selected": {
+                    backgroundColor: theme.palette.primary.main + "12",
+                    borderColor: theme.palette.primary.main + "30",
+                    "&:hover": {
+                      backgroundColor: theme.palette.primary.main + "20",
+                      borderColor: theme.palette.primary.main + "50",
+                    },
+                  },
+                  transition: "all 0.3s ease",
                 }}
               >
-                {item.icon}
-              </ListItemIcon>
-              <ListItemText
-                primary={item.label}
-                secondary={item.description}
-                primaryTypographyProps={{
-                  fontWeight: selectedSection === item.id ? 600 : 400,
-                  color:
-                    selectedSection === item.id
-                      ? theme.palette.primary.main
-                      : theme.palette.text.primary,
-                }}
-                secondaryTypographyProps={{
-                  fontSize: "0.75rem",
-                  color: theme.palette.text.secondary,
-                }}
-              />
-            </ListItemButton>
-          </ListItem>
-        ))}
-      </List>
+                <ListItemIcon
+                  sx={{
+                    color:
+                      selectedSection === item.id
+                        ? theme.palette.primary.main
+                        : theme.palette.text.secondary,
+                    minWidth: 44,
+                    mr: 1,
+                  }}
+                >
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText
+                  primary={item.label}
+                  secondary={item.description}
+                  primaryTypographyProps={{
+                    fontWeight: selectedSection === item.id ? 600 : 500,
+                    color:
+                      selectedSection === item.id
+                        ? theme.palette.primary.main
+                        : theme.palette.text.primary,
+                    fontSize: "0.9rem",
+                  }}
+                  secondaryTypographyProps={{
+                    fontSize: "0.75rem",
+                    color: theme.palette.text.secondary,
+                    lineHeight: 1.3,
+                  }}
+                />
+              </ListItemButton>
+            </ListItem>
+          ))}
+        </List>
+      </Box>
     </Box>
   );
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-      <AppBar
-        position="static"
-        elevation={1}
+      <Box
         sx={{
           backgroundColor: theme.palette.background.paper,
-          color: theme.palette.text.primary,
           borderBottom: `1px solid ${theme.palette.divider}`,
+          px: { xs: 2, sm: 3 },
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
         }}
       >
-        <Toolbar sx={{ justifyContent: "space-between", px: { xs: 2, sm: 3 } }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-            {isMobile && (
-              <IconButton
-                edge="start"
-                color="inherit"
-                onClick={toggleMobileDrawer}
-                sx={{ mr: 1 }}
-              >
-                <Menu />
-              </IconButton>
-            )}
-            <Typography variant="h6" sx={{ fontWeight: 600 }}>
-              Configurações
-            </Typography>
-          </Box>
-
-          <Button
-            variant="contained"
-            onClick={handleGoToSubscription}
-            sx={{
-              backgroundColor: theme.palette.primary.main,
-              "&:hover": {
-                backgroundColor: theme.palette.primary.dark,
-              },
-              px: { xs: 2, sm: 3 },
-              py: 1,
-              borderRadius: 2,
-              textTransform: "none",
-              fontWeight: 600,
-              fontSize: { xs: "0.875rem", sm: "1rem" },
-            }}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+          {isMobile && (
+            <IconButton
+              edge="start"
+              color="inherit"
+              onClick={toggleMobileDrawer}
+              sx={{ mr: 1 }}
+            >
+              <Menu />
+            </IconButton>
+          )}
+          <Typography
+            variant="h6"
+            sx={{ fontWeight: 600, color: theme.palette.text.primary }}
           >
-            {isMobile ? "Assinar" : "Assinar Plano"}
-          </Button>
-        </Toolbar>
-      </AppBar>
+            Configurações
+          </Typography>
+        </Box>
 
-      <Box sx={{ display: "flex", flex: 1 }}>
+        <Button
+          variant="contained"
+          onClick={handleGoToSubscription}
+          sx={{
+            backgroundColor: theme.palette.primary.main,
+            "&:hover": {
+              backgroundColor: theme.palette.primary.dark,
+            },
+            px: { xs: 2, sm: 3 },
+            borderRadius: 2,
+            textTransform: "none",
+            fontWeight: 600,
+            fontSize: { xs: "0.875rem", sm: "1rem" },
+          }}
+        >
+          {isMobile ? "Assinar" : "Assinar Plano"}
+        </Button>
+      </Box>
+
+      <Box
+        sx={{
+          display: "flex",
+          flex: 1,
+          backgroundColor: theme.palette.background.default,
+        }}
+      >
         {/* Desktop/Tablet Sidebar */}
         {!isMobile && (
-          <Paper
-            elevation={2}
+          <Box
             sx={{
               width: { md: 280, lg: 320 },
               minHeight: "calc(100vh - 64px)",
-              borderRadius: 0,
-              borderRight: `1px solid ${theme.palette.divider}`,
               backgroundColor: theme.palette.background.paper,
-              display: { xs: "none", md: "block" },
+              display: { xs: "none", md: "flex" },
+              flexDirection: "column",
+              position: "relative",
             }}
           >
             {renderSidebar()}
-          </Paper>
+          </Box>
         )}
 
         {/* Mobile Drawer */}
@@ -287,8 +319,9 @@ export function ManagementComponent() {
         <Box
           sx={{
             flex: 1,
-            p: { xs: 2, sm: 3, md: 4 },
             minWidth: 0, // Prevents overflow
+            backgroundColor: theme.palette.background.default,
+            position: "relative",
           }}
         >
           {renderSelectedSection()}
