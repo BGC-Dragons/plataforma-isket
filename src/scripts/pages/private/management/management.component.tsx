@@ -227,10 +227,15 @@ export function ManagementComponent() {
   );
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        minHeight: "100vh",
+      }}
+    >
       <Box
         sx={{
-          backgroundColor: theme.palette.background.paper,
           borderBottom: `1px solid ${theme.palette.divider}`,
           px: { xs: 2, sm: 3 },
           display: "flex",
@@ -238,7 +243,14 @@ export function ManagementComponent() {
           alignItems: "center",
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 2,
+            p: { xs: 1, sm: 2 },
+          }}
+        >
           {isMobile && (
             <IconButton
               edge="start"
@@ -293,6 +305,7 @@ export function ManagementComponent() {
               display: { xs: "none", md: "flex" },
               flexDirection: "column",
               position: "relative",
+              borderRight: `1px solid ${theme.palette.divider}`,
             }}
           >
             {renderSidebar()}
@@ -322,6 +335,10 @@ export function ManagementComponent() {
             minWidth: 0, // Prevents overflow
             backgroundColor: theme.palette.background.default,
             position: "relative",
+            borderLeft: {
+              xs: "none",
+              md: `1px solid ${theme.palette.divider}`,
+            },
           }}
         >
           {renderSelectedSection()}

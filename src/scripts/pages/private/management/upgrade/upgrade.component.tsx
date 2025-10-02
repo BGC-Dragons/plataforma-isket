@@ -1,7 +1,6 @@
 import { useState } from "react";
 import {
   Box,
-  Paper,
   Typography,
   useTheme,
   Card,
@@ -12,8 +11,10 @@ import {
   Divider,
   ToggleButton,
   ToggleButtonGroup,
+  Fade,
+  Avatar,
 } from "@mui/material";
-import { Check, Star } from "@mui/icons-material";
+import { Check, Star, TrendingUp, Business, Person } from "@mui/icons-material";
 
 export function UpgradeSection() {
   const theme = useTheme();
@@ -185,202 +186,303 @@ export function UpgradeSection() {
   };
 
   return (
-    <Box sx={{ width: "100%", maxWidth: "100%", pb: 4 }}>
+    <Box
+      sx={{
+        width: "100%",
+        maxWidth: "100%",
+        pt: 2,
+        pb: 4,
+        pl: 2,
+        pr: 2,
+        mb: { xs: 5, md: 0 },
+      }}
+    >
       <Typography
         variant="h5"
         gutterBottom
-        sx={{ color: theme.palette.primary.main, mb: 1 }}
+        sx={{ color: theme.palette.primary.main, mb: 3 }}
       >
         Escolha seu Plano
       </Typography>
 
-      <Paper
-        elevation={2}
-        sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2, mb: 2, width: "100%" }}
-      >
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={3}>
-          <Box>
-            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-              Período
-            </Typography>
-            <ToggleButtonGroup
-              value={period}
-              exclusive
-              onChange={(_, newValue) => newValue && setPeriod(newValue)}
-              size="small"
-            >
-              <ToggleButton value="monthly">Mensal</ToggleButton>
-              <ToggleButton value="annual">Anual</ToggleButton>
-            </ToggleButtonGroup>
-            {period === "annual" && (
-              <Typography
-                variant="caption"
-                color="success.main"
-                sx={{ mt: 0.5, display: "block" }}
-              >
-                💰 Economize até 20%
-              </Typography>
-            )}
-          </Box>
-
-          <Divider orientation="vertical" flexItem />
-
-          {/* Toggle Autônomo/Imobiliária */}
-          <Box>
-            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-              Tipo de Conta
-            </Typography>
-            <ToggleButtonGroup
-              value={accountType}
-              exclusive
-              onChange={(_, newValue) => newValue && setAccountType(newValue)}
-              size="small"
-            >
-              <ToggleButton value="autonomous">Autônomo</ToggleButton>
-              <ToggleButton value="business">Imobiliária</ToggleButton>
-            </ToggleButtonGroup>
-          </Box>
-        </Stack>
-      </Paper>
-
       <Box
         sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", sm: "1fr", md: "repeat(3, 1fr)" },
-          gap: 2,
-          width: "100%",
+          p: { xs: 2, sm: 3 },
+          borderRadius: 2,
+          backgroundColor: theme.palette.background.paper,
+          border: `1px solid ${theme.palette.divider}`,
+          mb: 3,
         }}
       >
-        {getCurrentPlans().map((plan: PlanType, index: number) => {
-          const isRecommended = plan.recommended;
-          const isPro = index === 2;
+        {/* Configurações do Plano */}
+        <Box sx={{ mb: 3 }}>
+          <Typography
+            variant="subtitle1"
+            sx={{ fontWeight: 600, mb: 2, color: theme.palette.text.primary }}
+          >
+            Configurações do Plano
+          </Typography>
 
-          return (
-            <Box key={plan.title} sx={{ position: "relative" }}>
-              {isRecommended && (
-                <Chip
-                  icon={<Star />}
-                  label="Recomendado"
-                  color="primary"
-                  size="small"
-                  sx={{
-                    position: "absolute",
-                    top: -8,
-                    left: "50%",
-                    transform: "translateX(-50%)",
-                    fontWeight: 600,
-                    zIndex: 10,
-                  }}
-                />
-              )}
-
-              <Card
-                variant="outlined"
-                sx={{
-                  height: "100%",
-                  display: "flex",
-                  flexDirection: "column",
-                  border: isRecommended
-                    ? `2px solid ${theme.palette.primary.main}`
-                    : isPro
-                    ? `2px solid ${theme.palette.secondary.main}`
-                    : undefined,
-                  background: isPro
-                    ? `linear-gradient(135deg, ${theme.palette.primary.main}15, ${theme.palette.secondary.main}15)`
-                    : undefined,
-                  pt: isRecommended ? 2 : 0,
-                  transition: "all 0.3s ease",
-                  "&:hover": {
-                    transform: "translateY(-2px)",
-                    boxShadow: isPro ? theme.shadows[12] : theme.shadows[8],
-                  },
-                }}
-              >
-                <CardContent
-                  sx={{
-                    p: 2,
-                    flexGrow: 1,
-                    display: "flex",
-                    flexDirection: "column",
-                  }}
-                >
-                  <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
-                    {getAccountTypeText()} {plan.title}
-                  </Typography>
-
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ mb: 2, flexGrow: 1 }}
-                  >
-                    {plan.description}
-                  </Typography>
-
-                  <Box sx={{ mb: 2 }}>
-                    <Typography
-                      variant="h5"
+          <Fade in timeout={400}>
+            <Card
+              sx={{
+                p: 2.5,
+                height: "100%",
+                border: `2px solid ${theme.palette.primary.main}20`,
+                backgroundColor: `${theme.palette.primary.main}05`,
+                transition: "all 0.3s ease",
+                "&:hover": {
+                  transform: "translateY(-2px)",
+                  boxShadow: theme.shadows[4],
+                  borderColor: theme.palette.primary.main,
+                },
+              }}
+            >
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={3}>
+                <Box sx={{ flex: 1 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+                    <Avatar
                       sx={{
-                        fontWeight: 700,
-                        color: theme.palette.primary.main,
+                        bgcolor: theme.palette.primary.main,
+                        mr: 1.5,
+                        width: 40,
+                        height: 40,
                       }}
                     >
-                      {getPriceText(plan)}
+                      <TrendingUp sx={{ fontSize: 20 }} />
+                    </Avatar>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                      Período
                     </Typography>
-                    {period === "annual" && (
-                      <Typography variant="caption" color="success.main">
-                        Economia de{" "}
-                        {formatPrice(plan.monthlyPrice * 12 - plan.annualPrice)}
-                      </Typography>
-                    )}
                   </Box>
-
-                  <Box sx={{ mb: 2 }}>
-                    <Typography
-                      variant="subtitle2"
-                      sx={{ fontWeight: 600, mb: 1 }}
-                    >
-                      Incluído:
-                    </Typography>
-                    <Stack spacing={0.5}>
-                      {getCurrentFeatures(plan).map(
-                        (feature: string, index: number) => (
-                          <Box
-                            key={index}
-                            sx={{ display: "flex", alignItems: "center" }}
-                          >
-                            <Check
-                              sx={{
-                                color: "success.main",
-                                fontSize: 16,
-                                mr: 1,
-                              }}
-                            />
-                            <Typography variant="caption">{feature}</Typography>
-                          </Box>
-                        )
-                      )}
-                    </Stack>
-                  </Box>
-
-                  <Button
-                    variant="contained"
-                    color="primary"
+                  <ToggleButtonGroup
+                    value={period}
+                    exclusive
+                    onChange={(_, newValue) => newValue && setPeriod(newValue)}
+                    size="small"
                     fullWidth
+                  >
+                    <ToggleButton value="monthly">Mensal</ToggleButton>
+                    <ToggleButton value="annual">Anual</ToggleButton>
+                  </ToggleButtonGroup>
+                  {period === "annual" && (
+                    <Typography
+                      variant="caption"
+                      color="success.main"
+                      sx={{ mt: 0.5, display: "block" }}
+                    >
+                      💰 Economize até 20%
+                    </Typography>
+                  )}
+                </Box>
+
+                <Divider orientation="vertical" flexItem />
+
+                <Box sx={{ flex: 1 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+                    <Avatar
+                      sx={{
+                        bgcolor: theme.palette.primary.main,
+                        mr: 1.5,
+                        width: 40,
+                        height: 40,
+                      }}
+                    >
+                      {accountType === "business" ? (
+                        <Business sx={{ fontSize: 20 }} />
+                      ) : (
+                        <Person
+                          sx={{
+                            fontSize: 20,
+                            color: theme.palette.secondary.main,
+                          }}
+                        />
+                      )}
+                    </Avatar>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                      Tipo de Conta
+                    </Typography>
+                  </Box>
+                  <ToggleButtonGroup
+                    value={accountType}
+                    exclusive
+                    onChange={(_, newValue) =>
+                      newValue && setAccountType(newValue)
+                    }
+                    size="small"
+                    fullWidth
+                  >
+                    <ToggleButton value="autonomous">Autônomo</ToggleButton>
+                    <ToggleButton value="business">Imobiliária</ToggleButton>
+                  </ToggleButtonGroup>
+                </Box>
+              </Stack>
+            </Card>
+          </Fade>
+        </Box>
+      </Box>
+
+      {/* Planos Disponíveis */}
+      <Box sx={{ mb: 3 }}>
+        <Typography
+          variant="subtitle1"
+          sx={{ fontWeight: 600, mb: 2, color: theme.palette.text.primary }}
+        >
+          Planos Disponíveis
+        </Typography>
+
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", sm: "1fr", md: "repeat(3, 1fr)" },
+            gap: 2,
+            width: "100%",
+          }}
+        >
+          {getCurrentPlans().map((plan: PlanType, index: number) => {
+            const isRecommended = plan.recommended;
+            const isPro = index === 2;
+
+            return (
+              <Box key={plan.title} sx={{ position: "relative" }}>
+                {isRecommended && (
+                  <Chip
+                    icon={<Star />}
+                    label="Recomendado"
+                    color="primary"
                     size="small"
                     sx={{
-                      mt: "auto",
-                      textTransform: "none",
+                      position: "absolute",
+                      top: -8,
+                      left: "50%",
+                      transform: "translateX(-50%)",
                       fontWeight: 600,
-                      py: 1.5,
+                      zIndex: 10,
+                    }}
+                  />
+                )}
+
+                <Fade in timeout={300 + index * 100}>
+                  <Card
+                    variant="outlined"
+                    sx={{
+                      height: "100%",
+                      display: "flex",
+                      flexDirection: "column",
+                      border: isRecommended
+                        ? `2px solid ${theme.palette.primary.main}`
+                        : isPro
+                        ? `2px solid ${theme.palette.secondary.main}`
+                        : `2px solid ${theme.palette.divider}`,
+                      background: isPro
+                        ? `linear-gradient(135deg, ${theme.palette.primary.main}15, ${theme.palette.secondary.main}15)`
+                        : isRecommended
+                        ? `${theme.palette.primary.main}05`
+                        : undefined,
+                      pt: isRecommended ? 2 : 0,
+                      transition: "all 0.3s ease",
+                      "&:hover": {
+                        transform: "translateY(-2px)",
+                        boxShadow: isPro ? theme.shadows[12] : theme.shadows[8],
+                        borderColor: isRecommended
+                          ? theme.palette.primary.main
+                          : isPro
+                          ? theme.palette.secondary.main
+                          : theme.palette.primary.main,
+                      },
                     }}
                   >
-                    Escolher Plano
-                  </Button>
-                </CardContent>
-              </Card>
-            </Box>
-          );
-        })}
+                    <CardContent
+                      sx={{
+                        p: 2,
+                        flexGrow: 1,
+                        display: "flex",
+                        flexDirection: "column",
+                      }}
+                    >
+                      <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
+                        {getAccountTypeText()} {plan.title}
+                      </Typography>
+
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mb: 2, flexGrow: 1 }}
+                      >
+                        {plan.description}
+                      </Typography>
+
+                      <Box sx={{ mb: 2 }}>
+                        <Typography
+                          variant="h5"
+                          sx={{
+                            fontWeight: 700,
+                            color: theme.palette.primary.main,
+                          }}
+                        >
+                          {getPriceText(plan)}
+                        </Typography>
+                        {period === "annual" && (
+                          <Typography variant="caption" color="success.main">
+                            Economia de{" "}
+                            {formatPrice(
+                              plan.monthlyPrice * 12 - plan.annualPrice
+                            )}
+                          </Typography>
+                        )}
+                      </Box>
+
+                      <Box sx={{ mb: 2 }}>
+                        <Typography
+                          variant="subtitle2"
+                          sx={{ fontWeight: 600, mb: 1 }}
+                        >
+                          Incluído:
+                        </Typography>
+                        <Stack spacing={0.5}>
+                          {getCurrentFeatures(plan).map(
+                            (feature: string, index: number) => (
+                              <Box
+                                key={index}
+                                sx={{ display: "flex", alignItems: "center" }}
+                              >
+                                <Check
+                                  sx={{
+                                    color: "success.main",
+                                    fontSize: 16,
+                                    mr: 1,
+                                  }}
+                                />
+                                <Typography variant="caption">
+                                  {feature}
+                                </Typography>
+                              </Box>
+                            )
+                          )}
+                        </Stack>
+                      </Box>
+
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        fullWidth
+                        size="small"
+                        sx={{
+                          mt: "auto",
+                          textTransform: "none",
+                          fontWeight: 600,
+                          py: 1.5,
+                        }}
+                      >
+                        Escolher Plano
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </Fade>
+              </Box>
+            );
+          })}
+        </Box>
       </Box>
     </Box>
   );

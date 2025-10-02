@@ -306,6 +306,9 @@ export function SubscriptionSection() {
         maxWidth: "100%",
         pt: 2,
         pb: 4,
+        pl: 2,
+        pr: 2,
+        mb: { xs: 5, md: 0 },
       }}
     >
       <Typography
@@ -375,13 +378,21 @@ export function SubscriptionSection() {
         </Box>
 
         {/* Informações do Plano */}
-        <Box sx={{ mb: 3 }}>
-          <Typography
-            variant="subtitle1"
-            sx={{ fontWeight: 600, mb: 2, color: theme.palette.text.primary }}
+        <Box sx={{ mb: 3, mt: 3 }}>
+          <Box
+            sx={{
+              pb: 2,
+              borderTop: `1px solid ${theme.palette.divider}`,
+              pt: 2,
+            }}
           >
-            Informações do Plano
-          </Typography>
+            <Typography
+              variant="subtitle1"
+              sx={{ fontWeight: 600, mb: 2, color: theme.palette.text.primary }}
+            >
+              Informações do Plano
+            </Typography>
+          </Box>
 
           <Box
             sx={{
@@ -555,13 +566,21 @@ export function SubscriptionSection() {
         </Box>
 
         {/* Créditos do Plano */}
-        <Box sx={{ mb: 3 }}>
-          <Typography
-            variant="subtitle1"
-            sx={{ fontWeight: 600, mb: 2, color: theme.palette.text.primary }}
+        <Box sx={{ mb: 3, mt: 3 }}>
+          <Box
+            sx={{
+              pb: 2,
+              borderTop: `1px solid ${theme.palette.divider}`,
+              pt: 2,
+            }}
           >
-            Créditos do seu plano
-          </Typography>
+            <Typography
+              variant="subtitle1"
+              sx={{ fontWeight: 600, mb: 2, color: theme.palette.text.primary }}
+            >
+              Créditos do seu plano
+            </Typography>
+          </Box>
 
           <Box
             sx={{
@@ -711,7 +730,7 @@ export function SubscriptionSection() {
         </Box>
 
         {/* Cidades */}
-        <Box>
+        <Box sx={{ mt: 3 }}>
           <Box
             sx={{
               display: "flex",
@@ -720,6 +739,9 @@ export function SubscriptionSection() {
               mb: 1.5,
               flexDirection: { xs: "column", sm: "row" },
               gap: { xs: 2, sm: 0 },
+              pb: 2,
+              borderTop: `1px solid ${theme.palette.divider}`,
+              pt: 2,
             }}
           >
             <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>

@@ -1,16 +1,16 @@
 import { useState, useEffect } from "react";
 import {
   Box,
-  Paper,
   Typography,
   useTheme,
   Avatar,
   TextField,
   Alert,
   Stack,
-  Divider,
   Button,
   CircularProgress,
+  Card,
+  Fade,
 } from "@mui/material";
 import { useAuth } from "../../../../modules/access-manager/auth.hook";
 import {
@@ -144,120 +144,187 @@ export function ProfileSection() {
   }
 
   return (
-    <Box sx={{ width: "100%", maxWidth: "100%", pb: 4 }}>
+    <Box
+      sx={{
+        width: "100%",
+        maxWidth: "100%",
+        pt: 2,
+        pb: 4,
+        pl: 2,
+        pr: 2,
+        mb: { xs: 5, md: 0 },
+      }}
+    >
       <Typography
         variant="h5"
         gutterBottom
-        sx={{ color: theme.palette.primary.main, mb: 1.5 }}
+        sx={{ color: theme.palette.primary.main, mb: 3 }}
       >
         Perfil
       </Typography>
 
-      <Paper
-        elevation={2}
-        sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2, mb: 3, width: "100%" }}
+      <Box
+        sx={{
+          p: { xs: 2, sm: 3 },
+          borderRadius: 2,
+          backgroundColor: theme.palette.background.paper,
+          border: `1px solid ${theme.palette.divider}`,
+        }}
       >
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: { xs: 2, sm: 3 },
-            mb: 3,
-            flexDirection: { xs: "column", sm: "row" },
-            textAlign: { xs: "center", sm: "left" },
-          }}
-        >
-          <Avatar
-            src={profileInfo?.profile?.imageURL || store.user?.picture}
-            sx={{
-              width: { xs: 60, sm: 80 },
-              height: { xs: 60, sm: 80 },
-              bgcolor: theme.palette.primary.main,
-              fontSize: { xs: "1.5rem", sm: "2rem" },
-              cursor: "pointer",
-              "&:hover": {
-                opacity: 0.8,
-              },
-            }}
-            onClick={() => {
-              // TODO: Implementar upload de foto
-              console.log("Clicou na foto para atualizar");
-            }}
+        {/* Informações do Usuário */}
+        <Box sx={{ mb: 3 }}>
+          <Typography
+            variant="subtitle1"
+            sx={{ fontWeight: 600, mb: 2, color: theme.palette.text.primary }}
           >
-            {(profileInfo?.name || store.user?.name)
-              ?.charAt(0)
-              ?.toUpperCase() || "U"}
-          </Avatar>
-          <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography
-              variant="h5"
+            Informações Pessoais
+          </Typography>
+
+          <Fade in timeout={400}>
+            <Card
               sx={{
-                fontWeight: 600,
-                mb: 1,
-                wordBreak: "break-word",
-                fontSize: { xs: "1.25rem", sm: "1.5rem" },
+                p: 2.5,
+                height: "100%",
+                border: `2px solid ${theme.palette.primary.main}20`,
+                backgroundColor: `${theme.palette.primary.main}05`,
+                transition: "all 0.3s ease",
+                "&:hover": {
+                  transform: "translateY(-2px)",
+                  boxShadow: theme.shadows[4],
+                  borderColor: theme.palette.primary.main,
+                },
               }}
             >
-              {profileInfo?.name || store.user?.name || "Usuário"}
-            </Typography>
-            <Typography
-              variant="body1"
-              color="text.secondary"
-              sx={{
-                wordBreak: "break-all",
-                fontSize: { xs: "0.875rem", sm: "1rem" },
-              }}
-            >
-              {profileInfo?.profile?.email ||
-                store.user?.email ||
-                "email@exemplo.com"}
-            </Typography>
-          </Box>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: { xs: 2, sm: 3 },
+                  flexDirection: { xs: "column", sm: "row" },
+                  textAlign: { xs: "center", sm: "left" },
+                }}
+              >
+                <Avatar
+                  src={profileInfo?.profile?.imageURL || store.user?.picture}
+                  sx={{
+                    width: { xs: 60, sm: 80 },
+                    height: { xs: 60, sm: 80 },
+                    bgcolor: theme.palette.primary.main,
+                    fontSize: { xs: "1.5rem", sm: "2rem" },
+                    cursor: "pointer",
+                    "&:hover": {
+                      opacity: 0.8,
+                    },
+                  }}
+                  onClick={() => {
+                    // TODO: Implementar upload de foto
+                    console.log("Clicou na foto para atualizar");
+                  }}
+                >
+                  {(profileInfo?.name || store.user?.name)
+                    ?.charAt(0)
+                    ?.toUpperCase() || "U"}
+                </Avatar>
+                <Box sx={{ minWidth: 0, flex: 1 }}>
+                  <Typography
+                    variant="h5"
+                    sx={{
+                      fontWeight: 600,
+                      mb: 1,
+                      wordBreak: "break-word",
+                      fontSize: { xs: "1.25rem", sm: "1.5rem" },
+                    }}
+                  >
+                    {profileInfo?.name || store.user?.name || "Usuário"}
+                  </Typography>
+                  <Typography
+                    variant="body1"
+                    color="text.secondary"
+                    sx={{
+                      wordBreak: "break-all",
+                      fontSize: { xs: "0.875rem", sm: "1rem" },
+                    }}
+                  >
+                    {profileInfo?.profile?.email ||
+                      store.user?.email ||
+                      "email@exemplo.com"}
+                  </Typography>
+                </Box>
+              </Box>
+            </Card>
+          </Fade>
         </Box>
 
-        <Divider sx={{ my: 2 }} />
+        {/* Formulário de Edição */}
+        <Box sx={{ mb: 3 }}>
+          <Typography
+            variant="subtitle1"
+            sx={{ fontWeight: 600, mb: 2, color: theme.palette.text.primary }}
+          >
+            Editar Informações
+          </Typography>
 
-        <Alert severity="info" sx={{ mb: 3 }}>
-          Atualize suas informações de perfil. As alterações feitas na foto,
-          e-mail e celular serão consideradas nas novas avaliações de imóveis.
-        </Alert>
+          <Fade in timeout={500}>
+            <Card
+              sx={{
+                p: 2.5,
+                height: "100%",
+                border: `2px solid ${theme.palette.secondary.main}20`,
+                backgroundColor: `${theme.palette.secondary.main}05`,
+                transition: "all 0.3s ease",
+                "&:hover": {
+                  transform: "translateY(-2px)",
+                  boxShadow: theme.shadows[4],
+                  borderColor: theme.palette.secondary.main,
+                },
+              }}
+            >
+              <Alert severity="info" sx={{ mb: 3 }}>
+                Atualize suas informações de perfil. As alterações feitas na
+                foto, e-mail e celular serão consideradas nas novas avaliações
+                de imóveis.
+              </Alert>
 
-        <Stack spacing={3}>
-          <TextField
-            label="E-mail"
-            value={profileData.email}
-            onChange={handleInputChange("email")}
-            fullWidth
-            variant="outlined"
-            type="email"
-            sx={{
-              "& .MuiInputBase-input": {
-                wordBreak: "break-all",
-              },
-            }}
-          />
+              <Stack spacing={3}>
+                <TextField
+                  label="E-mail"
+                  value={profileData.email}
+                  onChange={handleInputChange("email")}
+                  fullWidth
+                  variant="outlined"
+                  type="email"
+                  sx={{
+                    "& .MuiInputBase-input": {
+                      wordBreak: "break-all",
+                    },
+                  }}
+                />
 
-          <TextField
-            label="Telefone"
-            value={profileData.phone}
-            onChange={handleInputChange("phone")}
-            fullWidth
-            variant="outlined"
-            placeholder="(11) 99999-9999"
-          />
+                <TextField
+                  label="Telefone"
+                  value={profileData.phone}
+                  onChange={handleInputChange("phone")}
+                  fullWidth
+                  variant="outlined"
+                  placeholder="(11) 99999-9999"
+                />
 
-          <TextField
-            label="Endereço"
-            value={profileData.address}
-            onChange={handleInputChange("address")}
-            fullWidth
-            variant="outlined"
-            multiline
-            rows={3}
-            placeholder="Rua, número, bairro, cidade - UF"
-          />
-        </Stack>
+                <TextField
+                  label="Endereço"
+                  value={profileData.address}
+                  onChange={handleInputChange("address")}
+                  fullWidth
+                  variant="outlined"
+                  multiline
+                  rows={3}
+                  placeholder="Rua, número, bairro, cidade - UF"
+                />
+              </Stack>
+            </Card>
+          </Fade>
+        </Box>
 
+        {/* Botão de Salvar */}
         <Box
           sx={{
             display: "flex",
@@ -287,7 +354,7 @@ export function ProfileSection() {
             Perfil atualizado com sucesso!
           </Alert>
         )}
-      </Paper>
+      </Box>
     </Box>
   );
 }
