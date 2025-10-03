@@ -183,6 +183,16 @@ export function SubscriptionSection() {
     });
   };
 
+  const formatCityName = (cityName: string, stateAcronym: string): string => {
+    // Converte o nome da cidade para o formato correto (primeira letra maiúscula, resto minúsculo)
+    const formattedCity = cityName
+      .split(" ")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+
+    return `${formattedCity} - ${stateAcronym}`;
+  };
+
   const getRemainingUnits = (purchase: IGetPurchasesResponseSuccess) => {
     const units: Record<ProductUnitType, { remaining: number; total: number }> =
       {
@@ -789,7 +799,17 @@ export function SubscriptionSection() {
                     }}
                   />
                   <ListItemText
-                    primary={purchase.defaultCityStateCode}
+                    primary={(() => {
+                      const cityParts =
+                        purchase.defaultCityStateCode.split("_");
+                      const cityName = cityParts
+                        .slice(0, -1)
+                        .join(" ")
+                        .toUpperCase();
+                      const stateAcronym =
+                        cityParts[cityParts.length - 1].toUpperCase();
+                      return formatCityName(cityName, stateAcronym);
+                    })()}
                     secondary="Cidade padrão"
                     primaryTypographyProps={{ variant: "body2" }}
                     secondaryTypographyProps={{ variant: "caption" }}
@@ -798,34 +818,47 @@ export function SubscriptionSection() {
               )}
               {/* Cidades adicionais */}
               {purchase.chosenCityCodes &&
-                purchase.chosenCityCodes.map((city, index) => (
-                  <ListItem
-                    key={index}
-                    sx={{ py: 0.5 }}
-                    secondaryAction={
-                      <IconButton
-                        edge="end"
-                        aria-label="edit"
-                        size="small"
-                        sx={{ p: 0.5 }}
+                [...purchase.chosenCityCodes]
+                  .sort((a, b) => a.localeCompare(b, "pt-BR"))
+                  .map((city, index) => {
+                    // Extrai nome da cidade e estado do cityStateCode
+                    const cityParts = city.split("_");
+                    const cityName = cityParts
+                      .slice(0, -1)
+                      .join(" ")
+                      .toUpperCase();
+                    const stateAcronym =
+                      cityParts[cityParts.length - 1].toUpperCase();
+
+                    return (
+                      <ListItem
+                        key={index}
+                        sx={{ py: 0.5 }}
+                        secondaryAction={
+                          <IconButton
+                            edge="end"
+                            aria-label="edit"
+                            size="small"
+                            sx={{ p: 0.5 }}
+                          >
+                            <Edit sx={{ fontSize: 16 }} />
+                          </IconButton>
+                        }
                       >
-                        <Edit sx={{ fontSize: 16 }} />
-                      </IconButton>
-                    }
-                  >
-                    <LocationOn
-                      sx={{
-                        mr: 1.5,
-                        color: theme.palette.primary.main,
-                        fontSize: 20,
-                      }}
-                    />
-                    <ListItemText
-                      primary={city}
-                      primaryTypographyProps={{ variant: "body2" }}
-                    />
-                  </ListItem>
-                ))}
+                        <LocationOn
+                          sx={{
+                            mr: 1.5,
+                            color: theme.palette.primary.main,
+                            fontSize: 20,
+                          }}
+                        />
+                        <ListItemText
+                          primary={formatCityName(cityName, stateAcronym)}
+                          primaryTypographyProps={{ variant: "body2" }}
+                        />
+                      </ListItem>
+                    );
+                  })}
             </List>
           ) : (
             <Box sx={{ textAlign: "center", py: 2 }}>
