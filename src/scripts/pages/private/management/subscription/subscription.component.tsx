@@ -42,6 +42,7 @@ import {
 } from "../../../../../services/get-purchases.service";
 import { postPurchasesAddCity } from "../../../../../services/post-purchases-add-city.service";
 import { AddCitiesModal } from "../../../../library/components/add-cities-modal";
+import { EditCityModal } from "../../../../library/components/edit-city-modal";
 
 export function SubscriptionSection() {
   const theme = useTheme();
@@ -55,6 +56,9 @@ export function SubscriptionSection() {
   const [isAddCitiesModalOpen, setIsAddCitiesModalOpen] = useState(false);
   const [isAddingCity, setIsAddingCity] = useState(false);
   const [addCityError, setAddCityError] = useState<string | null>(null);
+  const [isEditCityModalOpen, setIsEditCityModalOpen] = useState(false);
+  const [editingCity, setEditingCity] = useState<string | null>(null);
+  const [isEditingCity, setIsEditingCity] = useState(false);
 
   const handleSaveCities = async (cities: string[]) => {
     if (!store.token || purchases.length === 0) return;
@@ -108,6 +112,36 @@ export function SubscriptionSection() {
       setAddCityError(errorMessage);
     } finally {
       setIsAddingCity(false);
+    }
+  };
+
+  const handleEditCity = (cityCode: string) => {
+    setEditingCity(cityCode);
+    setIsEditCityModalOpen(true);
+  };
+
+  const handleSaveEditedCity = async (newCity: string) => {
+    if (!store.token || purchases.length === 0 || !editingCity) return;
+
+    setIsEditingCity(true);
+    try {
+      // Aqui você implementaria a lógica para atualizar a cidade
+      // Por enquanto, vou apenas fechar o modal
+      console.log("Editando cidade:", editingCity, "para:", newCity);
+
+      // Simular chamada da API
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Recarregar dados
+      const response = await getPurchases(store.token);
+      setPurchases(response.data);
+
+      setIsEditCityModalOpen(false);
+      setEditingCity(null);
+    } catch (err) {
+      console.error("Erro ao editar cidade:", err);
+    } finally {
+      setIsEditingCity(false);
     }
   };
 
@@ -786,6 +820,9 @@ export function SubscriptionSection() {
                       aria-label="edit"
                       size="small"
                       sx={{ p: 0.5 }}
+                      onClick={() =>
+                        handleEditCity(purchase.defaultCityStateCode)
+                      }
                     >
                       <Edit sx={{ fontSize: 16 }} />
                     </IconButton>
@@ -840,6 +877,7 @@ export function SubscriptionSection() {
                             aria-label="edit"
                             size="small"
                             sx={{ p: 0.5 }}
+                            onClick={() => handleEditCity(city)}
                           >
                             <Edit sx={{ fontSize: 16 }} />
                           </IconButton>
@@ -869,6 +907,27 @@ export function SubscriptionSection() {
           )}
         </Box>
       </Box>
+
+      <EditCityModal
+        open={isEditCityModalOpen}
+        onClose={() => {
+          setIsEditCityModalOpen(false);
+          setEditingCity(null);
+        }}
+        onSave={handleSaveEditedCity}
+        currentCity={
+          editingCity
+            ? (() => {
+                const cityParts = editingCity.split("_");
+                const cityName = cityParts.slice(0, -1).join(" ").toUpperCase();
+                const stateAcronym =
+                  cityParts[cityParts.length - 1].toUpperCase();
+                return formatCityName(cityName, stateAcronym);
+              })()
+            : ""
+        }
+        isLoading={isEditingCity}
+      />
 
       <AddCitiesModal
         open={isAddCitiesModalOpen}
