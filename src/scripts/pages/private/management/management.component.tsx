@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Box,
   List,
@@ -13,6 +13,7 @@ import {
   Drawer,
   IconButton,
   useMediaQuery,
+  Divider,
 } from "@mui/material";
 import {
   Person,
@@ -20,14 +21,28 @@ import {
   CardMembership,
   Upgrade,
   Menu,
+  Business,
+  Group,
 } from "@mui/icons-material";
 import { useAuth } from "../../../modules/access-manager/auth.hook";
+import {
+  getPurchases,
+  type IGetPurchasesResponseSuccess,
+} from "../../../../services/get-purchases.service";
 import { ProfileSection } from "./profile/profile.component";
 import { SecuritySection } from "./security/security.component";
 import { SubscriptionSection } from "./subscription/subscription.component";
 import { UpgradeSection } from "./upgrade/upgrade.component";
+import { CompanySection } from "./company/company.component";
+import { CollaboratorsSection } from "./collaborators/collaborators.component";
 
-type ManagementSection = "profile" | "security" | "subscription" | "upgrade";
+type ManagementSection =
+  | "profile"
+  | "security"
+  | "subscription"
+  | "upgrade"
+  | "company"
+  | "collaborators";
 
 export function ManagementComponent() {
   const theme = useTheme();
@@ -35,10 +50,34 @@ export function ManagementComponent() {
   const [selectedSection, setSelectedSection] =
     useState<ManagementSection>("profile");
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [purchases, setPurchases] = useState<IGetPurchasesResponseSuccess[]>(
+    []
+  );
 
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
-  const menuItems = [
+  // Verificar se o usuário tem plano empresarial (imobiliária)
+  const isBusinessPlan =
+    purchases.length > 0 && purchases[0].product.accountType === "BUSINESS";
+
+  // Carregar compras para verificar o tipo de conta
+  useEffect(() => {
+    const loadPurchases = async () => {
+      if (!store.token) return;
+
+      try {
+        const response = await getPurchases(store.token);
+        setPurchases(response.data);
+      } catch (err) {
+        console.error("Erro ao carregar compras:", err);
+      }
+    };
+
+    loadPurchases();
+  }, [store.token]);
+
+  // Seção CONTA
+  const accountMenuItems = [
     {
       id: "profile" as ManagementSection,
       label: "Perfil",
@@ -51,6 +90,28 @@ export function ManagementComponent() {
       icon: <Security />,
       description: "Configurações de segurança e privacidade",
     },
+  ];
+
+  // Seção EMPRESA
+  const businessMenuItems = isBusinessPlan
+    ? [
+        {
+          id: "company" as ManagementSection,
+          label: "Detalhes da Empresa",
+          icon: <Business />,
+          description: "Informações da sua empresa",
+        },
+        {
+          id: "collaborators" as ManagementSection,
+          label: "Colaboradores",
+          icon: <Group />,
+          description: "Gerencie sua equipe",
+        },
+      ]
+    : [];
+
+  // Seção FATURAMENTO
+  const billingMenuItems = [
     {
       id: "subscription" as ManagementSection,
       label: "Meu Plano",
@@ -73,7 +134,17 @@ export function ManagementComponent() {
   };
 
   const handleSectionChange = (section: ManagementSection) => {
-    setSelectedSection(section);
+    // Verificar se o usuário está tentando acessar seções de empresa sem ter plano empresarial
+    if (
+      (section === "company" || section === "collaborators") &&
+      !isBusinessPlan
+    ) {
+      // Redirecionar para o perfil se não tiver plano empresarial
+      setSelectedSection("profile");
+    } else {
+      setSelectedSection(section);
+    }
+
     if (isMobile) {
       setMobileDrawerOpen(false);
     }
@@ -91,6 +162,18 @@ export function ManagementComponent() {
         return <SecuritySection />;
       case "subscription":
         return <SubscriptionSection />;
+      case "company":
+        // Verificar se o usuário tem plano empresarial
+        if (!isBusinessPlan) {
+          return <ProfileSection />;
+        }
+        return <CompanySection />;
+      case "collaborators":
+        // Verificar se o usuário tem plano empresarial
+        if (!isBusinessPlan) {
+          return <ProfileSection />;
+        }
+        return <CollaboratorsSection />;
       case "upgrade":
         return <UpgradeSection />;
       default:
@@ -151,7 +234,208 @@ export function ManagementComponent() {
         sx={{ flex: 1, p: 2, backgroundColor: theme.palette.background.paper }}
       >
         <List sx={{ p: 0 }}>
-          {menuItems.map((item) => (
+          {/* Seção CONTA */}
+          <Typography
+            variant="caption"
+            sx={{
+              color: theme.palette.text.secondary,
+              fontWeight: 600,
+              textTransform: "uppercase",
+              letterSpacing: 0.5,
+              px: 2,
+              py: 1,
+              display: "block",
+            }}
+          >
+            Conta
+          </Typography>
+          {accountMenuItems.map((item) => (
+            <ListItem key={item.id} disablePadding sx={{ mb: 1 }}>
+              <ListItemButton
+                onClick={() => handleSectionChange(item.id)}
+                selected={selectedSection === item.id}
+                sx={{
+                  borderRadius: 2,
+                  py: 1.5,
+                  px: 2,
+                  backgroundColor:
+                    selectedSection === item.id
+                      ? theme.palette.primary.main + "12"
+                      : "transparent",
+                  border:
+                    selectedSection === item.id
+                      ? `1px solid ${theme.palette.primary.main}30`
+                      : "1px solid transparent",
+                  "&:hover": {
+                    backgroundColor:
+                      selectedSection === item.id
+                        ? theme.palette.primary.main + "20"
+                        : theme.palette.action.hover,
+                    borderColor:
+                      selectedSection === item.id
+                        ? theme.palette.primary.main + "50"
+                        : theme.palette.divider,
+                  },
+                  "&.Mui-selected": {
+                    backgroundColor: theme.palette.primary.main + "12",
+                    borderColor: theme.palette.primary.main + "30",
+                    "&:hover": {
+                      backgroundColor: theme.palette.primary.main + "20",
+                      borderColor: theme.palette.primary.main + "50",
+                    },
+                  },
+                  transition: "all 0.3s ease",
+                }}
+              >
+                <ListItemIcon
+                  sx={{
+                    color:
+                      selectedSection === item.id
+                        ? theme.palette.primary.main
+                        : theme.palette.text.secondary,
+                    minWidth: 44,
+                    mr: 1,
+                  }}
+                >
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText
+                  primary={item.label}
+                  secondary={item.description}
+                  primaryTypographyProps={{
+                    fontWeight: selectedSection === item.id ? 600 : 500,
+                    color:
+                      selectedSection === item.id
+                        ? theme.palette.primary.main
+                        : theme.palette.text.primary,
+                    fontSize: "0.9rem",
+                  }}
+                  secondaryTypographyProps={{
+                    fontSize: "0.75rem",
+                    color: theme.palette.text.secondary,
+                    lineHeight: 1.3,
+                  }}
+                />
+              </ListItemButton>
+            </ListItem>
+          ))}
+
+          {/* Separador para seção empresa */}
+          {isBusinessPlan && (
+            <>
+              <Box sx={{ my: 2 }}>
+                <Divider />
+              </Box>
+              <Typography
+                variant="caption"
+                sx={{
+                  color: theme.palette.text.secondary,
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.5,
+                  px: 2,
+                  py: 1,
+                  display: "block",
+                }}
+              >
+                Empresa
+              </Typography>
+            </>
+          )}
+
+          {/* Seção EMPRESA */}
+          {businessMenuItems.map((item) => (
+            <ListItem key={item.id} disablePadding sx={{ mb: 1 }}>
+              <ListItemButton
+                onClick={() => handleSectionChange(item.id)}
+                selected={selectedSection === item.id}
+                sx={{
+                  borderRadius: 2,
+                  py: 1.5,
+                  px: 2,
+                  backgroundColor:
+                    selectedSection === item.id
+                      ? theme.palette.primary.main + "12"
+                      : "transparent",
+                  border:
+                    selectedSection === item.id
+                      ? `1px solid ${theme.palette.primary.main}30`
+                      : "1px solid transparent",
+                  "&:hover": {
+                    backgroundColor:
+                      selectedSection === item.id
+                        ? theme.palette.primary.main + "20"
+                        : theme.palette.action.hover,
+                    borderColor:
+                      selectedSection === item.id
+                        ? theme.palette.primary.main + "50"
+                        : theme.palette.divider,
+                  },
+                  "&.Mui-selected": {
+                    backgroundColor: theme.palette.primary.main + "12",
+                    borderColor: theme.palette.primary.main + "30",
+                    "&:hover": {
+                      backgroundColor: theme.palette.primary.main + "20",
+                      borderColor: theme.palette.primary.main + "50",
+                    },
+                  },
+                  transition: "all 0.3s ease",
+                }}
+              >
+                <ListItemIcon
+                  sx={{
+                    color:
+                      selectedSection === item.id
+                        ? theme.palette.primary.main
+                        : theme.palette.text.secondary,
+                    minWidth: 44,
+                    mr: 1,
+                  }}
+                >
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText
+                  primary={item.label}
+                  secondary={item.description}
+                  primaryTypographyProps={{
+                    fontWeight: selectedSection === item.id ? 600 : 500,
+                    color:
+                      selectedSection === item.id
+                        ? theme.palette.primary.main
+                        : theme.palette.text.primary,
+                    fontSize: "0.9rem",
+                  }}
+                  secondaryTypographyProps={{
+                    fontSize: "0.75rem",
+                    color: theme.palette.text.secondary,
+                    lineHeight: 1.3,
+                  }}
+                />
+              </ListItemButton>
+            </ListItem>
+          ))}
+
+          {/* Separador para seção faturamento */}
+          <Box sx={{ my: 2 }}>
+            <Divider />
+          </Box>
+          <Typography
+            variant="caption"
+            sx={{
+              color: theme.palette.text.secondary,
+              fontWeight: 600,
+              textTransform: "uppercase",
+              letterSpacing: 0.5,
+              px: 2,
+              py: 1,
+              display: "block",
+            }}
+          >
+            Faturamento
+          </Typography>
+
+          {/* Seção FATURAMENTO */}
+          {billingMenuItems.map((item) => (
             <ListItem key={item.id} disablePadding sx={{ mb: 1 }}>
               <ListItemButton
                 onClick={() => handleSectionChange(item.id)}
