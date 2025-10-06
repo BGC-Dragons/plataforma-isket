@@ -17,6 +17,7 @@ import { postAuthRegister } from "../../../services/post-auth-register.service";
 import { postAuthLogin } from "../../../services/post-auth-login.service";
 import { getAuthMe } from "../../../services/get-auth-me.service";
 import { useAuth } from "../../modules/access-manager/auth.hook";
+import { validatePassword } from "../../library/helpers/validate-password.helper";
 
 export function CompleteSignUp() {
   const [name, setName] = useState("");
@@ -51,8 +52,9 @@ export function CompleteSignUp() {
       return;
     }
 
-    if (password.length < 6) {
-      setError("A senha deve ter pelo menos 6 caracteres");
+    const passwordErrors = validatePassword(password);
+    if (passwordErrors.length > 0) {
+      setError(`Senha deve ter: ${passwordErrors.join(", ")}`);
       return;
     }
 
@@ -281,6 +283,33 @@ export function CompleteSignUp() {
               onChange={(e) => setConfirmPassword(e.target.value)}
               showPasswordToggle
             />
+
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="caption" color="text.secondary">
+                A senha deve ter:
+              </Typography>
+              <Typography
+                variant="caption"
+                display="block"
+                color="text.secondary"
+              >
+                • Mínimo 8 caracteres
+              </Typography>
+              <Typography
+                variant="caption"
+                display="block"
+                color="text.secondary"
+              >
+                • Pelo menos 1 letra minúscula e 1 maiúscula
+              </Typography>
+              <Typography
+                variant="caption"
+                display="block"
+                color="text.secondary"
+              >
+                • Pelo menos 1 número e 1 caractere especial
+              </Typography>
+            </Box>
 
             <CitySelect
               value={city}

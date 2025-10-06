@@ -3,7 +3,6 @@ import {
   Box,
   Typography,
   useTheme,
-  Card,
   Button,
   Avatar,
   Fade,
@@ -18,17 +17,15 @@ import {
   DialogContent,
   DialogActions,
   TextField,
-  Alert,
 } from "@mui/material";
 import {
   Group,
   Add,
-  Edit,
-  Delete,
   Email,
   Phone,
-  Person,
   Business,
+  PersonRemove,
+  PersonAdd,
 } from "@mui/icons-material";
 
 interface Collaborator {
@@ -71,8 +68,8 @@ export function CollaboratorsSection() {
   ]);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editingCollaborator, setEditingCollaborator] =
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [collaboratorToToggle, setCollaboratorToToggle] =
     useState<Collaborator | null>(null);
   const [newCollaborator, setNewCollaborator] = useState({
     name: "",
@@ -80,6 +77,7 @@ export function CollaboratorsSection() {
     phone: "",
     role: "",
   });
+  const [emailFilter, setEmailFilter] = useState("");
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -123,26 +121,29 @@ export function CollaboratorsSection() {
     }
   };
 
-  const handleEditCollaborator = (collaborator: Collaborator) => {
-    setEditingCollaborator(collaborator);
-    setIsEditModalOpen(true);
+  const handleToggleStatus = (collaborator: Collaborator) => {
+    setCollaboratorToToggle(collaborator);
+    setIsConfirmModalOpen(true);
   };
 
-  const handleDeleteCollaborator = (id: string) => {
-    setCollaborators(collaborators.filter((c) => c.id !== id));
-  };
-
-  const handleSaveEdit = () => {
-    if (editingCollaborator) {
+  const handleConfirmToggle = () => {
+    if (collaboratorToToggle) {
+      const newStatus =
+        collaboratorToToggle.status === "active" ? "inactive" : "active";
       setCollaborators(
         collaborators.map((c) =>
-          c.id === editingCollaborator.id ? editingCollaborator : c
+          c.id === collaboratorToToggle.id ? { ...c, status: newStatus } : c
         )
       );
-      setIsEditModalOpen(false);
-      setEditingCollaborator(null);
+      setIsConfirmModalOpen(false);
+      setCollaboratorToToggle(null);
     }
   };
+
+  // Filtrar colaboradores por email
+  const filteredCollaborators = collaborators.filter((collaborator) =>
+    collaborator.email.toLowerCase().includes(emailFilter.toLowerCase())
+  );
 
   return (
     <Box
@@ -172,85 +173,114 @@ export function CollaboratorsSection() {
           border: `1px solid ${theme.palette.divider}`,
         }}
       >
-        <Card
-          sx={{
-            p: 2.5,
-            height: "100%",
-            border: `2px solid ${theme.palette.primary.main}20`,
-            backgroundColor: `${theme.palette.primary.main}05`,
-            transition: "all 0.3s ease",
-            "&:hover": {
-              transform: "translateY(-2px)",
-              boxShadow: theme.shadows[4],
-              borderColor: theme.palette.primary.main,
-            },
-          }}
-        >
-          <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
-            <Avatar
+        <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
+          <Avatar
+            sx={{
+              bgcolor: theme.palette.primary.main,
+              mr: 1.5,
+              width: 40,
+              height: 40,
+            }}
+          >
+            <Group />
+          </Avatar>
+          <Box sx={{ flex: 1 }}>
+            <Typography
+              variant="subtitle2"
               sx={{
-                bgcolor: theme.palette.primary.main,
-                mr: 1.5,
-                width: 40,
-                height: 40,
+                fontWeight: 600,
+                color: theme.palette.text.primary,
+                mb: 0.5,
               }}
             >
-              <Group />
-            </Avatar>
-            <Box sx={{ flex: 1 }}>
-              <Typography
-                variant="subtitle2"
+              Equipe
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Gerencie os colaboradores da sua empresa
+            </Typography>
+          </Box>
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={() => setIsAddModalOpen(true)}
+            size="small"
+            sx={{
+              textTransform: "none",
+              borderRadius: 1.5,
+            }}
+          >
+            Adicionar
+          </Button>
+        </Box>
+
+        {/* Campo de filtro por email */}
+        <TextField
+          fullWidth
+          placeholder="Filtrar emails..."
+          value={emailFilter}
+          onChange={(e) => setEmailFilter(e.target.value)}
+          sx={{ mb: 3 }}
+          InputProps={{
+            startAdornment: (
+              <Box sx={{ display: "flex", alignItems: "center", mr: 1 }}>
+                <Email sx={{ fontSize: 20, color: "text.secondary" }} />
+              </Box>
+            ),
+          }}
+        />
+
+        <Fade in timeout={300}>
+          <List dense>
+            {filteredCollaborators.map((collaborator) => (
+              <ListItem
+                key={collaborator.id}
                 sx={{
-                  fontWeight: 600,
-                  color: theme.palette.text.primary,
-                  mb: 0.5,
+                  py: 1.5,
+                  border: `1px solid ${theme.palette.divider}`,
+                  borderRadius: 1,
+                  mb: 1,
+                  backgroundColor: theme.palette.background.default,
                 }}
               >
-                Equipe
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Gerencie os colaboradores da sua empresa
-              </Typography>
-            </Box>
-            <Button
-              variant="contained"
-              startIcon={<Add />}
-              onClick={() => setIsAddModalOpen(true)}
-              size="small"
-              sx={{
-                textTransform: "none",
-                borderRadius: 1.5,
-              }}
-            >
-              Adicionar
-            </Button>
-          </Box>
-
-          <Fade in timeout={300}>
-            <List dense>
-              {collaborators.map((collaborator) => (
-                <ListItem
-                  key={collaborator.id}
+                <Avatar
                   sx={{
-                    py: 1.5,
-                    border: `1px solid ${theme.palette.divider}`,
-                    borderRadius: 1,
-                    mb: 1,
-                    backgroundColor: theme.palette.background.default,
+                    mr: 2,
+                    bgcolor: theme.palette.primary.main,
+                    width: 40,
+                    height: 40,
                   }}
                 >
-                  <Avatar
-                    sx={{
-                      mr: 2,
-                      bgcolor: theme.palette.primary.main,
-                      width: 40,
-                      height: 40,
-                    }}
-                  >
-                    {collaborator.name.charAt(0).toUpperCase()}
-                  </Avatar>
-                  <ListItemText
-                    primary={
+                  {collaborator.name.charAt(0).toUpperCase()}
+                </Avatar>
+                <ListItemText
+                  primary={
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1,
+                        mb: 0.5,
+                      }}
+                    >
+                      <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                        {collaborator.name}
+                      </Typography>
+                      <Chip
+                        label={getStatusLabel(collaborator.status)}
+                        color={
+                          getStatusColor(collaborator.status) as
+                            | "success"
+                            | "error"
+                            | "warning"
+                            | "default"
+                        }
+                        size="small"
+                        sx={{ fontSize: "0.7rem", height: 20 }}
+                      />
+                    </Box>
+                  }
+                  secondary={
+                    <Box>
                       <Box
                         sx={{
                           display: "flex",
@@ -259,86 +289,60 @@ export function CollaboratorsSection() {
                           mb: 0.5,
                         }}
                       >
-                        <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                          {collaborator.name}
+                        <Email sx={{ fontSize: 14, color: "text.secondary" }} />
+                        <Typography variant="body2" color="text.secondary">
+                          {collaborator.email}
                         </Typography>
-                        <Chip
-                          label={getStatusLabel(collaborator.status)}
-                          color={getStatusColor(collaborator.status) as any}
-                          size="small"
-                          sx={{ fontSize: "0.7rem", height: 20 }}
+                      </Box>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1,
+                          mb: 0.5,
+                        }}
+                      >
+                        <Phone sx={{ fontSize: 14, color: "text.secondary" }} />
+                        <Typography variant="body2" color="text.secondary">
+                          {collaborator.phone}
+                        </Typography>
+                      </Box>
+                      <Box
+                        sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                      >
+                        <Business
+                          sx={{ fontSize: 14, color: "text.secondary" }}
                         />
+                        <Typography variant="body2" color="text.secondary">
+                          {collaborator.role}
+                        </Typography>
                       </Box>
+                    </Box>
+                  }
+                />
+                <ListItemSecondaryAction>
+                  <IconButton
+                    edge="end"
+                    aria-label={
+                      collaborator.status === "active" ? "inativar" : "ativar"
                     }
-                    secondary={
-                      <Box>
-                        <Box
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 1,
-                            mb: 0.5,
-                          }}
-                        >
-                          <Email
-                            sx={{ fontSize: 14, color: "text.secondary" }}
-                          />
-                          <Typography variant="body2" color="text.secondary">
-                            {collaborator.email}
-                          </Typography>
-                        </Box>
-                        <Box
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 1,
-                            mb: 0.5,
-                          }}
-                        >
-                          <Phone
-                            sx={{ fontSize: 14, color: "text.secondary" }}
-                          />
-                          <Typography variant="body2" color="text.secondary">
-                            {collaborator.phone}
-                          </Typography>
-                        </Box>
-                        <Box
-                          sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                        >
-                          <Business
-                            sx={{ fontSize: 14, color: "text.secondary" }}
-                          />
-                          <Typography variant="body2" color="text.secondary">
-                            {collaborator.role}
-                          </Typography>
-                        </Box>
-                      </Box>
+                    size="small"
+                    onClick={() => handleToggleStatus(collaborator)}
+                    color={
+                      collaborator.status === "active" ? "error" : "success"
                     }
-                  />
-                  <ListItemSecondaryAction>
-                    <IconButton
-                      edge="end"
-                      aria-label="edit"
-                      size="small"
-                      onClick={() => handleEditCollaborator(collaborator)}
-                      sx={{ mr: 1 }}
-                    >
-                      <Edit sx={{ fontSize: 16 }} />
-                    </IconButton>
-                    <IconButton
-                      edge="end"
-                      aria-label="delete"
-                      size="small"
-                      onClick={() => handleDeleteCollaborator(collaborator.id)}
-                    >
-                      <Delete sx={{ fontSize: 16 }} />
-                    </IconButton>
-                  </ListItemSecondaryAction>
-                </ListItem>
-              ))}
-            </List>
-          </Fade>
-        </Card>
+                  >
+                    {collaborator.status === "active" ? (
+                      <PersonRemove sx={{ fontSize: 16 }} />
+                    ) : (
+                      <PersonAdd sx={{ fontSize: 16 }} />
+                    )}
+                  </IconButton>
+                </ListItemSecondaryAction>
+              </ListItem>
+            ))}
+          </List>
+        </Fade>
       </Box>
 
       {/* Modal Adicionar Colaborador */}
@@ -404,81 +408,35 @@ export function CollaboratorsSection() {
         </DialogActions>
       </Dialog>
 
-      {/* Modal Editar Colaborador */}
+      {/* Modal de Confirmação */}
       <Dialog
-        open={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
+        open={isConfirmModalOpen}
+        onClose={() => setIsConfirmModalOpen(false)}
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>Editar Colaborador</DialogTitle>
+        <DialogTitle>
+          {collaboratorToToggle?.status === "active"
+            ? "Inativar Colaborador"
+            : "Ativar Colaborador"}
+        </DialogTitle>
         <DialogContent>
-          {editingCollaborator && (
-            <>
-              <TextField
-                autoFocus
-                margin="dense"
-                label="Nome"
-                fullWidth
-                variant="outlined"
-                value={editingCollaborator.name}
-                onChange={(e) =>
-                  setEditingCollaborator({
-                    ...editingCollaborator,
-                    name: e.target.value,
-                  })
-                }
-                sx={{ mb: 2 }}
-              />
-              <TextField
-                margin="dense"
-                label="Email"
-                type="email"
-                fullWidth
-                variant="outlined"
-                value={editingCollaborator.email}
-                onChange={(e) =>
-                  setEditingCollaborator({
-                    ...editingCollaborator,
-                    email: e.target.value,
-                  })
-                }
-                sx={{ mb: 2 }}
-              />
-              <TextField
-                margin="dense"
-                label="Telefone"
-                fullWidth
-                variant="outlined"
-                value={editingCollaborator.phone}
-                onChange={(e) =>
-                  setEditingCollaborator({
-                    ...editingCollaborator,
-                    phone: e.target.value,
-                  })
-                }
-                sx={{ mb: 2 }}
-              />
-              <TextField
-                margin="dense"
-                label="Cargo"
-                fullWidth
-                variant="outlined"
-                value={editingCollaborator.role}
-                onChange={(e) =>
-                  setEditingCollaborator({
-                    ...editingCollaborator,
-                    role: e.target.value,
-                  })
-                }
-              />
-            </>
-          )}
+          <Typography>
+            {collaboratorToToggle?.status === "active"
+              ? `Tem certeza que deseja inativar ${collaboratorToToggle?.name}?`
+              : `Tem certeza que deseja ativar ${collaboratorToToggle?.name}?`}
+          </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setIsEditModalOpen(false)}>Cancelar</Button>
-          <Button onClick={handleSaveEdit} variant="contained">
-            Salvar
+          <Button onClick={() => setIsConfirmModalOpen(false)}>Cancelar</Button>
+          <Button
+            onClick={handleConfirmToggle}
+            variant="contained"
+            color={
+              collaboratorToToggle?.status === "active" ? "error" : "success"
+            }
+          >
+            {collaboratorToToggle?.status === "active" ? "Inativar" : "Ativar"}
           </Button>
         </DialogActions>
       </Dialog>

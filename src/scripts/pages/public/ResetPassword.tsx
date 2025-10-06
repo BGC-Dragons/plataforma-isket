@@ -22,6 +22,7 @@ import {
 import isketLogo from "../../../assets/isket.svg";
 import { CustomTextField } from "../../library/components/custom-text-field";
 import { postAuthVerifyChangePassword } from "../../../services/post-auth-verify-change-password.service";
+import { validatePassword } from "../../library/helpers/validate-password.helper";
 
 export const ResetPassword: React.FC = () => {
   const { token } = useParams<{ token: string }>();
@@ -52,28 +53,6 @@ export const ResetPassword: React.FC = () => {
       }));
       setError("");
     };
-
-  const validatePassword = (password: string): string[] => {
-    const errors: string[] = [];
-
-    if (password.length < 8) {
-      errors.push("Mínimo 8 caracteres");
-    }
-    if (!/[a-z]/.test(password)) {
-      errors.push("Pelo menos 1 letra minúscula");
-    }
-    if (!/[A-Z]/.test(password)) {
-      errors.push("Pelo menos 1 letra maiúscula");
-    }
-    if (!/\d/.test(password)) {
-      errors.push("Pelo menos 1 número");
-    }
-    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
-      errors.push("Pelo menos 1 caractere especial");
-    }
-
-    return errors;
-  };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -107,6 +86,7 @@ export const ResetPassword: React.FC = () => {
       setTimeout(() => {
         navigate("/login");
       }, 2000);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error("Erro ao redefinir senha:", error);
 

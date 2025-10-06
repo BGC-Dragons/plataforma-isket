@@ -6,8 +6,6 @@ import {
   Button,
   Alert,
   CircularProgress,
-  Card,
-  Fade,
   Avatar,
 } from "@mui/material";
 import { Lock } from "@mui/icons-material";
@@ -83,120 +81,106 @@ export function SecuritySection() {
           border: `1px solid ${theme.palette.divider}`,
         }}
       >
-        {/* Alteração de Senha */}
+        {/* Informações de Segurança */}
         <Box sx={{ mb: 3 }}>
-          <Typography
-            variant="subtitle1"
-            sx={{ fontWeight: 600, mb: 2, color: theme.palette.text.primary }}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              mb: 3,
+              flexDirection: { xs: "column", sm: "row" },
+              textAlign: { xs: "center", sm: "left" },
+            }}
           >
-            Alteração de Senha
-          </Typography>
-
-          <Fade in timeout={400}>
-            <Card
+            <Avatar
               sx={{
-                p: 2.5,
-                height: "100%",
-                border: `2px solid ${theme.palette.primary.main}20`,
-                backgroundColor: `${theme.palette.primary.main}05`,
-                transition: "all 0.3s ease",
-                "&:hover": {
-                  transform: "translateY(-2px)",
-                  boxShadow: theme.shadows[4],
-                  borderColor: theme.palette.primary.main,
-                },
+                bgcolor: theme.palette.primary.main,
+                mr: { xs: 0, sm: 2 },
+                mb: { xs: 2, sm: 0 },
+                width: 60,
+                height: 60,
               }}
             >
-              <Box
+              <Lock sx={{ fontSize: 30 }} />
+            </Avatar>
+            <Box sx={{ flex: 1 }}>
+              <Typography
+                variant="h6"
                 sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  mb: 3,
-                  flexDirection: { xs: "column", sm: "row" },
-                  textAlign: { xs: "center", sm: "left" },
+                  fontWeight: 600,
+                  mb: 1,
+                  color: theme.palette.text.primary,
                 }}
               >
-                <Avatar
-                  sx={{
-                    bgcolor: theme.palette.primary.main,
-                    mr: { xs: 0, sm: 2 },
-                    mb: { xs: 2, sm: 0 },
-                    width: 60,
-                    height: 60,
-                  }}
-                >
-                  <Lock sx={{ fontSize: 30 }} />
-                </Avatar>
-                <Box sx={{ flex: 1 }}>
-                  <Typography
-                    variant="h6"
-                    sx={{
-                      fontWeight: 600,
-                      mb: 1,
-                      color: theme.palette.text.primary,
-                    }}
-                  >
-                    Alterar Senha
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ lineHeight: 1.6 }}
-                  >
-                    Enviaremos um link de alteração de senha para o seu email
-                    cadastrado.
-                  </Typography>
-                </Box>
-              </Box>
-
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "center",
-                  mb: 3,
-                }}
+                Alterar Senha
+              </Typography>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ lineHeight: 1.6 }}
               >
-                <Button
-                  variant="contained"
-                  onClick={handleSendRecoveryLink}
-                  disabled={isLoading}
-                  sx={{
-                    px: { xs: 2, sm: 4 },
-                    py: 1.5,
-                    borderRadius: 2,
-                    textTransform: "none",
-                    fontWeight: 600,
-                    minWidth: { xs: "100%", sm: 280 },
-                    maxWidth: { xs: "100%", sm: "none" },
-                    fontSize: { xs: "0.875rem", sm: "1rem" },
-                  }}
-                >
-                  {isLoading ? (
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                      <CircularProgress size={20} color="inherit" />
-                      Enviando...
-                    </Box>
-                  ) : (
-                    "Enviar link de alteração de senha"
-                  )}
-                </Button>
-              </Box>
-
-              {showSuccess && (
-                <Alert severity="success" sx={{ mt: 2 }}>
-                  Link de alteração de senha enviado com sucesso! Verifique seu
-                  email.
-                </Alert>
-              )}
-
-              {error && (
-                <Alert severity="error" sx={{ mt: 2 }}>
-                  {error}
-                </Alert>
-              )}
-            </Card>
-          </Fade>
+                Enviaremos um link de alteração de senha para o seu email
+                cadastrado.
+              </Typography>
+            </Box>
+          </Box>
         </Box>
+
+        {/* Divisor */}
+        <Box
+          sx={{
+            height: "1px",
+            backgroundColor: theme.palette.divider,
+            mb: 3,
+          }}
+        />
+
+        {/* Botão de ação */}
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            mb: 3,
+          }}
+        >
+          <Button
+            variant="contained"
+            onClick={handleSendRecoveryLink}
+            disabled={isLoading}
+            sx={{
+              px: { xs: 2, sm: 4 },
+              py: 1.5,
+              borderRadius: 2,
+              textTransform: "none",
+              fontWeight: 600,
+              minWidth: { xs: "100%", sm: 280 },
+              maxWidth: { xs: "100%", sm: "none" },
+              fontSize: { xs: "0.875rem", sm: "1rem" },
+            }}
+          >
+            {isLoading ? (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <CircularProgress size={20} color="inherit" />
+                Enviando...
+              </Box>
+            ) : (
+              "Enviar link de alteração de senha"
+            )}
+          </Button>
+        </Box>
+
+        {/* Alertas */}
+        {showSuccess && (
+          <Alert severity="success" sx={{ mb: 2 }}>
+            Link de alteração de senha enviado com sucesso! Verifique seu email.
+          </Alert>
+        )}
+
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
       </Box>
     </Box>
   );
