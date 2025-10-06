@@ -30,6 +30,7 @@ export function ProfileSection() {
     email: "",
     phone: "",
     address: "",
+    cpf: "",
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -55,6 +56,7 @@ export function ProfileSection() {
             ? formatPhoneNumber(profileData.profile.phoneNumber)
             : "",
           address: profileData.profile.formattedAddress || "",
+          cpf: profileData.personalId ? formatCPF(profileData.personalId) : "",
         });
       } catch (error) {
         console.error("Erro ao carregar perfil:", error);
@@ -81,12 +83,33 @@ export function ProfileSection() {
     }
   };
 
+  const formatCPF = (value: string) => {
+    const numbers = value.replace(/\D/g, "");
+
+    if (numbers.length <= 3) {
+      return numbers;
+    } else if (numbers.length <= 6) {
+      return `${numbers.slice(0, 3)}.${numbers.slice(3)}`;
+    } else if (numbers.length <= 9) {
+      return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(
+        6
+      )}`;
+    } else {
+      return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(
+        6,
+        9
+      )}-${numbers.slice(9, 11)}`;
+    }
+  };
+
   const handleInputChange =
     (field: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
       let value = event.target.value;
 
       if (field === "phone") {
         value = formatPhoneNumber(value);
+      } else if (field === "cpf") {
+        value = formatCPF(value);
       }
 
       setProfileData((prev) => ({
@@ -296,6 +319,21 @@ export function ProfileSection() {
                   sx={{
                     "& .MuiInputBase-input": {
                       wordBreak: "break-all",
+                    },
+                  }}
+                />
+
+                <TextField
+                  label="CPF"
+                  value={profileData.cpf}
+                  onChange={handleInputChange("cpf")}
+                  fullWidth
+                  variant="outlined"
+                  placeholder="000.000.000-00"
+                  disabled
+                  sx={{
+                    "& .MuiInputBase-input.Mui-disabled": {
+                      WebkitTextFillColor: theme.palette.text.secondary,
                     },
                   }}
                 />
