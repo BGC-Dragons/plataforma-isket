@@ -1,6 +1,6 @@
 import axios, { type AxiosResponse } from "axios";
 import { endpoints } from "./helpers/endpoint.constant";
-import { IGetUsersResponseSuccess } from "./get-users.service";
+import type { IGetUsersResponseSuccess } from "./get-users.service";
 
 export const getUserURL = (id: string) => `${endpoints.api}/auth/users/${id}`;
 
