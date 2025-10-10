@@ -19,6 +19,7 @@ import { postAuthLogin } from "../../../services/post-auth-login.service";
 import { getAuthMe } from "../../../services/get-auth-me.service";
 import { CustomTextField } from "../../library/components/custom-text-field";
 import { useAuth } from "../../modules/access-manager/auth.hook";
+import { SubscriptionBlockedModal } from "../../library/components/subscription-blocked-modal";
 
 export function Login() {
   const [email, setEmail] = useState("");
@@ -26,6 +27,7 @@ export function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showError, setShowError] = useState(false);
+  const [showSubscriptionBlocked, setShowSubscriptionBlocked] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
@@ -106,8 +108,29 @@ export function Login() {
             user,
             redirectTo !== "/" ? redirectTo : undefined
           );
-        } catch (userError) {
+        } catch (userError: unknown) {
           console.error("Erro ao buscar dados do usuário:", userError);
+
+          // Verificar se é erro de assinatura expirada
+          const axiosError = userError as {
+            response?: {
+              data?: {
+                error?: string;
+                message?: string;
+                statusCode?: number;
+              };
+            };
+          };
+
+          if (
+            axiosError.response?.data?.error === "ForbiddenException" ||
+            axiosError.response?.data?.message ===
+              "Your subscription has expired. Please update your payment method." ||
+            axiosError.response?.data?.statusCode === 403
+          ) {
+            setShowSubscriptionBlocked(true);
+            return;
+          }
 
           const user = {
             id: email,
@@ -160,6 +183,19 @@ export function Login() {
 
   const handleSignUp = () => {
     navigate("/cadastro");
+  };
+
+  const handleCloseSubscriptionBlocked = () => {
+    setShowSubscriptionBlocked(false);
+  };
+
+  const handleBackToLogin = () => {
+    setShowSubscriptionBlocked(false);
+    // Limpar campos e focar no email
+    setEmail("");
+    setPassword("");
+    setError(null);
+    setShowError(false);
   };
 
   return (
@@ -355,6 +391,13 @@ export function Login() {
           </Box>
         </Paper>
       </Container>
+
+      {/* Modal de Assinatura Bloqueada */}
+      <SubscriptionBlockedModal
+        open={showSubscriptionBlocked}
+        onClose={handleCloseSubscriptionBlocked}
+        onBackToLogin={handleBackToLogin}
+      />
     </Box>
   );
 }
