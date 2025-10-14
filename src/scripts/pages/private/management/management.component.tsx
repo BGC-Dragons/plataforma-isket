@@ -126,8 +126,8 @@ export function ManagementComponent() {
     },
   ];
 
-  const handleGoToSubscription = () => {
-    setSelectedSection("subscription");
+  const handleGoToUpgrade = () => {
+    setSelectedSection("upgrade");
     if (isMobile) {
       setMobileDrawerOpen(false);
     }
@@ -555,7 +555,7 @@ export function ManagementComponent() {
 
         <Button
           variant="contained"
-          onClick={handleGoToSubscription}
+          onClick={handleGoToUpgrade}
           sx={{
             backgroundColor: theme.palette.primary.main,
             "&:hover": {

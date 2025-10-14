@@ -27,6 +27,7 @@ import {
   Business,
   PersonRemove,
   PersonAdd,
+  Visibility,
 } from "@mui/icons-material";
 import { useAuth } from "../../../../modules/access-manager/auth.hook";
 import {
@@ -41,6 +42,7 @@ import {
   postUsersInvite,
   type IPostUsersInviteRequest,
 } from "../../../../../services/post-users-invite.service";
+import { UserDetailsComponent } from "./user-details.component";
 
 interface Collaborator {
   id: string;
@@ -91,6 +93,7 @@ export function CollaboratorsSection() {
   });
   const [emailFilter, setEmailFilter] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   // Carregar colaboradores da API
   const loadCollaborators = useCallback(async () => {
@@ -254,6 +257,14 @@ export function CollaboratorsSection() {
     }
   };
 
+  const handleViewUserDetails = (userId: string) => {
+    setSelectedUserId(userId);
+  };
+
+  const handleBackFromDetails = () => {
+    setSelectedUserId(null);
+  };
+
   // Filtrar colaboradores por email
   const filteredCollaborators = collaborators.filter((collaborator) =>
     collaborator.email.toLowerCase().includes(emailFilter.toLowerCase())
@@ -268,6 +279,16 @@ export function CollaboratorsSection() {
     "filtered:",
     filteredCollaborators.length
   );
+
+  // Se um usuário foi selecionado, mostrar tela de detalhes
+  if (selectedUserId) {
+    return (
+      <UserDetailsComponent
+        userId={selectedUserId}
+        onBack={handleBackFromDetails}
+      />
+    );
+  }
 
   return (
     <Box
@@ -349,6 +370,21 @@ export function CollaboratorsSection() {
               >
                 Gerencie os colaboradores da sua empresa
               </Typography>
+              {!isLoading && (
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontSize: { xs: "0.7rem", sm: "0.75rem" },
+                    color: theme.palette.primary.main,
+                    fontWeight: 500,
+                    display: "block",
+                    mt: 0.5,
+                  }}
+                >
+                  {collaborators.filter((c) => !c.inactive).length} ativas de{" "}
+                  {collaborators.length} vinculadas
+                </Typography>
+              )}
             </Box>
           </Box>
           <Button
@@ -604,8 +640,21 @@ export function CollaboratorsSection() {
                         mt: { xs: 1, sm: 0 },
                         width: { xs: "100%", sm: "auto" },
                         ml: { xs: 0, sm: "auto" },
+                        gap: 0.5,
                       }}
                     >
+                      <IconButton
+                        edge="end"
+                        aria-label="visualizar detalhes"
+                        size="small"
+                        onClick={() => handleViewUserDetails(collaborator.id)}
+                        color="primary"
+                        sx={{
+                          p: { xs: 1, sm: 0.5 },
+                        }}
+                      >
+                        <Visibility sx={{ fontSize: { xs: 18, sm: 16 } }} />
+                      </IconButton>
                       <IconButton
                         edge="end"
                         aria-label={

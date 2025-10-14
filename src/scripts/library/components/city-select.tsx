@@ -99,6 +99,14 @@ export function CitySelect({
     }
   };
 
+  // Resetar estado interno quando value for limpo
+  useEffect(() => {
+    if (!value) {
+      setInputValue("");
+      setOptions([]);
+    }
+  }, [value]);
+
   // Debounce para evitar muitas requisições
   useEffect(() => {
     const timeoutId = setTimeout(() => {

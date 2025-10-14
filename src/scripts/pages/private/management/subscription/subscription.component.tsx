@@ -41,6 +41,10 @@ import {
   type AccountType,
 } from "../../../../../services/get-purchases.service";
 import { postPurchasesAddCity } from "../../../../../services/post-purchases-add-city.service";
+import {
+  putPurchasesUpdateCity,
+  type IUpdateCityRequest,
+} from "../../../../../services/put-purchases-update-city.service";
 import { AddCitiesModal } from "../../../../library/components/add-cities-modal";
 import { EditCityModal } from "../../../../library/components/edit-city-modal";
 
@@ -59,6 +63,10 @@ export function SubscriptionSection() {
   const [isEditCityModalOpen, setIsEditCityModalOpen] = useState(false);
   const [editingCity, setEditingCity] = useState<string | null>(null);
   const [isEditingCity, setIsEditingCity] = useState(false);
+  const [notification, setNotification] = useState<{
+    message: string;
+    type: "success" | "error" | "warning";
+  } | null>(null);
 
   const handleSaveCities = async (cities: string[]) => {
     if (!store.token || purchases.length === 0) return;
@@ -124,22 +132,91 @@ export function SubscriptionSection() {
     if (!store.token || purchases.length === 0 || !editingCity) return;
 
     setIsEditingCity(true);
-    try {
-      // Aqui você implementaria a lógica para atualizar a cidade
-      // Por enquanto, vou apenas fechar o modal
-      console.log("Editando cidade:", editingCity, "para:", newCity);
+    setError(null);
 
-      // Simular chamada da API
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      const purchase = purchases[0];
+
+      // Converter o formato da cidade selecionada para o formato de código
+      const newCityCode = convertCityDescriptionToCode(newCity);
+
+      const updateData: IUpdateCityRequest = {
+        oldCityCode: editingCity,
+        newCityCode: newCityCode,
+      };
+
+      console.log("🔄 Atualizando cidade:", editingCity, "para:", newCity);
+      console.log("📊 Cidade original:", newCity);
+      console.log("📊 Cidade convertida:", newCityCode);
+      console.log("📊 Dados da requisição:", updateData);
+
+      const response = await putPurchasesUpdateCity(
+        purchase.id,
+        updateData,
+        store.token
+      );
+
+      // Verificar se a resposta contém erro mesmo com status 200
+      if (response.data.status !== "SUCCESS") {
+        throw new Error(
+          "City can only be updated once per month. Please try again later."
+        );
+      }
+
+      console.log("✅ Cidade atualizada com sucesso");
 
       // Recarregar dados
-      const response = await getPurchases(store.token);
-      setPurchases(response.data);
+      const purchasesResponse = await getPurchases(store.token);
+      setPurchases(purchasesResponse.data);
 
       setIsEditCityModalOpen(false);
       setEditingCity(null);
-    } catch (err) {
-      console.error("Erro ao editar cidade:", err);
+    } catch (err: unknown) {
+      console.error("❌ Erro ao editar cidade:", err);
+
+      let errorMessage = "Erro ao atualizar cidade. Tente novamente.";
+
+      // Verificar se é erro de limite mensal
+      if (
+        err instanceof Error &&
+        err.message.includes("City can only be updated once per month")
+      ) {
+        errorMessage =
+          "Você só pode atualizar uma cidade por mês. Tente novamente mais tarde.";
+      } else {
+        const axiosError = err as {
+          response?: { status?: number; data?: { message?: string } };
+        };
+
+        if (axiosError.response?.status === 403) {
+          errorMessage =
+            "Você só pode atualizar uma cidade por mês. Tente novamente mais tarde.";
+        } else if (axiosError.response?.status === 404) {
+          errorMessage = "Produto comprado não encontrado.";
+        } else if (axiosError.response?.status === 400) {
+          errorMessage = "Cidade não encontrada no plano.";
+        } else if (axiosError.response?.data?.message) {
+          errorMessage = axiosError.response.data.message;
+        }
+      }
+
+      // Fechar modal e mostrar notificação discreta
+      setIsEditCityModalOpen(false);
+      setEditingCity(null);
+
+      // Mostrar notificação de erro
+      setNotification({
+        message: errorMessage,
+        type: "error",
+      });
+
+      // Scroll para o topo para mostrar a notificação
+      window.scrollTo({ top: 0, behavior: "smooth" });
+
+      // Auto-remover notificação após 5 segundos
+      setTimeout(() => {
+        setNotification(null);
+      }, 5000);
     } finally {
       setIsEditingCity(false);
     }
@@ -225,6 +302,23 @@ export function SubscriptionSection() {
       .join(" ");
 
     return `${formattedCity} - ${stateAcronym}`;
+  };
+
+  const convertCityDescriptionToCode = (cityDescription: string): string => {
+    // Converte "Flores da Cunha, RS, Brasil" para "flores_da_cunha_rs"
+    const parts = cityDescription.split(", ");
+    if (parts.length < 2) return cityDescription;
+
+    const cityName = parts[0]
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // Remove acentos
+      .replace(/[^a-z0-9\s]/g, "") // Remove caracteres especiais
+      .replace(/\s+/g, "_"); // Substitui espaços por underscore
+
+    const stateCode = parts[1].toLowerCase();
+
+    return `${cityName}_${stateCode}`;
   };
 
   const getRemainingUnits = (purchase: IGetPurchasesResponseSuccess) => {
@@ -362,6 +456,23 @@ export function SubscriptionSection() {
       >
         Assinatura
       </Typography>
+
+      {/* Notificação de erro/sucesso */}
+      {notification && (
+        <Alert
+          severity={
+            notification.type === "error"
+              ? "error"
+              : notification.type === "warning"
+              ? "warning"
+              : "success"
+          }
+          sx={{ mb: 2 }}
+          onClose={() => setNotification(null)}
+        >
+          {notification.message}
+        </Alert>
+      )}
 
       <Box
         sx={{
