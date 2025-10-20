@@ -1,6 +1,6 @@
 import React from "react";
 import { Box, useTheme } from "@mui/material";
-import { SidebarMenu } from "./sidebar-menu";
+import { FloatingTopMenu } from "./floating-top-menu";
 
 interface PrivateLayoutProps {
   children: React.ReactNode;
@@ -10,14 +10,18 @@ export function PrivateLayout({ children }: PrivateLayoutProps) {
   const theme = useTheme();
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh" }}>
-      <SidebarMenu />
+    <Box
+      sx={{
+        minHeight: "100vh",
+        backgroundColor: theme.palette.background.default,
+      }}
+    >
+      <FloatingTopMenu />
 
       <Box
         component="main"
         sx={{
-          flexGrow: 1,
-          width: `calc(100% - 80px)`,
+          width: "100%",
           minHeight: "100vh",
           backgroundColor: theme.palette.background.default,
         }}

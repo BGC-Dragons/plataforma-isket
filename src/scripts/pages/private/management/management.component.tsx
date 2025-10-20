@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router";
 import {
   Box,
   List,
@@ -51,6 +52,8 @@ type ManagementSection =
 export function ManagementComponent() {
   const theme = useTheme();
   const { store } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [selectedSection, setSelectedSection] =
     useState<ManagementSection>("profile");
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
@@ -65,6 +68,25 @@ export function ManagementComponent() {
   // Verificar se o usuário tem plano empresarial (imobiliária)
   const isBusinessPlan =
     purchases.length > 0 && purchases[0].product.accountType === "BUSINESS";
+
+  // Detectar parâmetro da URL para definir seção inicial
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const sectionParam = urlParams.get("section");
+    if (
+      sectionParam &&
+      [
+        "profile",
+        "security",
+        "subscription",
+        "upgrade",
+        "company",
+        "collaborators",
+      ].includes(sectionParam)
+    ) {
+      setSelectedSection(sectionParam as ManagementSection);
+    }
+  }, [location.search]);
 
   // Carregar compras para verificar o tipo de conta
   useEffect(() => {
@@ -166,6 +188,9 @@ export function ManagementComponent() {
     } else {
       setSelectedSection(section);
     }
+
+    // Limpar parâmetros da URL
+    navigate("/configuracoes", { replace: true });
 
     if (isMobile) {
       setMobileDrawerOpen(false);
