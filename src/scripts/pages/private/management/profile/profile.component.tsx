@@ -9,7 +9,10 @@ import {
   Stack,
   Button,
   CircularProgress,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
+import { PhotoCamera } from "@mui/icons-material";
 import { useAuth } from "../../../../modules/access-manager/auth.hook";
 import {
   getAuthMe,
@@ -19,6 +22,10 @@ import {
   patchProfile,
   type IPatchProfileRequest,
 } from "../../../../../services/patch-auth-profile.service";
+import {
+  uploadProfilePhoto,
+  type IUploadProfilePhotoResult,
+} from "../../../../../services/helpers/upload-profile-photo.helper";
 
 export function ProfileSection() {
   const theme = useTheme();
@@ -36,6 +43,8 @@ export function ProfileSection() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [profileInfo, setProfileInfo] =
     useState<IGetAuthMeResponseSuccess | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -116,6 +125,138 @@ export function ProfileSection() {
       }));
     };
 
+  // Função para converter imagem para JPG usando Canvas (como na plataforma antiga)
+  const convertImageToJpg = (file: File): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      const img = new Image();
+
+      img.onload = () => {
+        // Definir tamanho máximo (como na plataforma antiga)
+        const maxSize = 800;
+        let { width, height } = img;
+
+        // Redimensionar se necessário
+        if (width > maxSize || height > maxSize) {
+          if (width > height) {
+            height = (height * maxSize) / width;
+            width = maxSize;
+          } else {
+            width = (width * maxSize) / height;
+            height = maxSize;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        // Desenhar imagem redimensionada
+        ctx?.drawImage(img, 0, 0, width, height);
+
+        // Converter para JPG com qualidade 0.9
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const jpgFile = new File([blob], "profile.jpg", {
+                type: "image/jpeg",
+              });
+              resolve(jpgFile);
+            } else {
+              reject(new Error("Erro ao converter imagem"));
+            }
+          },
+          "image/jpeg",
+          0.9
+        );
+      };
+
+      img.onerror = () => reject(new Error("Erro ao carregar imagem"));
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  const handlePhotoUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file || !store.token || !profileInfo) return;
+
+    // Validar tipo de arquivo
+    if (!file.type.startsWith("image/")) {
+      alert("Por favor, selecione apenas arquivos de imagem.");
+      return;
+    }
+
+    // Validar tamanho (máximo 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert("A imagem deve ter no máximo 5MB.");
+      return;
+    }
+
+    setIsUploadingPhoto(true);
+
+    try {
+      // Converter imagem para JPG (como na plataforma antiga)
+      const jpgFile = await convertImageToJpg(file);
+
+      // Criar preview da imagem convertida
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPhotoPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(jpgFile);
+
+      // Fazer upload usando o novo service com arquivo JPG processado
+      const uploadResult: IUploadProfilePhotoResult = await uploadProfilePhoto(
+        store.token,
+        jpgFile,
+        profileInfo.id,
+        profileInfo.accountId,
+        "USER_PROFILE_IMG"
+      );
+
+      if (uploadResult.success) {
+        console.log(
+          "🔍 Debug - Atualizando apenas imageURL:",
+          uploadResult.publicUrl
+        );
+
+        // Atualizar perfil com a nova URL da foto
+        const updateData: IPatchProfileRequest = {
+          profile: {
+            imageURL: uploadResult.publicUrl,
+          },
+        };
+
+        await patchProfile(store.token, updateData);
+
+        // Recarregar dados do perfil
+        const updatedProfile = await getAuthMe(store.token);
+        console.log(
+          "🔍 Debug - Perfil atualizado após foto:",
+          updatedProfile.data
+        );
+        setProfileInfo(updatedProfile.data);
+
+        // Limpar preview
+        setPhotoPreview(null);
+
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 3000);
+      } else {
+        alert(`Erro no upload: ${uploadResult.error}`);
+        setPhotoPreview(null);
+      }
+    } catch (error) {
+      console.error("Erro ao fazer upload da foto:", error);
+      alert("Erro ao fazer upload da foto. Tente novamente.");
+      setPhotoPreview(null);
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!store.token) return;
 
@@ -123,6 +264,9 @@ export function ProfileSection() {
     setShowSuccess(false);
 
     try {
+      // Debug: Verificar dados antes do envio
+      console.log("🔍 Debug - profileData antes do envio:", profileData);
+
       // Preparar dados para envio
       const updateData: IPatchProfileRequest = {
         profile: {
@@ -131,6 +275,20 @@ export function ProfileSection() {
           formattedAddress: profileData.address,
         },
       };
+
+      console.log("🔍 Debug - updateData sendo enviado:", updateData);
+
+      // Validação: Verificar se há dados válidos para enviar
+      const hasValidData =
+        updateData.profile?.email ||
+        updateData.profile?.phoneNumber ||
+        updateData.profile?.formattedAddress;
+
+      if (!hasValidData) {
+        console.warn("⚠️ Nenhum dado válido para atualizar");
+        setShowSuccess(false);
+        return;
+      }
 
       // Chamar API de atualização
       await patchProfile(store.token, updateData);
@@ -203,27 +361,69 @@ export function ProfileSection() {
               textAlign: { xs: "center", sm: "left" },
             }}
           >
-            <Avatar
-              src={profileInfo?.profile?.imageURL || store.user?.picture}
-              sx={{
-                width: { xs: 60, sm: 80 },
-                height: { xs: 60, sm: 80 },
-                bgcolor: theme.palette.primary.main,
-                fontSize: { xs: "1.5rem", sm: "2rem" },
-                cursor: "pointer",
-                "&:hover": {
-                  opacity: 0.8,
-                },
-              }}
-              onClick={() => {
-                // TODO: Implementar upload de foto
-                console.log("Clicou na foto para atualizar");
-              }}
-            >
-              {(profileInfo?.name || store.user?.name)
-                ?.charAt(0)
-                ?.toUpperCase() || "U"}
-            </Avatar>
+            <Box sx={{ position: "relative" }}>
+              <Avatar
+                src={
+                  photoPreview ||
+                  profileInfo?.profile?.imageURL ||
+                  store.user?.picture
+                }
+                sx={{
+                  width: { xs: 60, sm: 80 },
+                  height: { xs: 60, sm: 80 },
+                  bgcolor: theme.palette.primary.main,
+                  fontSize: { xs: "1.5rem", sm: "2rem" },
+                  cursor: "pointer",
+                  "&:hover": {
+                    opacity: 0.8,
+                  },
+                }}
+              >
+                {(profileInfo?.name || store.user?.name)
+                  ?.charAt(0)
+                  ?.toUpperCase() || "U"}
+              </Avatar>
+
+              {/* Input de arquivo oculto */}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoUpload}
+                style={{ display: "none" }}
+                id="photo-upload"
+                disabled={isUploadingPhoto}
+              />
+
+              {/* Ícone de câmera */}
+              <Tooltip title="Alterar foto">
+                <IconButton
+                  component="label"
+                  htmlFor="photo-upload"
+                  disabled={isUploadingPhoto}
+                  sx={{
+                    position: "absolute",
+                    bottom: -5,
+                    right: -5,
+                    bgcolor: theme.palette.primary.main,
+                    color: "white",
+                    width: 32,
+                    height: 32,
+                    "&:hover": {
+                      bgcolor: theme.palette.primary.dark,
+                    },
+                    "&:disabled": {
+                      bgcolor: theme.palette.action.disabled,
+                    },
+                  }}
+                >
+                  {isUploadingPhoto ? (
+                    <CircularProgress size={16} color="inherit" />
+                  ) : (
+                    <PhotoCamera sx={{ fontSize: 16 }} />
+                  )}
+                </IconButton>
+              </Tooltip>
+            </Box>
             <Box sx={{ minWidth: 0, flex: 1 }}>
               <Typography
                 variant="h5"

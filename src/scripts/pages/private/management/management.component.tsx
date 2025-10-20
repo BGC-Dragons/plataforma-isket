@@ -29,6 +29,10 @@ import {
   getPurchases,
   type IGetPurchasesResponseSuccess,
 } from "../../../../services/get-purchases.service";
+import {
+  getAuthMe,
+  type IGetAuthMeResponseSuccess,
+} from "../../../../services/get-auth-me.service";
 import { ProfileSection } from "./profile/profile.component";
 import { SecuritySection } from "./security/security.component";
 import { SubscriptionSection } from "./subscription/subscription.component";
@@ -53,6 +57,8 @@ export function ManagementComponent() {
   const [purchases, setPurchases] = useState<IGetPurchasesResponseSuccess[]>(
     []
   );
+  const [profileInfo, setProfileInfo] =
+    useState<IGetAuthMeResponseSuccess | null>(null);
 
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
@@ -74,6 +80,22 @@ export function ManagementComponent() {
     };
 
     loadPurchases();
+  }, [store.token]);
+
+  // Carregar dados do perfil
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!store.token) return;
+
+      try {
+        const response = await getAuthMe(store.token);
+        setProfileInfo(response.data);
+      } catch (error) {
+        console.error("Erro ao carregar perfil no management:", error);
+      }
+    };
+
+    loadProfile();
   }, [store.token]);
 
   // Seção CONTA
@@ -193,7 +215,7 @@ export function ManagementComponent() {
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
           <Avatar
-            src={store.user?.picture}
+            src={profileInfo?.profile?.imageURL || store.user?.picture}
             sx={{
               width: 52,
               height: 52,
@@ -201,7 +223,9 @@ export function ManagementComponent() {
               border: `2px solid ${theme.palette.primary.main}20`,
             }}
           >
-            {store.user?.name?.charAt(0)?.toUpperCase() || "U"}
+            {(profileInfo?.name || store.user?.name)
+              ?.charAt(0)
+              ?.toUpperCase() || "U"}
           </Avatar>
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography
@@ -213,7 +237,7 @@ export function ManagementComponent() {
                 wordBreak: "break-word",
               }}
             >
-              {store.user?.name || "Usuário"}
+              {profileInfo?.name || store.user?.name || "Usuário"}
             </Typography>
             <Typography
               variant="body2"
@@ -223,7 +247,9 @@ export function ManagementComponent() {
                 wordBreak: "break-word",
               }}
             >
-              {store.user?.email || "email@exemplo.com"}
+              {profileInfo?.profile?.email ||
+                store.user?.email ||
+                "email@exemplo.com"}
             </Typography>
           </Box>
         </Box>

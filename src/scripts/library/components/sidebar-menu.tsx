@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Box,
   Drawer,
@@ -28,6 +28,10 @@ import {
 } from "@mui/icons-material";
 import { useNavigate, useLocation } from "react-router";
 import { useAuth } from "../../modules/access-manager/auth.hook";
+import {
+  getAuthMe,
+  type IGetAuthMeResponseSuccess,
+} from "../../../services/get-auth-me.service";
 import isketLogo from "../../../assets/simbolo-isket.svg";
 
 const DRAWER_WIDTH = 80;
@@ -41,6 +45,24 @@ export function SidebarMenu() {
   const [profileAnchorEl, setProfileAnchorEl] = useState<HTMLElement | null>(
     null
   );
+  const [profileInfo, setProfileInfo] =
+    useState<IGetAuthMeResponseSuccess | null>(null);
+
+  // Carregar dados do perfil
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!store.token) return;
+
+      try {
+        const response = await getAuthMe(store.token);
+        setProfileInfo(response.data);
+      } catch (error) {
+        console.error("Erro ao carregar perfil no sidebar:", error);
+      }
+    };
+
+    loadProfile();
+  }, [store.token]);
 
   const menuItems = [
     {
@@ -249,14 +271,16 @@ export function SidebarMenu() {
             }}
           >
             <Avatar
-              src={store.user?.picture}
+              src={profileInfo?.profile?.imageURL || store.user?.picture}
               sx={{
                 width: 32,
                 height: 32,
                 bgcolor: theme.palette.primary.main,
               }}
             >
-              {store.user?.name?.charAt(0)?.toUpperCase() || "U"}
+              {(profileInfo?.name || store.user?.name)
+                ?.charAt(0)
+                ?.toUpperCase() || "U"}
             </Avatar>
           </ListItemButton>
         </Tooltip>
@@ -350,7 +374,9 @@ export function SidebarMenu() {
                     }}
                   >
                     <Avatar
-                      src={store.user?.picture}
+                      src={
+                        profileInfo?.profile?.imageURL || store.user?.picture
+                      }
                       sx={{
                         width: 80,
                         height: 80,
@@ -358,7 +384,9 @@ export function SidebarMenu() {
                         bgcolor: theme.palette.primary.main,
                       }}
                     >
-                      {store.user?.name?.charAt(0)?.toUpperCase() || "U"}
+                      {(profileInfo?.name || store.user?.name)
+                        ?.charAt(0)
+                        ?.toUpperCase() || "U"}
                     </Avatar>
 
                     <Typography
@@ -370,7 +398,7 @@ export function SidebarMenu() {
                         textAlign: "center",
                       }}
                     >
-                      {store.user?.name || "Usuário"}
+                      {profileInfo?.name || store.user?.name || "Usuário"}
                     </Typography>
 
                     <Typography
@@ -381,7 +409,9 @@ export function SidebarMenu() {
                         textAlign: "center",
                       }}
                     >
-                      {store.user?.email || "email@exemplo.com"}
+                      {profileInfo?.profile?.email ||
+                        store.user?.email ||
+                        "email@exemplo.com"}
                     </Typography>
 
                     <Paper

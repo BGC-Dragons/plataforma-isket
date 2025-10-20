@@ -31,10 +31,13 @@ import {
   Warning,
   CheckCircle,
   TrendingDown,
-  Edit,
 } from "@mui/icons-material";
 import { useAuth } from "../../../../modules/access-manager/auth.hook";
 import { getUser } from "../../../../../services/get-user.service";
+import {
+  getDashboardUser,
+  type IGetDashboardUserResponseSuccess,
+} from "../../../../../services/get-dashboard-user.service";
 import type { IGetUsersResponseSuccess } from "../../../../../services/get-users.service";
 import {
   patchUser,
@@ -71,6 +74,8 @@ export function UserDetailsComponent({ userId, onBack }: UserDetailsProps) {
 
   const [user, setUser] = useState<IGetUsersResponseSuccess | null>(null);
   const [userStats, setUserStats] = useState<UserStats | null>(null);
+  const [dashboardUser, setDashboardUser] =
+    useState<IGetDashboardUserResponseSuccess | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -97,8 +102,16 @@ export function UserDetailsComponent({ userId, onBack }: UserDetailsProps) {
         personalId: userData.personalId || "",
       });
 
-      // Simular dados de estatísticas do usuário
-      // Em uma implementação real, estes dados viriam de uma API específica
+      // Buscar dados consolidados do dashboard (público)
+      try {
+        const dashboardResp = await getDashboardUser(userId);
+        setDashboardUser(dashboardResp.data);
+      } catch (e) {
+        // Não bloqueia a tela se der erro; segue com dados básicos
+        console.warn("Falha ao carregar dashboard do usuário", e);
+      }
+
+      // Simular dados de estatísticas do usuário (placeholder)
       const mockStats: UserStats = {
         propertyValuations: {
           total: 50,
@@ -133,6 +146,7 @@ export function UserDetailsComponent({ userId, onBack }: UserDetailsProps) {
 
   useEffect(() => {
     loadUserData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, store.token]);
 
   const handleEditUser = async () => {
@@ -358,6 +372,45 @@ export function UserDetailsComponent({ userId, onBack }: UserDetailsProps) {
             </Box>
 
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              {/* Plano e status da conta vindos do dashboard */}
+              {dashboardUser && (
+                <>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Plano:
+                    </Typography>
+                    <Chip
+                      label={
+                        dashboardUser.plan
+                          ? `${dashboardUser.plan.name} (${dashboardUser.plan.type})`
+                          : "Sem plano"
+                      }
+                      color={dashboardUser.plan ? "primary" : "default"}
+                      size="small"
+                    />
+                  </Box>
+
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Status da conta:
+                    </Typography>
+                    <Chip
+                      label={
+                        dashboardUser.accountStatus === "active"
+                          ? "Ativa"
+                          : "Expirada"
+                      }
+                      color={
+                        dashboardUser.accountStatus === "active"
+                          ? "success"
+                          : "warning"
+                      }
+                      size="small"
+                    />
+                  </Box>
+                </>
+              )}
+
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <Email sx={{ fontSize: 16, color: "text.secondary" }} />
                 <Typography
@@ -401,7 +454,7 @@ export function UserDetailsComponent({ userId, onBack }: UserDetailsProps) {
             </Box>
           </Box>
 
-          <Button
+          {/* <Button
             variant="outlined"
             startIcon={<Edit />}
             onClick={() => setIsEditModalOpen(true)}
@@ -409,7 +462,7 @@ export function UserDetailsComponent({ userId, onBack }: UserDetailsProps) {
             sx={{ textTransform: "none" }}
           >
             Editar
-          </Button>
+          </Button> */}
         </Box>
       </Box>
 
