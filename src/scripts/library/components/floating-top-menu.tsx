@@ -612,14 +612,28 @@ export function FloatingTopMenu() {
                     borderRadius: 3,
                     minWidth: 280,
                     maxWidth: "90vw",
+                    maxHeight: "none !important",
+                    height: "auto !important",
+                    overflow: "visible !important",
                     boxShadow: theme.shadows[8],
                     border: `1px solid ${theme.palette.divider}20`,
                     backdropFilter: "blur(20px)",
                     background: `linear-gradient(135deg, ${theme.palette.background.paper} 0%, ${theme.palette.background.paper}CC 100%)`,
+                    "&.MuiPaper-root": {
+                      maxHeight: "none !important",
+                      overflow: "visible !important",
+                    },
                   },
                 }}
                 transformOrigin={{ horizontal: "right", vertical: "top" }}
                 anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
+                MenuListProps={{
+                  sx: {
+                    maxHeight: "none !important",
+                    overflow: "visible !important",
+                    padding: 0,
+                  },
+                }}
               >
                 <Box sx={{ p: 3, pb: 2 }}>
                   <Box
