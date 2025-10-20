@@ -20,7 +20,7 @@ import {
 import {
   Analytics,
   Search,
-  PersonAdd,
+  AddHome,
   Assessment,
   Settings,
   Logout,
@@ -106,7 +106,7 @@ export function FloatingTopMenu() {
     },
     {
       text: "Captação",
-      icon: <PersonAdd />,
+      icon: <AddHome />,
       path: "/captacao",
     },
     {
@@ -287,7 +287,7 @@ export function FloatingTopMenu() {
                     sx={{
                       color: isActiveRoute(item.path)
                         ? theme.palette.primary.main
-                        : theme.palette.text.secondary,
+                        : theme.palette.text.primary,
                       backgroundColor: isActiveRoute(item.path)
                         ? theme.palette.primary.main + "10"
                         : "transparent",
@@ -369,7 +369,7 @@ export function FloatingTopMenu() {
                     <IconButton
                       size="small"
                       sx={{
-                        color: theme.palette.text.secondary,
+                        color: theme.palette.text.primary,
                         fontSize: "1.25rem",
                         "&:hover": {
                           backgroundColor: "transparent",
@@ -442,7 +442,7 @@ export function FloatingTopMenu() {
                     <IconButton
                       size="small"
                       sx={{
-                        color: theme.palette.text.secondary,
+                        color: theme.palette.text.primary,
                         fontSize: "1.25rem",
                         "&:hover": {
                           backgroundColor: "transparent",
@@ -519,8 +519,8 @@ export function FloatingTopMenu() {
                   variant="contained"
                   onClick={() => navigate("/configuracoes?section=upgrade")}
                   sx={{
-                    backgroundColor: theme.palette.primary.main,
-                    color: theme.palette.primary.contrastText,
+                    backgroundColor: theme.palette.error.main,
+                    color: theme.palette.error.contrastText,
                     borderRadius: 2,
                     px: 2,
                     py: 1,
@@ -528,7 +528,7 @@ export function FloatingTopMenu() {
                     fontWeight: 600,
                     fontSize: "0.875rem",
                     "&:hover": {
-                      backgroundColor: theme.palette.primary.dark,
+                      backgroundColor: theme.palette.error.dark,
                     },
                     transition: "all 0.2s ease",
                   }}
@@ -556,7 +556,7 @@ export function FloatingTopMenu() {
                   sx={{
                     color: isActiveRoute("/configuracoes")
                       ? theme.palette.primary.main
-                      : theme.palette.text.secondary,
+                      : theme.palette.text.primary,
                     backgroundColor: "transparent",
                     fontSize: "1.25rem",
                     "&:hover": {
