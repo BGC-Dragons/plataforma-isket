@@ -14,6 +14,7 @@ import { Button, Box, Typography, Paper, useTheme } from "@mui/material";
 import { Logout } from "@mui/icons-material";
 import { useAuth } from "../../modules/access-manager/auth.hook";
 import { ManagementComponent } from "../../pages/private/management/management.component";
+import { SearchComponent } from "../../pages/private/search/search.component";
 
 // Página temporária do Dashboard
 function DashboardPage() {
@@ -131,26 +132,7 @@ function AnalisesPage() {
 function PesquisarAnunciosPage() {
   return (
     <PrivateLayout>
-      <Box sx={{ maxWidth: "1200px", mx: "auto" }}>
-        <Paper
-          elevation={8}
-          sx={{
-            padding: "3rem",
-            textAlign: "center",
-            borderRadius: 4,
-            background: "background.paper",
-            border: "1px solid",
-            borderColor: "divider",
-          }}
-        >
-          <Typography variant="h3" gutterBottom>
-            🔍 Pesquisar Anúncios
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Página de pesquisa de anúncios em desenvolvimento...
-          </Typography>
-        </Paper>
-      </Box>
+      <SearchComponent />
     </PrivateLayout>
   );
 }
