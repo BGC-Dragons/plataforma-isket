@@ -92,6 +92,62 @@ export const theme = createTheme({
     },
   },
   components: {
+    MuiCssBaseline: {
+      styleOverrides: {
+        "*": {
+          /* Webkit (Chrome, Edge, Safari) */
+          "&::-webkit-scrollbar": {
+            width: "8px",
+            height: "8px",
+          },
+          "&::-webkit-scrollbar-track": {
+            background: "#f8f9fa",
+          },
+          "&::-webkit-scrollbar-thumb": {
+            background: "#262353",
+            borderRadius: "0px", // deixa quadrada
+            transition: "background 0.2s ease",
+            "&:hover": {
+              background: "#e3003a",
+            },
+          },
+          "&::-webkit-scrollbar-corner": {
+            background: "#f8f9fa",
+          },
+          "&::-webkit-scrollbar-button": {
+            display: "none", // remove setas
+            width: 0,
+            height: 0,
+          },
+        },
+
+        "html, body": {
+          "&::-webkit-scrollbar": {
+            width: "6px",
+            height: "6px",
+          },
+          "&::-webkit-scrollbar-track": {
+            background: "#f8f9fa",
+          },
+          "&::-webkit-scrollbar-thumb": {
+            background: "#262353",
+            borderRadius: "0px", // quadrada
+            transition: "background 0.2s ease",
+            "&:hover": {
+              background: "#e3003a",
+            },
+          },
+          "&::-webkit-scrollbar-corner": {
+            background: "#f8f9fa",
+          },
+          "&::-webkit-scrollbar-button": {
+            display: "none", // remove setas
+            width: 0,
+            height: 0,
+          },
+        },
+      },
+    },
     MuiButton: {
       styleOverrides: {
         root: {
