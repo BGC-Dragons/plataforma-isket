@@ -11,7 +11,20 @@ import {
   FormControl,
   InputLabel,
   CircularProgress,
+  Paper,
+  Chip,
+  IconButton,
+  Menu,
+  ListItemIcon,
+  ListItemText,
 } from "@mui/material";
+import {
+  MoreVert,
+  OpenInNew,
+  Bed,
+  DirectionsCar,
+  SquareFoot,
+} from "@mui/icons-material";
 import { FilterBar } from "../../../modules/search/filter-bar";
 import { PropertiesCard } from "../../../modules/search/properties-card";
 
@@ -263,6 +276,9 @@ export function SearchComponent() {
     useState<PropertyData[]>(mockProperties);
   const [loading, setLoading] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>("relevance");
+  const [viewMode, setViewMode] = useState<"cards" | "list">("cards");
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [selectedProperty, setSelectedProperty] = useState<string | null>(null);
 
   // Função para carregar bairros (mockada)
   const loadNeighborhoods = useCallback(
@@ -433,6 +449,63 @@ export function SearchComponent() {
     // Implementar navegação para detalhes
   };
 
+  // Função para abrir menu de ações
+  const handleMenuOpen = (
+    event: React.MouseEvent<HTMLElement>,
+    propertyId: string
+  ) => {
+    setAnchorEl(event.currentTarget);
+    setSelectedProperty(propertyId);
+  };
+
+  // Função para fechar menu de ações
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+    setSelectedProperty(null);
+  };
+
+  // Função para abrir em nova guia
+  const handleOpenInNewTab = () => {
+    if (selectedProperty) {
+      console.log("Abrindo propriedade em nova guia:", selectedProperty);
+      // Implementar abertura em nova guia
+    }
+    handleMenuClose();
+  };
+
+  // Função para alternar modo de visualização
+  const handleViewModeChange = () => {
+    setViewMode(viewMode === "cards" ? "list" : "cards");
+  };
+
+  // Função para obter a cor do tipo de propriedade (mesma lógica do PropertiesCard)
+  const getPropertyTypeColor = (type: string) => {
+    switch (type) {
+      case "COMERCIAL":
+        return theme.palette.error.main;
+      case "RESIDENCIAL":
+        return theme.palette.primary.main;
+      case "TERRENO":
+        return theme.palette.success.main;
+      default:
+        return theme.palette.grey[500];
+    }
+  };
+
+  // Função para obter a cor dos ícones conforme o tipo de propriedade
+  const getIconColor = (type: string) => {
+    switch (type) {
+      case "COMERCIAL":
+        return theme.palette.error.main;
+      case "RESIDENCIAL":
+        return theme.palette.primary.main;
+      case "TERRENO":
+        return theme.palette.success.main;
+      default:
+        return theme.palette.grey[500];
+    }
+  };
+
   return (
     <Box
       sx={{
@@ -450,6 +523,8 @@ export function SearchComponent() {
             defaultCity="CURITIBA"
             availableCities={["CURITIBA", "SÃO PAULO", "RIO DE JANEIRO"]}
             onNeighborhoodsLoad={loadNeighborhoods}
+            viewMode={viewMode}
+            onViewModeChange={handleViewModeChange}
           />
         </Box>
 
@@ -530,40 +605,211 @@ export function SearchComponent() {
 
         {/* Grid de Propriedades */}
         {!loading && (
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: {
-                xs: "1fr",
-                sm: "repeat(2, 1fr)",
-                md: "repeat(3, 1fr)",
-                lg: "repeat(4, 1fr)",
-              },
-              gap: 3,
-            }}
-          >
+          <Box>
             {filteredProperties.length > 0 ? (
-              filteredProperties.map((property) => (
-                <PropertiesCard
-                  key={property.id}
-                  id={property.id}
-                  title={property.title}
-                  price={property.price}
-                  pricePerSquareMeter={property.pricePerSquareMeter}
-                  address={property.address}
-                  city={property.city}
-                  state={property.state}
-                  propertyType={property.propertyType}
-                  bedrooms={property.bedrooms}
-                  bathrooms={property.bathrooms}
-                  area={property.area}
-                  images={property.images}
-                  isFavorite={property.isFavorite}
-                  onFavoriteToggle={handleFavoriteToggle}
-                  onShare={handleShare}
-                  onClick={handlePropertyClick}
-                />
-              ))
+              viewMode === "cards" ? (
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: {
+                      xs: "1fr",
+                      sm: "repeat(2, 1fr)",
+                      md: "repeat(3, 1fr)",
+                      lg: "repeat(4, 1fr)",
+                    },
+                    gap: 3,
+                  }}
+                >
+                  {filteredProperties.map((property) => (
+                    <PropertiesCard
+                      key={property.id}
+                      id={property.id}
+                      title={property.title}
+                      price={property.price}
+                      pricePerSquareMeter={property.pricePerSquareMeter}
+                      address={property.address}
+                      city={property.city}
+                      state={property.state}
+                      propertyType={property.propertyType}
+                      bedrooms={property.bedrooms}
+                      bathrooms={property.bathrooms}
+                      area={property.area}
+                      images={property.images}
+                      isFavorite={property.isFavorite}
+                      onFavoriteToggle={handleFavoriteToggle}
+                      onShare={handleShare}
+                      onClick={handlePropertyClick}
+                    />
+                  ))}
+                </Box>
+              ) : (
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                  {filteredProperties.map((property, index) => (
+                    <Paper
+                      key={property.id}
+                      sx={{
+                        p: 2,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 2,
+                        backgroundColor: index % 2 === 0 ? "grey.50" : "white",
+                        border: "1px solid",
+                        borderColor: "divider",
+                        borderRadius: 2,
+                        "&:hover": {
+                          backgroundColor: "action.hover",
+                        },
+                        cursor: "pointer",
+                      }}
+                      onClick={() => handlePropertyClick(property.id)}
+                    >
+                      {/* Chip do tipo de propriedade */}
+                      <Chip
+                        label={property.propertyType}
+                        sx={{
+                          backgroundColor: getPropertyTypeColor(
+                            property.propertyType
+                          ),
+                          color: theme.palette.getContrastText(
+                            getPropertyTypeColor(property.propertyType)
+                          ),
+                          fontWeight: 600,
+                          textTransform: "uppercase",
+                          fontSize: "0.75rem",
+                        }}
+                      />
+
+                      {/* Informações da propriedade */}
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography
+                          variant="h6"
+                          sx={{
+                            fontWeight: 600,
+                            mb: 0.5,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {property.title}
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            color: "text.secondary",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {property.address}, {property.city} - {property.state}
+                        </Typography>
+                      </Box>
+
+                      {/* Detalhes específicos */}
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 2,
+                          color: "text.secondary",
+                        }}
+                      >
+                        {/* Para terrenos, mostrar apenas a área */}
+                        {property.propertyType === "TERRENO" ? (
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 0.5,
+                            }}
+                          >
+                            <SquareFoot
+                              sx={{
+                                fontSize: 16,
+                                color: getIconColor(property.propertyType),
+                              }}
+                            />
+                            <Typography variant="body2">
+                              {property.area} m²
+                            </Typography>
+                          </Box>
+                        ) : (
+                          /* Para outros tipos, mostrar quartos, banheiros e área */
+                          <>
+                            {property.bedrooms && property.bedrooms > 0 && (
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 0.5,
+                                }}
+                              >
+                                <Bed
+                                  sx={{
+                                    fontSize: 16,
+                                    color: getIconColor(property.propertyType),
+                                  }}
+                                />
+                                <Typography variant="body2">
+                                  {property.bedrooms}
+                                </Typography>
+                              </Box>
+                            )}
+                            {property.bathrooms && property.bathrooms > 0 && (
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 0.5,
+                                }}
+                              >
+                                <DirectionsCar
+                                  sx={{
+                                    fontSize: 16,
+                                    color: getIconColor(property.propertyType),
+                                  }}
+                                />
+                                <Typography variant="body2">
+                                  {property.bathrooms}
+                                </Typography>
+                              </Box>
+                            )}
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 0.5,
+                              }}
+                            >
+                              <SquareFoot
+                                sx={{
+                                  fontSize: 16,
+                                  color: getIconColor(property.propertyType),
+                                }}
+                              />
+                              <Typography variant="body2">
+                                {property.area} m²
+                              </Typography>
+                            </Box>
+                          </>
+                        )}
+                      </Box>
+
+                      {/* Menu de ações */}
+                      <IconButton
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMenuOpen(e, property.id);
+                        }}
+                        sx={{ ml: 1 }}
+                      >
+                        <MoreVert />
+                      </IconButton>
+                    </Paper>
+                  ))}
+                </Box>
+              )
             ) : (
               <Box
                 sx={{
@@ -729,6 +975,28 @@ export function SearchComponent() {
             </Stack>
           </Box>
         )}
+
+        {/* Menu de ações */}
+        <Menu
+          anchorEl={anchorEl}
+          open={Boolean(anchorEl)}
+          onClose={handleMenuClose}
+          anchorOrigin={{
+            vertical: "bottom",
+            horizontal: "right",
+          }}
+          transformOrigin={{
+            vertical: "top",
+            horizontal: "right",
+          }}
+        >
+          <MenuItem onClick={handleOpenInNewTab}>
+            <ListItemIcon>
+              <OpenInNew fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Abrir em nova guia</ListItemText>
+          </MenuItem>
+        </Menu>
       </Container>
     </Box>
   );

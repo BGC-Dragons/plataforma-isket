@@ -11,7 +11,7 @@ import {
   InputAdornment,
   Chip,
 } from "@mui/material";
-import { Search, FilterList, ViewList } from "@mui/icons-material";
+import { Search, FilterList, ViewList, ViewModule } from "@mui/icons-material";
 import { FilterModal } from "./filter-modal";
 
 interface FilterState {
@@ -85,6 +85,8 @@ interface FilterBarProps {
   defaultCity?: string;
   availableCities?: string[];
   onNeighborhoodsLoad?: (city: string) => Promise<string[]>;
+  viewMode?: "cards" | "list";
+  onViewModeChange?: () => void;
 }
 
 export function FilterBar({
@@ -92,6 +94,8 @@ export function FilterBar({
   defaultCity = "CURITIBA",
   availableCities = ["CURITIBA", "SÃO PAULO", "RIO DE JANEIRO"],
   onNeighborhoodsLoad,
+  viewMode = "cards",
+  onViewModeChange,
 }: FilterBarProps) {
   const theme = useTheme();
 
@@ -472,7 +476,7 @@ export function FilterBar({
               backgroundColor: theme.palette.primary.main,
               color: "white",
               "&:hover": {
-                backgroundColor: theme.palette.success.dark,
+                backgroundColor: theme.palette.primary.dark,
               },
             }}
           >
@@ -502,6 +506,7 @@ export function FilterBar({
 
           {/* Botão de Visualização */}
           <IconButton
+            onClick={onViewModeChange}
             sx={{
               border: `1px solid ${theme.palette.divider}`,
               borderRadius: 2,
@@ -511,7 +516,11 @@ export function FilterBar({
               },
             }}
           >
-            <ViewList sx={{ fontSize: "1.2rem" }} />
+            {viewMode === "cards" ? (
+              <ViewList sx={{ fontSize: "1.2rem" }} />
+            ) : (
+              <ViewModule sx={{ fontSize: "1.2rem" }} />
+            )}
           </IconButton>
         </Box>
 

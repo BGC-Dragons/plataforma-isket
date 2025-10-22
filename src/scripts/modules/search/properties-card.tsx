@@ -103,7 +103,7 @@ export function PropertiesCard({
   const getIconColor = (type: string) => {
     switch (type) {
       case "COMERCIAL":
-        return theme.palette.text.primary; // Cor escura para contraste no fundo branco
+        return theme.palette.error.main; // Vermelho para comercial
       case "RESIDENCIAL":
         return theme.palette.primary.main;
       case "TERRENO":
