@@ -166,6 +166,7 @@ export function FilterBar({
     useState<FilterState>(tempFilters);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [neighborhoods, setNeighborhoods] = useState<string[]>([]);
+  const [selectedNeighborhood, setSelectedNeighborhood] = useState<string>("");
 
   // Carregar bairros quando a cidade mudar
   useEffect(() => {
@@ -200,8 +201,28 @@ export function FilterBar({
     }));
   }, []);
 
+  // Função para pesquisar
+  const handleSearch = useCallback(() => {
+    const searchFilters = {
+      ...tempFilters,
+      neighborhoods: selectedNeighborhood ? [selectedNeighborhood] : [],
+    };
+    setAppliedFilters(searchFilters);
+    onFiltersChange(searchFilters);
+  }, [tempFilters, selectedNeighborhood, onFiltersChange]);
+
+  // Função para lidar com mudança de bairro
+  const handleNeighborhoodChange = useCallback((neighborhood: string) => {
+    setSelectedNeighborhood(neighborhood);
+    setTempFilters((prev) => ({
+      ...prev,
+      neighborhoods: neighborhood ? [neighborhood] : [],
+    }));
+  }, []);
+
   // Função para limpar todos os filtros
   const clearAllFilters = useCallback(() => {
+    setSelectedNeighborhood("");
     const clearedFilters: FilterState = {
       search: "",
       cities: [defaultCity],
@@ -375,6 +396,11 @@ export function FilterBar({
           placeholder="Buscar por endereço"
           value={tempFilters.search}
           onChange={(e) => handleFilterChange({ search: e.target.value })}
+          onKeyPress={(e) => {
+            if (e.key === "Enter") {
+              handleSearch();
+            }
+          }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
@@ -409,7 +435,8 @@ export function FilterBar({
 
           {/* Seletor de Bairros */}
           <Select
-            value=""
+            value={selectedNeighborhood}
+            onChange={(e) => handleNeighborhoodChange(e.target.value)}
             displayEmpty
             size="small"
             disabled={neighborhoods.length === 0}
@@ -421,12 +448,36 @@ export function FilterBar({
               },
             }}
           >
+            <MenuItem value="">
+              <em>Todos os bairros</em>
+            </MenuItem>
             {neighborhoods.map((neighborhood) => (
               <MenuItem key={neighborhood} value={neighborhood}>
                 {neighborhood}
               </MenuItem>
             ))}
           </Select>
+
+          {/* Botão de Pesquisar */}
+          <Button
+            onClick={handleSearch}
+            variant="contained"
+            startIcon={<Search />}
+            sx={{
+              borderRadius: 2,
+              px: 3,
+              py: 1,
+              textTransform: "none",
+              fontWeight: 600,
+              backgroundColor: theme.palette.primary.main,
+              color: "white",
+              "&:hover": {
+                backgroundColor: theme.palette.success.dark,
+              },
+            }}
+          >
+            Pesquisar
+          </Button>
 
           {/* Botão de Filtros */}
           <Button
@@ -547,6 +598,18 @@ export function FilterBar({
                 sx={{ borderRadius: 2 }}
               />
             )}
+            {appliedFilters.neighborhoods.map((neighborhood) => (
+              <Chip
+                key={neighborhood}
+                label={neighborhood}
+                onDelete={() => {
+                  setSelectedNeighborhood("");
+                  handleNeighborhoodChange("");
+                }}
+                size="small"
+                sx={{ borderRadius: 2 }}
+              />
+            ))}
           </Box>
         )}
       </Paper>

@@ -1100,16 +1100,29 @@ export const FilterModal: React.FC<FilterModalProps> = ({
         {/* Botões de ação */}
         <Box sx={{ display: "flex", gap: 2, pt: 2 }}>
           <Button
-            variant="outlined"
+            variant="contained"
             onClick={handleClearFilters}
-            sx={{ flex: 1 }}
+            sx={{
+              flex: 1,
+              borderColor: "divider",
+              "&:hover": {
+                borderColor: "text.primary",
+                backgroundColor: "action.hover",
+              },
+            }}
           >
             Limpar
           </Button>
           <Button
             variant="contained"
             onClick={handleApplyFilters}
-            sx={{ flex: 1 }}
+            sx={{
+              flex: 1,
+              backgroundColor: "primary.main",
+              "&:hover": {
+                backgroundColor: "primary.dark",
+              },
+            }}
           >
             Aplicar Filtros
           </Button>
