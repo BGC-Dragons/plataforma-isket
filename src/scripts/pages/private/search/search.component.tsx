@@ -37,24 +37,66 @@ interface FilterState {
   search: string;
   cities: string[];
   neighborhoods: string[];
-  business: string[];
-  purpose: string[];
-  propertyTypes: {
-    apartments: string[];
-    commercial: string[];
-    houses: string[];
-    lands: string[];
-    others: string[];
-  };
-  rooms: {
-    bedrooms: number | null;
-    bathrooms: number | null;
-    suites: number | null;
-    garage: number | null;
-  };
-  area: { min: number; max: number };
-  price: { min: number; max: number };
-  advertiserType: string[];
+  // Negócio
+  venda: boolean;
+  aluguel: boolean;
+  // Finalidade
+  residencial: boolean;
+  comercial: boolean;
+  industrial: boolean;
+  agricultura: boolean;
+  // Apartamentos
+  apartamento_padrao: boolean;
+  apartamento_flat: boolean;
+  apartamento_loft: boolean;
+  apartamento_studio: boolean;
+  apartamento_duplex: boolean;
+  apartamento_triplex: boolean;
+  apartamento_cobertura: boolean;
+  // Comerciais
+  comercial_sala: boolean;
+  comercial_casa: boolean;
+  comercial_ponto: boolean;
+  comercial_galpao: boolean;
+  comercial_loja: boolean;
+  comercial_predio: boolean;
+  comercial_clinica: boolean;
+  comercial_coworking: boolean;
+  comercial_sobreloja: boolean;
+  // Casas e Sítios
+  casa_casa: boolean;
+  casa_sobrado: boolean;
+  casa_sitio: boolean;
+  casa_chale: boolean;
+  casa_chacara: boolean;
+  casa_edicula: boolean;
+  // Terrenos
+  terreno_terreno: boolean;
+  terreno_fazenda: boolean;
+  // Outros
+  outros_garagem: boolean;
+  outros_quarto: boolean;
+  outros_resort: boolean;
+  outros_republica: boolean;
+  outros_box: boolean;
+  outros_tombado: boolean;
+  outros_granja: boolean;
+  outros_haras: boolean;
+  outros_outros: boolean;
+  // Cômodos
+  quartos: number | null;
+  banheiros: number | null;
+  suites: number | null;
+  garagem: number | null;
+  // Sliders
+  area_min: number;
+  area_max: number;
+  preco_min: number;
+  preco_max: number;
+  // Tipo de Anunciante
+  proprietario_direto: boolean;
+  imobiliaria: boolean;
+  portal: boolean;
 }
 
 // Dados mockados das propriedades
@@ -289,54 +331,65 @@ export function SearchComponent() {
         }
 
         // Filtro por negócio
-        if (filters.business.length > 0) {
+        if (filters.venda || filters.aluguel) {
           // Para demonstração, assumimos que todas as propriedades são para venda
           // Em uma implementação real, isso viria dos dados
-          if (filters.business.includes("venda")) {
+          if (filters.venda) {
             // Mantém todas as propriedades (todas são para venda)
           }
-          if (filters.business.includes("aluguel")) {
+          if (filters.aluguel) {
             // Remove todas (nenhuma é para aluguel neste mock)
             filtered = [];
           }
         }
 
         // Filtro por finalidade
-        if (filters.purpose.length > 0) {
-          filtered = filtered.filter((property) =>
-            filters.purpose.includes(property.propertyType.toLowerCase())
-          );
+        if (
+          filters.residencial ||
+          filters.comercial ||
+          filters.industrial ||
+          filters.agricultura
+        ) {
+          filtered = filtered.filter((property) => {
+            const type = property.propertyType.toLowerCase();
+            return (
+              (filters.residencial && type === "residencial") ||
+              (filters.comercial && type === "comercial") ||
+              (filters.industrial && type === "industrial") ||
+              (filters.agricultura && type === "agricultura")
+            );
+          });
         }
 
         // Filtro por área
-        if (filters.area.min > 0 || filters.area.max < 1000000) {
+        if (filters.area_min > 0 || filters.area_max < 1000000) {
           filtered = filtered.filter(
             (property) =>
-              property.area >= filters.area.min &&
-              property.area <= filters.area.max
+              property.area >= filters.area_min &&
+              property.area <= filters.area_max
           );
         }
 
         // Filtro por preço
-        if (filters.price.min > 0 || filters.price.max < 100000000) {
+        if (filters.preco_min > 0 || filters.preco_max < 100000000) {
           filtered = filtered.filter(
             (property) =>
-              property.price >= filters.price.min &&
-              property.price <= filters.price.max
+              property.price >= filters.preco_min &&
+              property.price <= filters.preco_max
           );
         }
 
         // Filtro por quartos
-        if (filters.rooms.bedrooms !== null) {
+        if (filters.quartos !== null) {
           filtered = filtered.filter(
-            (property) => (property.bedrooms || 0) >= filters.rooms.bedrooms!
+            (property) => (property.bedrooms || 0) >= filters.quartos!
           );
         }
 
         // Filtro por banheiros
-        if (filters.rooms.bathrooms !== null) {
+        if (filters.banheiros !== null) {
           filtered = filtered.filter(
-            (property) => (property.bathrooms || 0) >= filters.rooms.bathrooms!
+            (property) => (property.bathrooms || 0) >= filters.banheiros!
           );
         }
 
@@ -549,24 +602,66 @@ export function SearchComponent() {
                       search: "",
                       cities: ["CURITIBA"],
                       neighborhoods: [],
-                      business: [],
-                      purpose: [],
-                      propertyTypes: {
-                        apartments: [],
-                        commercial: [],
-                        houses: [],
-                        lands: [],
-                        others: [],
-                      },
-                      rooms: {
-                        bedrooms: null,
-                        bathrooms: null,
-                        suites: null,
-                        garage: null,
-                      },
-                      area: { min: 0, max: 1000000 },
-                      price: { min: 0, max: 100000000 },
-                      advertiserType: [],
+                      // Negócio
+                      venda: false,
+                      aluguel: false,
+                      // Finalidade
+                      residencial: false,
+                      comercial: false,
+                      industrial: false,
+                      agricultura: false,
+                      // Apartamentos
+                      apartamento_padrao: false,
+                      apartamento_flat: false,
+                      apartamento_loft: false,
+                      apartamento_studio: false,
+                      apartamento_duplex: false,
+                      apartamento_triplex: false,
+                      apartamento_cobertura: false,
+                      // Comerciais
+                      comercial_sala: false,
+                      comercial_casa: false,
+                      comercial_ponto: false,
+                      comercial_galpao: false,
+                      comercial_loja: false,
+                      comercial_predio: false,
+                      comercial_clinica: false,
+                      comercial_coworking: false,
+                      comercial_sobreloja: false,
+                      // Casas e Sítios
+                      casa_casa: false,
+                      casa_sobrado: false,
+                      casa_sitio: false,
+                      casa_chale: false,
+                      casa_chacara: false,
+                      casa_edicula: false,
+                      // Terrenos
+                      terreno_terreno: false,
+                      terreno_fazenda: false,
+                      // Outros
+                      outros_garagem: false,
+                      outros_quarto: false,
+                      outros_resort: false,
+                      outros_republica: false,
+                      outros_box: false,
+                      outros_tombado: false,
+                      outros_granja: false,
+                      outros_haras: false,
+                      outros_outros: false,
+                      // Cômodos
+                      quartos: null,
+                      banheiros: null,
+                      suites: null,
+                      garagem: null,
+                      // Sliders
+                      area_min: 0,
+                      area_max: 1000000,
+                      preco_min: 0,
+                      preco_max: 100000000,
+                      // Tipo de Anunciante
+                      proprietario_direto: false,
+                      imobiliaria: false,
+                      portal: false,
                     })
                   }
                   sx={{
