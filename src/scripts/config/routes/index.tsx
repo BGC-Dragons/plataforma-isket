@@ -236,6 +236,15 @@ export function AppRouter() {
             }
           />
           <Route
+            path="/pesquisar-anuncios/:propertyId"
+            element={
+              <AccessManager
+                component={PesquisarAnunciosPage}
+                requireAuth={true}
+              />
+            }
+          />
+          <Route
             path="/captacao"
             element={
               <AccessManager component={CaptacaoPage} requireAuth={true} />

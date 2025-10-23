@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useNavigate, useParams } from "react-router";
 import {
   Box,
   Typography,
@@ -25,8 +26,9 @@ import {
   DirectionsCar,
   SquareFoot,
 } from "@mui/icons-material";
-import { FilterBar } from "../../../modules/search/filter-bar";
 import { PropertiesCard } from "../../../modules/search/properties-card";
+import { FilterBar } from "../../../modules/search/filter/filter-bar";
+import { PropertyDetails } from "../../../modules/search/property-details/property-details";
 
 // Interface para os dados das propriedades
 interface PropertyData {
@@ -271,6 +273,8 @@ type SortOption =
 
 export function SearchComponent() {
   const theme = useTheme();
+  const navigate = useNavigate();
+  const { propertyId } = useParams<{ propertyId?: string }>();
   const [properties] = useState<PropertyData[]>(mockProperties);
   const [filteredProperties, setFilteredProperties] =
     useState<PropertyData[]>(mockProperties);
@@ -279,6 +283,16 @@ export function SearchComponent() {
   const [viewMode, setViewMode] = useState<"cards" | "list">("cards");
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedProperty, setSelectedProperty] = useState<string | null>(null);
+  const [propertyDetailsOpen, setPropertyDetailsOpen] = useState(false);
+
+  // Detectar quando há um propertyId na URL
+  useEffect(() => {
+    if (propertyId) {
+      setPropertyDetailsOpen(true);
+    } else {
+      setPropertyDetailsOpen(false);
+    }
+  }, [propertyId]);
 
   // Função para carregar bairros (mockada)
   const loadNeighborhoods = useCallback(
@@ -446,7 +460,7 @@ export function SearchComponent() {
   // Função para visualizar detalhes
   const handlePropertyClick = (propertyId: string) => {
     console.log("Visualizando propriedade:", propertyId);
-    // Implementar navegação para detalhes
+    navigate(`/pesquisar-anuncios/${propertyId}`);
   };
 
   // Função para abrir menu de ações
@@ -476,6 +490,12 @@ export function SearchComponent() {
   // Função para alternar modo de visualização
   const handleViewModeChange = () => {
     setViewMode(viewMode === "cards" ? "list" : "cards");
+  };
+
+  // Função para fechar modal de detalhes
+  const handleClosePropertyDetails = () => {
+    navigate("/pesquisar-anuncios");
+    setPropertyDetailsOpen(false);
   };
 
   // Função para obter a cor do tipo de propriedade (mesma lógica do PropertiesCard)
@@ -663,36 +683,90 @@ export function SearchComponent() {
                       }}
                       onClick={() => handlePropertyClick(property.id)}
                     >
-                      {/* Chip do tipo de propriedade */}
-                      <Chip
-                        label={property.propertyType}
+                      {/* Foto miniatura */}
+                      <Box
                         sx={{
-                          backgroundColor: getPropertyTypeColor(
-                            property.propertyType
-                          ),
-                          color: theme.palette.getContrastText(
-                            getPropertyTypeColor(property.propertyType)
-                          ),
-                          fontWeight: 600,
-                          textTransform: "uppercase",
-                          fontSize: "0.75rem",
+                          width: 80,
+                          height: 60,
+                          borderRadius: 1,
+                          overflow: "hidden",
+                          backgroundColor: theme.palette.grey[200],
+                          flexShrink: 0,
                         }}
-                      />
+                      >
+                        {property.images && property.images.length > 0 ? (
+                          <Box
+                            component="img"
+                            src={property.images[0]}
+                            alt={property.title}
+                            sx={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "cover",
+                            }}
+                          />
+                        ) : (
+                          <Box
+                            sx={{
+                              width: "100%",
+                              height: "100%",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              backgroundColor: theme.palette.grey[200],
+                              color: theme.palette.grey[500],
+                            }}
+                          >
+                            <Typography variant="caption">Sem foto</Typography>
+                          </Box>
+                        )}
+                      </Box>
 
                       {/* Informações da propriedade */}
                       <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography
-                          variant="h6"
+                        <Box
                           sx={{
-                            fontWeight: 600,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1,
                             mb: 0.5,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
+                            flexWrap: "wrap",
                           }}
                         >
-                          {property.title}
-                        </Typography>
+                          <Typography
+                            variant="h6"
+                            sx={{
+                              fontWeight: 600,
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {property.title}
+                          </Typography>
+
+                          {/* Chip do tipo de propriedade */}
+                          <Chip
+                            label={property.propertyType}
+                            size="small"
+                            sx={{
+                              backgroundColor: getPropertyTypeColor(
+                                property.propertyType
+                              ),
+                              color: theme.palette.getContrastText(
+                                getPropertyTypeColor(property.propertyType)
+                              ),
+                              fontWeight: 600,
+                              textTransform: "uppercase",
+                              fontSize: "0.6rem",
+                              height: 20,
+                              flexShrink: 0,
+                              "& .MuiChip-label": {
+                                px: 0.5,
+                              },
+                            }}
+                          />
+                        </Box>
                         <Typography
                           variant="body2"
                           sx={{
@@ -997,6 +1071,13 @@ export function SearchComponent() {
             <ListItemText>Abrir em nova guia</ListItemText>
           </MenuItem>
         </Menu>
+
+        {/* Modal de Detalhes da Propriedade */}
+        <PropertyDetails
+          open={propertyDetailsOpen}
+          onClose={handleClosePropertyDetails}
+          propertyId={propertyId}
+        />
       </Container>
     </Box>
   );

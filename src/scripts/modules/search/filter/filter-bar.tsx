@@ -392,6 +392,10 @@ export function FilterBar({
           alignItems: "center",
           gap: 2,
           flexWrap: "wrap",
+          "@media (max-width: 750px)": {
+            flexDirection: "column",
+            alignItems: "stretch",
+          },
         }}
       >
         {/* Campo de Busca */}
@@ -412,11 +416,27 @@ export function FilterBar({
               </InputAdornment>
             ),
           }}
-          sx={{ flexGrow: 1, maxWidth: { xs: "100%", sm: 400, md: 500 } }}
+          sx={{
+            flexGrow: 1,
+            maxWidth: { xs: "100%", sm: 400, md: 500 },
+            "@media (max-width: 750px)": {
+              maxWidth: "100%",
+            },
+          }}
         />
 
         {/* Seletor de Cidade */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            "@media (max-width: 750px)": {
+              width: "100%",
+              justifyContent: "space-between",
+            },
+          }}
+        >
           <Select
             value={tempFilters.cities[0] || ""}
             onChange={(e) => handleFilterChange({ cities: [e.target.value] })}
@@ -427,6 +447,10 @@ export function FilterBar({
               borderRadius: 2,
               "& .MuiOutlinedInput-notchedOutline": {
                 borderColor: theme.palette.divider,
+              },
+              "@media (max-width: 750px)": {
+                flex: 1,
+                minWidth: "auto",
               },
             }}
           >
@@ -450,6 +474,10 @@ export function FilterBar({
               "& .MuiOutlinedInput-notchedOutline": {
                 borderColor: theme.palette.divider,
               },
+              "@media (max-width: 750px)": {
+                flex: 1,
+                minWidth: "auto",
+              },
             }}
           >
             <MenuItem value="">
@@ -461,7 +489,99 @@ export function FilterBar({
               </MenuItem>
             ))}
           </Select>
+        </Box>
 
+        {/* Container dos Botões - Mobile */}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            "@media (max-width: 750px)": {
+              width: "100%",
+              justifyContent: "space-between",
+              mt: 1,
+            },
+            "@media (min-width: 751px)": {
+              display: "none",
+            },
+          }}
+        >
+          {/* Botão de Pesquisar */}
+          <Button
+            onClick={handleSearch}
+            variant="contained"
+            startIcon={<Search />}
+            sx={{
+              borderRadius: 2,
+              px: 3,
+              py: 1,
+              textTransform: "none",
+              fontWeight: 600,
+              backgroundColor: theme.palette.primary.main,
+              color: "white",
+              flex: 1,
+              "&:hover": {
+                backgroundColor: theme.palette.primary.dark,
+              },
+            }}
+          >
+            Pesquisar
+          </Button>
+
+          {/* Botão de Filtros */}
+          <Button
+            onClick={() => setIsFilterModalOpen(true)}
+            variant="contained"
+            startIcon={<FilterList />}
+            sx={{
+              borderRadius: 2,
+              px: 3,
+              py: 1,
+              textTransform: "none",
+              fontWeight: 600,
+              backgroundColor: theme.palette.primary.main,
+              flex: 1,
+              "&:hover": {
+                backgroundColor: theme.palette.primary.dark,
+              },
+            }}
+          >
+            Filtros{" "}
+            {getActiveFiltersCount() > 0 && `(${getActiveFiltersCount()})`}
+          </Button>
+
+          {/* Botão de Visualização */}
+          <IconButton
+            onClick={onViewModeChange}
+            sx={{
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: 2,
+              p: 1.5,
+              "&:hover": {
+                backgroundColor: theme.palette.action.hover,
+              },
+            }}
+          >
+            {viewMode === "cards" ? (
+              <ViewList sx={{ fontSize: "1.2rem" }} />
+            ) : (
+              <ViewModule sx={{ fontSize: "1.2rem" }} />
+            )}
+          </IconButton>
+        </Box>
+
+        {/* Container dos Botões - Desktop */}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            "@media (max-width: 750px)": {
+              display: "none",
+            },
+          }}
+        >
           {/* Botão de Pesquisar */}
           <Button
             onClick={handleSearch}
