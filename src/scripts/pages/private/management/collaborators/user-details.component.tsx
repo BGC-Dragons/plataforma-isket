@@ -106,36 +106,70 @@ export function UserDetailsComponent({ userId, onBack }: UserDetailsProps) {
       try {
         const dashboardResp = await getDashboardUser(userId);
         setDashboardUser(dashboardResp.data);
+
+        // Processar dados do dashboard imediatamente
+        const dashboardData = dashboardResp.data;
+
+        // Pegar o primeiro item do histórico de compras (mais recente)
+        const latestPurchase = dashboardData.purchaseHistory?.[0];
+
+        // Converter cidades do formato API para formato legível
+        const formatCityName = (cityCode: string) => {
+          // Converter de "curitiba_pr" para "Curitiba - PR"
+          const parts = cityCode.split("_");
+          if (parts.length >= 2) {
+            const cityName = parts[0]
+              .replace(/_/g, " ")
+              .replace(/\b\w/g, (l) => l.toUpperCase());
+            const state = parts[parts.length - 1].toUpperCase();
+            return `${cityName} - ${state}`;
+          }
+          return cityCode;
+        };
+
+        // Usar dados reais do remainingUnits
+        const propertyValuationUnit = latestPurchase?.remainingUnits?.find(
+          (unit) => unit.type === "PROPERTY_VALUATION"
+        );
+        const residentSearchUnit = latestPurchase?.remainingUnits?.find(
+          (unit) => unit.type === "RESIDENT_SEARCH"
+        );
+        const radarsUnit = latestPurchase?.remainingUnits?.find(
+          (unit) => unit.type === "RADARS"
+        );
+
+        const realStats: UserStats = {
+          propertyValuations: {
+            total: propertyValuationUnit?.unitsRemaining || 0,
+            remaining: propertyValuationUnit?.unitsRemaining || 0,
+            used: 0, // Não temos dados de usados, apenas restantes
+          },
+          residentSearches: {
+            total: residentSearchUnit?.unitsRemaining || 0,
+            remaining: residentSearchUnit?.unitsRemaining || 0,
+            used: 0, // Não temos dados de usados, apenas restantes
+          },
+          radars: {
+            total: radarsUnit?.unitsRemaining || 0,
+            remaining: radarsUnit?.unitsRemaining || 0,
+            used: 0, // Não temos dados de usados, apenas restantes
+          },
+          cities: latestPurchase?.chosenCities?.map(formatCityName) || [],
+        };
+
+        setUserStats(realStats);
       } catch (e) {
         // Não bloqueia a tela se der erro; segue com dados básicos
         console.warn("Falha ao carregar dashboard do usuário", e);
+
+        // Fallback para dados vazios se não houver dados do dashboard
+        setUserStats({
+          propertyValuations: { total: 0, remaining: 0, used: 0 },
+          residentSearches: { total: 0, remaining: 0, used: 0 },
+          radars: { total: 0, remaining: 0, used: 0 },
+          cities: [],
+        });
       }
-
-      // Simular dados de estatísticas do usuário (placeholder)
-      const mockStats: UserStats = {
-        propertyValuations: {
-          total: 50,
-          remaining: 23,
-          used: 27,
-        },
-        residentSearches: {
-          total: 30,
-          remaining: 8,
-          used: 22,
-        },
-        radars: {
-          total: 15,
-          remaining: 12,
-          used: 3,
-        },
-        cities: [
-          "São Paulo - SP",
-          "Rio de Janeiro - RJ",
-          "Belo Horizonte - MG",
-        ],
-      };
-
-      setUserStats(mockStats);
     } catch (err) {
       console.error("Erro ao carregar dados do usuário:", err);
       setError("Erro ao carregar dados do usuário. Tente novamente.");

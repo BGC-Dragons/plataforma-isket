@@ -98,24 +98,17 @@ export function CollaboratorsSection() {
   // Carregar colaboradores da API
   const loadCollaborators = useCallback(async () => {
     if (!store.token) {
-      console.log("❌ Token não encontrado");
       return;
     }
 
     try {
       setIsLoading(true);
       setError(null);
-      console.log("🔄 Carregando colaboradores...");
-      console.log("🔗 URL da API:", `https://api.skt.com/auth/users`);
-      console.log("🔑 Token:", store.token ? "Presente" : "Ausente");
 
       const response = await getUsers(store.token);
-      console.log("📊 Dados recebidos da API:", response.data);
-      console.log("📊 Status da resposta:", response.status);
 
       const users = response.data.map(
         (user: IGetUsersResponseSuccess): Collaborator => {
-          console.log("👤 Processando usuário:", user);
           const processedUser = {
             ...user,
             email: user.profile?.email || "sem email",
@@ -125,15 +118,13 @@ export function CollaboratorsSection() {
             role: getRoleLabel(user.roles[0]?.role || "MEMBER"),
             avatar: user.profile?.profileImgURL,
           };
-          console.log("✅ Usuário processado:", processedUser);
           return processedUser;
         }
       );
 
-      console.log("👥 Colaboradores processados:", users);
       setCollaborators(users);
     } catch (err) {
-      console.error("❌ Erro ao carregar colaboradores:", err);
+      console.error("Erro ao carregar colaboradores:", err);
       setError("Erro ao carregar colaboradores. Tente novamente.");
     } finally {
       setIsLoading(false);
@@ -268,16 +259,6 @@ export function CollaboratorsSection() {
   // Filtrar colaboradores por email
   const filteredCollaborators = collaborators.filter((collaborator) =>
     collaborator.email.toLowerCase().includes(emailFilter.toLowerCase())
-  );
-
-  console.log("🔍 Colaboradores filtrados:", filteredCollaborators);
-  console.log(
-    "📊 Estado atual - isLoading:",
-    isLoading,
-    "collaborators:",
-    collaborators.length,
-    "filtered:",
-    filteredCollaborators.length
   );
 
   // Se um usuário foi selecionado, mostrar tela de detalhes
@@ -455,7 +436,6 @@ export function CollaboratorsSection() {
           <Fade in timeout={300}>
             <List dense>
               {filteredCollaborators.map((collaborator) => {
-                console.log("🎨 Renderizando colaborador:", collaborator.name);
                 return (
                   <ListItem
                     key={collaborator.id}
