@@ -783,7 +783,7 @@ export function SearchComponent() {
                       {/* Detalhes específicos */}
                       <Box
                         sx={{
-                          display: "flex",
+                          display: { xs: "none", sm: "flex" },
                           alignItems: "center",
                           gap: 2,
                           color: "text.secondary",
