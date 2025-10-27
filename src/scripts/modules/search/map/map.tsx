@@ -143,7 +143,16 @@ export function MapComponent({
   // Callbacks para o DrawingManager
   const onDrawingCompleteCallback = useCallback(
     (overlay: google.maps.drawing.OverlayCompleteEvent) => {
-      console.log("Desenho completo:", overlay);
+      console.log("🎨 Desenho completo:", overlay);
+      console.log("🎨 Tipo do desenho:", overlay.type);
+      console.log("🎨 Overlay:", overlay.overlay);
+
+      // Garantir que o overlay seja adicionado ao mapa
+      if (overlay.overlay) {
+        console.log("🎨 Adicionando overlay ao mapa");
+        console.log("🎨 Overlay já no mapa:", overlay.overlay.getMap());
+      }
+
       setDrawnOverlays((prev) => [...prev, overlay]);
       if (onDrawingComplete) {
         onDrawingComplete(overlay);
@@ -187,16 +196,17 @@ export function MapComponent({
   const setDrawingModeHandler = (
     mode: google.maps.drawing.OverlayType | null
   ) => {
-    console.log("Mudando modo de desenho para:", mode);
+    console.log("🎨 Mudando modo de desenho para:", mode);
+    console.log("🎨 DrawingManager disponível:", !!drawingManager);
     setDrawingMode(mode);
 
     // Aguardar um pouco para garantir que o drawingManager foi carregado
     setTimeout(() => {
       if (drawingManager) {
-        console.log("Definindo modo no DrawingManager:", mode);
+        console.log("🎨 Definindo modo no DrawingManager:", mode);
         drawingManager.setDrawingMode(mode);
       } else {
-        console.log("DrawingManager ainda não carregado");
+        console.log("🎨 DrawingManager ainda não carregado");
       }
     }, 100);
   };
@@ -334,7 +344,8 @@ export function MapComponent({
           onOverlayComplete={onDrawingCompleteCallback}
           onLoad={(manager) => {
             setDrawingManager(manager);
-            console.log("DrawingManager carregado:", manager);
+            console.log("🎨 DrawingManager carregado:", manager);
+            console.log("🎨 DrawingManager disponível:", !!manager);
           }}
           options={{
             drawingControl: false, // Desabilitar controles padrão
@@ -345,7 +356,7 @@ export function MapComponent({
               strokeColor: "#4285F4",
               strokeOpacity: 0.8,
               strokeWeight: 2,
-              clickable: false,
+              clickable: true,
               editable: true,
               draggable: true,
             },
@@ -355,7 +366,7 @@ export function MapComponent({
               strokeColor: "#4285F4",
               strokeOpacity: 0.8,
               strokeWeight: 2,
-              clickable: false,
+              clickable: true,
               editable: true,
               draggable: true,
             },
@@ -365,7 +376,7 @@ export function MapComponent({
               strokeColor: "#4285F4",
               strokeOpacity: 0.8,
               strokeWeight: 2,
-              clickable: false,
+              clickable: true,
               editable: true,
               draggable: true,
             },

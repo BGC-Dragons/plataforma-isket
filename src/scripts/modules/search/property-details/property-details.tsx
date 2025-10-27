@@ -12,6 +12,13 @@ import {
 import { ArrowBack, PhotoLibrary, Share, Business } from "@mui/icons-material";
 import { PropertyGallery } from "./property-gallery";
 import { PropertyInformation } from "./property-information";
+import { PropertyLocalization } from "./property-localization";
+
+// Interface para coordenadas
+interface Coordinates {
+  lat: number;
+  lng: number;
+}
 
 // Interface para os dados da propriedade
 interface PropertyDetailsData {
@@ -32,6 +39,7 @@ interface PropertyDetailsData {
   characteristics?: string[];
   description?: string;
   realEstateName?: string;
+  coordinates?: Coordinates;
 }
 
 // Dados mockados (em uma implementação real, isso viria de uma API)
@@ -68,6 +76,10 @@ const mockPropertyDetails: Record<string, PropertyDetailsData> = {
     description:
       "Estúdio comercial localizado no centro da cidade, próximo ao metrô e com fácil acesso ao transporte público. Ideal para escritórios, consultórios ou pequenos comércios. O imóvel possui excelente localização e infraestrutura completa.",
     realEstateName: "Rarítá Imóveis",
+    coordinates: {
+      lat: -25.4284,
+      lng: -49.2733,
+    },
   },
   "2": {
     id: "2",
@@ -99,6 +111,10 @@ const mockPropertyDetails: Record<string, PropertyDetailsData> = {
     description:
       "Apartamento residencial em excelente localização no bairro Batel. Imóvel com 3 quartos, sendo 1 suíte, 2 banheiros, sala de estar integrada com cozinha americana e varanda. Possui 1 vaga de garagem coberta.",
     realEstateName: "Rarítá Imóveis",
+    coordinates: {
+      lat: -25.4354,
+      lng: -49.2803,
+    },
   },
 };
 
@@ -117,6 +133,14 @@ export function PropertyDetails({
   const navigate = useNavigate();
   const [property, setProperty] = useState<PropertyDetailsData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [evaluationEmails, setEvaluationEmails] = useState<string[]>([]);
+  const [evaluationCredits] = useState(3); // Mock - virá da API
+
+  // TODO: Integrar com API para buscar créditos de avaliação do perfil
+  // useEffect(() => {
+  //   // Buscar créditos do usuário logado
+  //   // getEvaluationCredits().then(setEvaluationCredits);
+  // }, []);
 
   // Carregar dados da propriedade
   useEffect(() => {
@@ -175,6 +199,24 @@ export function PropertyDetails({
   const handleImageClick = (index: number) => {
     console.log("Imagem clicada:", index);
     // Implementar lógica adicional se necessário
+  };
+
+  // Função para nova captação
+  const handleNewCapture = () => {
+    console.log("Nova captação para propriedade:", propertyId);
+    // Implementar navegação ou modal para nova captação
+  };
+
+  // Função para enviar avaliação
+  const handleSendEvaluation = () => {
+    console.log(
+      "Enviando avaliação para:",
+      evaluationEmails.length > 0
+        ? evaluationEmails.join(", ")
+        : "email próprio"
+    );
+    console.log("Propriedade:", propertyId);
+    // Implementar envio de avaliação
   };
 
   return (
@@ -371,9 +413,14 @@ export function PropertyDetails({
                 usableArea={property.usableArea}
                 characteristics={property.characteristics}
                 description={property.description}
+                evaluationEmails={evaluationEmails}
+                evaluationCredits={evaluationCredits}
+                onEvaluationEmailsChange={setEvaluationEmails}
+                onNewCapture={handleNewCapture}
+                onSendEvaluation={handleSendEvaluation}
               />
 
-              {/* Seção de Localização (placeholder para futuro mapa) */}
+              {/* Seção de Localização */}
               <Box
                 sx={{
                   backgroundColor: theme.palette.background.paper,
@@ -392,21 +439,17 @@ export function PropertyDetails({
                 >
                   Localização
                 </Typography>
-                <Box
-                  sx={{
-                    height: 300,
-                    backgroundColor: theme.palette.grey[200],
-                    borderRadius: 2,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: theme.palette.text.secondary,
+                <PropertyLocalization
+                  property={{
+                    id: property.id,
+                    title: property.title,
+                    address: property.address,
+                    city: property.city,
+                    state: property.state,
+                    coordinates: property.coordinates,
                   }}
-                >
-                  <Typography variant="body1">
-                    Mapa será implementado aqui
-                  </Typography>
-                </Box>
+                  height={300}
+                />
               </Box>
             </Box>
           ) : (

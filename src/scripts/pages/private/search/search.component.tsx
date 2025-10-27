@@ -6,7 +6,6 @@ import {
   Container,
   useTheme,
   Button,
-  Stack,
   Select,
   MenuItem,
   FormControl,
@@ -35,6 +34,7 @@ import { FilterBar } from "../../../modules/search/filter/filter-bar";
 import { PropertyDetails } from "../../../modules/search/property-details/property-details";
 import { MapComponent } from "../../../modules/search/map/map";
 import { filterPropertiesByOverlay } from "../../../modules/search/map/map-utils";
+import { CustomPagination } from "../../../library/components/custom-pagination";
 
 // Interface para os dados das propriedades
 interface PropertyData {
@@ -727,19 +727,6 @@ export function SearchComponent() {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const paginatedProperties = filteredProperties.slice(startIndex, endIndex);
-
-  // Funções de navegação da paginação
-  const handlePreviousPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    }
-  };
-
-  const handleNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
-    }
-  };
 
   // Função para compartilhar
   const handleShare = (propertyId: string) => {
@@ -1488,51 +1475,12 @@ export function SearchComponent() {
                 {!loading &&
                   filteredProperties.length > 0 &&
                   totalPages > 1 && (
-                    <Box
-                      sx={{
-                        display: "flex",
-                        justifyContent: "center",
-                        mt: 3,
-                        pt: 2,
-                        borderTop: `1px solid ${theme.palette.divider}`,
-                      }}
-                    >
-                      <Stack direction="row" spacing={2} alignItems="center">
-                        <Button
-                          variant="outlined"
-                          disabled={currentPage === 1}
-                          onClick={handlePreviousPage}
-                          sx={{
-                            borderRadius: 2,
-                            px: 3,
-                            textTransform: "none",
-                          }}
-                        >
-                          Anterior
-                        </Button>
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            color: theme.palette.text.secondary,
-                            px: 2,
-                          }}
-                        >
-                          Página {currentPage} de {totalPages}
-                        </Typography>
-                        <Button
-                          variant="outlined"
-                          disabled={currentPage === totalPages}
-                          onClick={handleNextPage}
-                          sx={{
-                            borderRadius: 2,
-                            px: 3,
-                            textTransform: "none",
-                          }}
-                        >
-                          Próxima
-                        </Button>
-                      </Stack>
-                    </Box>
+                    <CustomPagination
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      onPageChange={setCurrentPage}
+                      maxVisiblePages={5}
+                    />
                   )}
               </Box>
             )}
