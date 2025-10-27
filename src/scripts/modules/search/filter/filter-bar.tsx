@@ -3,7 +3,6 @@ import {
   Box,
   TextField,
   Button,
-  IconButton,
   useTheme,
   Paper,
   Select,
@@ -11,7 +10,7 @@ import {
   InputAdornment,
   Chip,
 } from "@mui/material";
-import { Search, FilterList, ViewList, ViewModule } from "@mui/icons-material";
+import { Search, FilterList } from "@mui/icons-material";
 import { FilterModal } from "./filter-modal";
 
 interface FilterState {
@@ -85,8 +84,6 @@ interface FilterBarProps {
   defaultCity?: string;
   availableCities?: string[];
   onNeighborhoodsLoad?: (city: string) => Promise<string[]>;
-  viewMode?: "cards" | "list";
-  onViewModeChange?: () => void;
 }
 
 export function FilterBar({
@@ -94,8 +91,6 @@ export function FilterBar({
   defaultCity = "CURITIBA",
   availableCities = ["CURITIBA", "SÃO PAULO", "RIO DE JANEIRO"],
   onNeighborhoodsLoad,
-  viewMode = "cards",
-  onViewModeChange,
 }: FilterBarProps) {
   const theme = useTheme();
 
@@ -400,7 +395,6 @@ export function FilterBar({
       >
         {/* Campo de Busca */}
         <TextField
-          fullWidth
           placeholder="Buscar por endereço"
           value={tempFilters.search}
           onChange={(e) => handleFilterChange({ search: e.target.value })}
@@ -409,6 +403,7 @@ export function FilterBar({
               handleSearch();
             }
           }}
+          size="small"
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
@@ -418,7 +413,7 @@ export function FilterBar({
           }}
           sx={{
             flexGrow: 1,
-            maxWidth: { xs: "100%", sm: 400, md: 500 },
+            maxWidth: { xs: "100%", sm: 300, md: 350 },
             "@media (max-width: 750px)": {
               maxWidth: "100%",
             },
@@ -443,7 +438,7 @@ export function FilterBar({
             displayEmpty
             size="small"
             sx={{
-              minWidth: 120,
+              minWidth: 100,
               borderRadius: 2,
               "& .MuiOutlinedInput-notchedOutline": {
                 borderColor: theme.palette.divider,
@@ -469,7 +464,7 @@ export function FilterBar({
             size="small"
             disabled={neighborhoods.length === 0}
             sx={{
-              minWidth: 120,
+              minWidth: 100,
               borderRadius: 2,
               "& .MuiOutlinedInput-notchedOutline": {
                 borderColor: theme.palette.divider,
@@ -550,25 +545,6 @@ export function FilterBar({
             Filtros{" "}
             {getActiveFiltersCount() > 0 && `(${getActiveFiltersCount()})`}
           </Button>
-
-          {/* Botão de Visualização */}
-          <IconButton
-            onClick={onViewModeChange}
-            sx={{
-              border: `1px solid ${theme.palette.divider}`,
-              borderRadius: 2,
-              p: 1.5,
-              "&:hover": {
-                backgroundColor: theme.palette.action.hover,
-              },
-            }}
-          >
-            {viewMode === "cards" ? (
-              <ViewList sx={{ fontSize: "1.2rem" }} />
-            ) : (
-              <ViewModule sx={{ fontSize: "1.2rem" }} />
-            )}
-          </IconButton>
         </Box>
 
         {/* Container dos Botões - Desktop */}
@@ -623,25 +599,6 @@ export function FilterBar({
             Filtros{" "}
             {getActiveFiltersCount() > 0 && `(${getActiveFiltersCount()})`}
           </Button>
-
-          {/* Botão de Visualização */}
-          <IconButton
-            onClick={onViewModeChange}
-            sx={{
-              border: `1px solid ${theme.palette.divider}`,
-              borderRadius: 2,
-              p: 1.5,
-              "&:hover": {
-                backgroundColor: theme.palette.action.hover,
-              },
-            }}
-          >
-            {viewMode === "cards" ? (
-              <ViewList sx={{ fontSize: "1.2rem" }} />
-            ) : (
-              <ViewModule sx={{ fontSize: "1.2rem" }} />
-            )}
-          </IconButton>
         </Box>
 
         {/* Chips dos Filtros Ativos */}
