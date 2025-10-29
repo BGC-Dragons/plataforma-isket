@@ -17,6 +17,8 @@ import {
   Menu,
   ListItemIcon,
   ListItemText,
+  Modal,
+  useMediaQuery,
 } from "@mui/material";
 import {
   MoreVert,
@@ -27,6 +29,8 @@ import {
   HelpOutline,
   ViewModule,
   ViewList,
+  Map,
+  Close,
 } from "@mui/icons-material";
 import { Popper } from "@mui/material";
 import { PropertiesCard } from "../../../modules/search/properties-card";
@@ -540,6 +544,24 @@ export function SearchComponent() {
   const [helpPopupAnchor, setHelpPopupAnchor] = useState<HTMLElement | null>(
     null
   );
+  const [mapModalOpen, setMapModalOpen] = useState(false);
+  const [bottomSheetPosition, setBottomSheetPosition] = useState(0); // posição Y do bottom sheet
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStartY, setDragStartY] = useState(0);
+  const [dragStartPosition, setDragStartPosition] = useState(0);
+
+  // Detectar quando a tela está entre 600px e 900px (inclusivo)
+  const isMediumScreen = useMediaQuery(
+    "(min-width: 600px) and (max-width: 900px)",
+    {
+      noSsr: true,
+    }
+  );
+
+  // Detectar quando é mobile (menor que 600px)
+  const isMobile = useMediaQuery("(max-width: 599px)", {
+    noSsr: true,
+  });
 
   // Detectar quando há um propertyId na URL
   useEffect(() => {
@@ -827,61 +849,230 @@ export function SearchComponent() {
     setCurrentPage(1); // Reset para primeira página
   };
 
+  // Handlers para o bottom sheet deslizante (mobile)
+  const handleBottomSheetTouchStart = (e: React.TouchEvent) => {
+    setIsDragging(true);
+    setDragStartY(e.touches[0].clientY);
+    setDragStartPosition(bottomSheetPosition);
+  };
+
+  const handleBottomSheetTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging) return;
+    const currentY = e.touches[0].clientY;
+    const deltaY = currentY - dragStartY;
+    const windowHeight = window.innerHeight;
+    const minPosition = windowHeight * 0.3; // 30% da tela visível no mínimo
+    const maxPosition = windowHeight * 0.95; // 95% da tela no máximo
+
+    const newPosition = Math.max(
+      minPosition,
+      Math.min(maxPosition, dragStartPosition + deltaY)
+    );
+    setBottomSheetPosition(newPosition);
+  };
+
+  const handleBottomSheetTouchEnd = () => {
+    if (!isDragging) return;
+    setIsDragging(false);
+    const windowHeight = window.innerHeight;
+    const threshold = windowHeight * 0.5; // 50% da tela como ponto de decisão
+
+    // Snap para cima ou para baixo baseado na posição
+    if (bottomSheetPosition < threshold) {
+      setBottomSheetPosition(windowHeight * 0.3);
+    } else {
+      setBottomSheetPosition(windowHeight * 0.95);
+    }
+  };
+
+  // Handler para mouse (desktop também pode arrastar)
+  const handleBottomSheetMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    setDragStartY(e.clientY);
+    setDragStartPosition(bottomSheetPosition);
+  };
+
+  // Efeito para atualizar posição inicial do bottom sheet
+  useEffect(() => {
+    if (isMobile) {
+      const windowHeight = window.innerHeight;
+      setBottomSheetPosition(windowHeight * 0.3); // Começar com 30% visível
+    }
+  }, [isMobile]);
+
+  // Adicionar listeners globais para mouse quando está arrastando
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaY = e.clientY - dragStartY;
+      const windowHeight = window.innerHeight;
+      const minPosition = windowHeight * 0.3;
+      const maxPosition = windowHeight * 0.95;
+
+      const newPosition = Math.max(
+        minPosition,
+        Math.min(maxPosition, dragStartPosition + deltaY)
+      );
+      setBottomSheetPosition(newPosition);
+    };
+
+    const handleMouseUp = () => {
+      if (!isDragging) return;
+      setIsDragging(false);
+      const windowHeight = window.innerHeight;
+      const threshold = windowHeight * 0.5;
+
+      if (bottomSheetPosition < threshold) {
+        setBottomSheetPosition(windowHeight * 0.3);
+      } else {
+        setBottomSheetPosition(windowHeight * 0.95);
+      }
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isDragging, dragStartY, dragStartPosition, bottomSheetPosition]);
+
   return (
     <Box
       sx={{
         minHeight: "100vh",
         backgroundColor: theme.palette.background.default,
-        py: 3,
-        px: 2,
+        py: { xs: 0, sm: 3 },
+        px: { xs: 0, sm: 2 },
+        position: "relative",
+        overflow: { xs: "hidden", sm: "visible" },
       }}
     >
-      <Container maxWidth={false} sx={{ px: 0 }}>
-        {/* Layout Principal: Cards + Mapa */}
+      {isMobile ? (
+        // Layout Mobile com Bottom Sheet
         <Box
           sx={{
+            height: "100vh",
+            width: "100%",
             display: "flex",
-            gap: 3,
-            height: "calc(100vh - 130px)", // Altura ajustável baseada na tela
-            minHeight: 600,
+            flexDirection: "column",
+            position: "relative",
           }}
         >
-          {/* Coluna Esquerda: Cards de Propriedades */}
+          {/* Barra de Pesquisa no topo (mobile) */}
           <Box
             sx={{
-              flex: 1.5, // 60% do espaço
-              minWidth: 0,
-              display: "flex",
-              flexDirection: "column",
+              position: "relative",
+              zIndex: 1100,
+              p: 2,
+              backgroundColor: theme.palette.background.paper,
+              borderBottom: `1px solid ${theme.palette.divider}`,
+              boxShadow: theme.shadows[2],
             }}
           >
-            {/* Barra de Filtros - Apenas na coluna esquerda */}
-            <Box sx={{ mb: 3 }}>
-              <FilterBar
-                onFiltersChange={applyFilters}
-                defaultCity="CURITIBA"
-                availableCities={["CURITIBA", "SÃO PAULO", "RIO DE JANEIRO"]}
-                onNeighborhoodsLoad={loadNeighborhoods}
+            <FilterBar
+              onFiltersChange={applyFilters}
+              defaultCity="CURITIBA"
+              availableCities={["CURITIBA", "SÃO PAULO", "RIO DE JANEIRO"]}
+              onNeighborhoodsLoad={loadNeighborhoods}
+            />
+          </Box>
+
+          {/* Mapa */}
+          <Box
+            sx={{
+              flex: 1,
+              position: "relative",
+              minHeight: 0,
+            }}
+          >
+            <MapComponent
+              properties={filteredProperties}
+              onPropertyClick={handlePropertyClick}
+              height="100%"
+              center={{
+                lat: -25.4284, // Curitiba
+                lng: -49.2733,
+              }}
+              zoom={12}
+              onDrawingComplete={handleDrawingComplete}
+              onClearFilters={handleClearFilters}
+            />
+          </Box>
+
+          {/* Bottom Sheet com Lista de Propriedades */}
+          <Paper
+            elevation={16}
+            sx={{
+              position: "absolute",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: `calc(100vh - ${bottomSheetPosition}px)`,
+              maxHeight: "95vh",
+              minHeight: "30vh",
+              borderTopLeftRadius: 16,
+              borderTopRightRadius: 16,
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+              zIndex: 1200,
+              transition: isDragging ? "none" : "height 0.3s ease-out",
+              boxShadow: theme.shadows[24],
+            }}
+            onTouchStart={handleBottomSheetTouchStart}
+            onTouchMove={handleBottomSheetTouchMove}
+            onTouchEnd={handleBottomSheetTouchEnd}
+          >
+            {/* Barrinha cinza de arrasto */}
+            <Box
+              sx={{
+                width: "100%",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                py: 1.5,
+                cursor: "grab",
+                userSelect: "none",
+                "&:active": {
+                  cursor: "grabbing",
+                },
+              }}
+              onMouseDown={handleBottomSheetMouseDown}
+            >
+              <Box
+                sx={{
+                  width: 40,
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: theme.palette.grey[400],
+                }}
               />
             </Box>
 
-            {/* Contador de Resultados e Controles - Apenas na coluna esquerda */}
+            {/* Conteúdo do Bottom Sheet */}
             <Box
               sx={{
-                mb: 3,
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                flexWrap: "wrap",
-                gap: 2,
-                backgroundColor: theme.palette.grey[50],
-                borderRadius: 2,
-                p: 2,
-                border: `1px solid ${theme.palette.divider}`,
+                flex: 1,
+                overflow: "auto",
+                px: 2,
+                pb: 2,
               }}
             >
-              {/* Contador de Resultados */}
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              {/* Contador e Controles */}
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  mb: 2,
+                  flexWrap: "wrap",
+                  gap: 2,
+                  pt: 1,
+                }}
+              >
                 <Typography
                   variant="h6"
                   sx={{
@@ -890,100 +1081,17 @@ export function SearchComponent() {
                     fontSize: "1.1rem",
                   }}
                 >
-                  {filteredProperties.length}
+                  {filteredProperties.length} Imóveis
                 </Typography>
-                <Typography
-                  variant="body1"
-                  sx={{
-                    fontWeight: 400,
-                    color: theme.palette.text.secondary,
-                    fontSize: "1rem",
-                  }}
-                >
-                  Imóveis
-                </Typography>
-                <Box
-                  sx={{
-                    position: "relative",
-                    cursor: "pointer",
-                    p: 0.5,
-                    borderRadius: 1,
-                    "&:hover": {
-                      backgroundColor: theme.palette.action.hover,
-                    },
-                    transition: "all 0.2s ease",
-                  }}
-                  onMouseEnter={handleHelpHover}
-                  onMouseLeave={handleHelpLeave}
-                >
-                  <IconButton
-                    size="small"
-                    sx={{
-                      color: theme.palette.text.secondary,
-                      fontSize: "1rem",
-                      "&:hover": {
-                        backgroundColor: "transparent",
-                        color: theme.palette.text.primary,
-                      },
-                    }}
-                  >
-                    <HelpOutline fontSize="small" />
-                  </IconButton>
 
-                  {/* Popup de Ajuda */}
-                  <Popper
-                    open={Boolean(helpPopupAnchor)}
-                    anchorEl={helpPopupAnchor}
-                    placement="bottom"
-                    sx={{ zIndex: 9999 }}
-                  >
-                    <Paper
-                      sx={{
-                        p: 2,
-                        minWidth: 200,
-                        borderRadius: 2,
-                        boxShadow: theme.shadows[8],
-                        border: `1px solid ${theme.palette.divider}20`,
-                        backgroundColor: theme.palette.background.paper,
-                      }}
-                    >
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          color: theme.palette.text.primary,
-                          fontWeight: 500,
-                          lineHeight: 1.4,
-                        }}
-                      >
-                        Somente anúncios com coordenadas
-                        <br />
-                        são apresentados no mapa
-                      </Typography>
-                    </Paper>
-                  </Popper>
-                </Box>
-              </Box>
-
-              {/* Controles de Ordenação e Visualização */}
-              <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                {/* Seletor de Ordenação */}
-                <FormControl
-                  size="small"
-                  sx={{
-                    minWidth: 150,
-                    "& .MuiOutlinedInput-root": {
-                      borderRadius: 2,
-                      backgroundColor: theme.palette.background.paper,
-                    },
-                  }}
-                >
-                  <InputLabel>Ordenar por</InputLabel>
+                <FormControl size="small">
+                  <InputLabel>Ordenar</InputLabel>
                   <Select
                     value={sortBy}
                     onChange={(e) =>
                       handleSortChange(e.target.value as SortOption)
                     }
-                    label="Ordenar por"
+                    label="Ordenar"
                   >
                     <MenuItem value="relevance">Relevância</MenuItem>
                     <MenuItem value="price-per-m2-asc">Menor preço/m²</MenuItem>
@@ -992,330 +1100,519 @@ export function SearchComponent() {
                     </MenuItem>
                     <MenuItem value="price-asc">Menor preço</MenuItem>
                     <MenuItem value="price-desc">Maior preço</MenuItem>
-                    <MenuItem value="area-asc">Menor área útil</MenuItem>
-                    <MenuItem value="area-desc">Maior área útil</MenuItem>
+                    <MenuItem value="area-asc">Menor área</MenuItem>
+                    <MenuItem value="area-desc">Maior área</MenuItem>
                   </Select>
                 </FormControl>
+              </Box>
 
-                {/* Botões de Visualização */}
+              {/* Loading State */}
+              {loading && (
                 <Box
                   sx={{
                     display: "flex",
-                    borderRadius: 2,
-                    overflow: "hidden",
-                    border: `1px solid ${theme.palette.divider}`,
-                    backgroundColor: theme.palette.background.paper,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    py: 8,
                   }}
                 >
-                  <IconButton
-                    onClick={() => setViewMode("cards")}
-                    sx={{
-                      borderRadius: 0,
-                      backgroundColor:
-                        viewMode === "cards"
-                          ? theme.palette.primary.main
-                          : "transparent",
-                      color:
-                        viewMode === "cards"
-                          ? theme.palette.primary.contrastText
-                          : theme.palette.text.secondary,
-                      "&:hover": {
-                        backgroundColor:
-                          viewMode === "cards"
-                            ? theme.palette.primary.dark
-                            : theme.palette.action.hover,
-                      },
-                    }}
-                  >
-                    <ViewModule fontSize="small" />
-                  </IconButton>
-                  <IconButton
-                    onClick={() => setViewMode("list")}
-                    sx={{
-                      borderRadius: 0,
-                      backgroundColor:
-                        viewMode === "list"
-                          ? theme.palette.primary.main
-                          : "transparent",
-                      color:
-                        viewMode === "list"
-                          ? theme.palette.primary.contrastText
-                          : theme.palette.text.secondary,
-                      "&:hover": {
-                        backgroundColor:
-                          viewMode === "list"
-                            ? theme.palette.primary.dark
-                            : theme.palette.action.hover,
-                      },
-                    }}
-                  >
-                    <ViewList fontSize="small" />
-                  </IconButton>
+                  <CircularProgress size={48} />
                 </Box>
-              </Box>
-            </Box>
+              )}
 
-            {/* Loading State */}
-            {loading && (
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  py: 8,
-                }}
-              >
-                <CircularProgress size={48} />
-              </Box>
-            )}
-
-            {/* Cards de Propriedades */}
-            {!loading && (
-              <Box
-                sx={{
-                  flex: 1,
-                  overflow: "auto",
-                  pr: 1, // Padding para scrollbar
-                }}
-              >
-                {filteredProperties.length > 0 ? (
-                  viewMode === "cards" ? (
-                    <Box
-                      sx={{
-                        display: "grid",
-                        gridTemplateColumns: {
-                          xs: "1fr",
-                          sm: "repeat(2, 1fr)",
-                          md: "repeat(2, 1fr)", // 2 colunas para telas menores que 1250px
-                          lg: "repeat(3, 1fr)", // 3 colunas para telas maiores que 1250px
-                        },
-                        gap: 2,
-                      }}
-                    >
-                      {paginatedProperties.map((property) => (
-                        <PropertiesCard
-                          key={property.id}
-                          id={property.id}
-                          title={property.title}
-                          price={property.price}
-                          pricePerSquareMeter={property.pricePerSquareMeter}
-                          address={property.address}
-                          city={property.city}
-                          state={property.state}
-                          propertyType={property.propertyType}
-                          bedrooms={property.bedrooms}
-                          bathrooms={property.bathrooms}
-                          area={property.area}
-                          images={property.images}
-                          isFavorite={property.isFavorite}
-                          onFavoriteToggle={handleFavoriteToggle}
-                          onShare={handleShare}
-                          onClick={handlePropertyClick}
-                        />
-                      ))}
-                    </Box>
+              {/* Lista de Propriedades */}
+              {!loading && (
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  {paginatedProperties.length > 0 ? (
+                    paginatedProperties.map((property) => (
+                      <PropertiesCard
+                        key={property.id}
+                        id={property.id}
+                        title={property.title}
+                        price={property.price}
+                        pricePerSquareMeter={property.pricePerSquareMeter}
+                        address={property.address}
+                        city={property.city}
+                        state={property.state}
+                        propertyType={property.propertyType}
+                        bedrooms={property.bedrooms}
+                        bathrooms={property.bathrooms}
+                        area={property.area}
+                        images={property.images}
+                        isFavorite={property.isFavorite}
+                        onFavoriteToggle={handleFavoriteToggle}
+                        onShare={handleShare}
+                        onClick={handlePropertyClick}
+                      />
+                    ))
                   ) : (
                     <Box
                       sx={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 1,
+                        textAlign: "center",
+                        py: 4,
+                        px: 2,
                       }}
                     >
-                      {paginatedProperties.map((property, index) => (
-                        <Paper
-                          key={property.id}
-                          sx={{
-                            p: 2,
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 2,
-                            backgroundColor:
-                              index % 2 === 0 ? "grey.50" : "white",
-                            border: "1px solid",
-                            borderColor: "divider",
-                            borderRadius: 2,
-                            "&:hover": {
-                              backgroundColor: "action.hover",
-                            },
-                            cursor: "pointer",
-                          }}
-                          onClick={() => handlePropertyClick(property.id)}
-                        >
-                          {/* Foto miniatura */}
-                          <Box
-                            sx={{
-                              width: 80,
-                              height: 60,
-                              borderRadius: 1,
-                              overflow: "hidden",
-                              backgroundColor: theme.palette.grey[200],
-                              flexShrink: 0,
-                            }}
-                          >
-                            {property.images && property.images.length > 0 ? (
-                              <Box
-                                component="img"
-                                src={property.images[0]}
-                                alt={property.title}
-                                sx={{
-                                  width: "100%",
-                                  height: "100%",
-                                  objectFit: "cover",
-                                }}
-                              />
-                            ) : (
-                              <Box
-                                sx={{
-                                  width: "100%",
-                                  height: "100%",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  backgroundColor: theme.palette.grey[200],
-                                  color: theme.palette.grey[500],
-                                }}
-                              >
-                                <Typography variant="caption">
-                                  Sem foto
-                                </Typography>
-                              </Box>
-                            )}
-                          </Box>
+                      <Typography
+                        variant="h6"
+                        sx={{
+                          fontWeight: 600,
+                          color: theme.palette.text.primary,
+                          mb: 1,
+                        }}
+                      >
+                        Nenhuma propriedade encontrada
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: theme.palette.text.secondary,
+                        }}
+                      >
+                        Tente ajustar os filtros de busca
+                      </Typography>
+                    </Box>
+                  )}
 
-                          {/* Informações da propriedade */}
-                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                  {/* Paginação */}
+                  {!loading &&
+                    filteredProperties.length > 0 &&
+                    totalPages > 1 && (
+                      <CustomPagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        onPageChange={setCurrentPage}
+                        maxVisiblePages={5}
+                      />
+                    )}
+                </Box>
+              )}
+            </Box>
+          </Paper>
+        </Box>
+      ) : (
+        // Layout Desktop/Tablet
+        <Container maxWidth={false} sx={{ px: 0 }}>
+          {/* Layout Principal: Cards + Mapa */}
+          <Box
+            sx={{
+              display: "flex",
+              gap: 3,
+              height: "calc(100vh - 130px)", // Altura ajustável baseada na tela
+              minHeight: 600,
+            }}
+          >
+            {/* Coluna Esquerda: Cards de Propriedades */}
+            <Box
+              sx={{
+                flex: 1.5, // 60% do espaço
+                minWidth: 0,
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
+              {/* Barra de Filtros - Apenas na coluna esquerda */}
+              <Box sx={{ mb: 3 }}>
+                <FilterBar
+                  onFiltersChange={applyFilters}
+                  defaultCity="CURITIBA"
+                  availableCities={["CURITIBA", "SÃO PAULO", "RIO DE JANEIRO"]}
+                  onNeighborhoodsLoad={loadNeighborhoods}
+                />
+              </Box>
+
+              {/* Contador de Resultados e Controles - Apenas na coluna esquerda */}
+              <Box
+                sx={{
+                  mb: 3,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  gap: 2,
+                  backgroundColor: theme.palette.grey[50],
+                  borderRadius: 2,
+                  p: 2,
+                  border: `1px solid ${theme.palette.divider}`,
+                }}
+              >
+                {/* Contador de Resultados */}
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontWeight: 700,
+                      color: theme.palette.text.primary,
+                      fontSize: "1.1rem",
+                    }}
+                  >
+                    {filteredProperties.length}
+                  </Typography>
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      fontWeight: 400,
+                      color: theme.palette.text.secondary,
+                      fontSize: "1rem",
+                    }}
+                  >
+                    Imóveis
+                  </Typography>
+                  <Box
+                    sx={{
+                      position: "relative",
+                      cursor: "pointer",
+                      p: 0.5,
+                      borderRadius: 1,
+                      "&:hover": {
+                        backgroundColor: theme.palette.action.hover,
+                      },
+                      transition: "all 0.2s ease",
+                    }}
+                    onMouseEnter={handleHelpHover}
+                    onMouseLeave={handleHelpLeave}
+                  >
+                    <IconButton
+                      size="small"
+                      sx={{
+                        color: theme.palette.text.secondary,
+                        fontSize: "1rem",
+                        "&:hover": {
+                          backgroundColor: "transparent",
+                          color: theme.palette.text.primary,
+                        },
+                      }}
+                    >
+                      <HelpOutline fontSize="small" />
+                    </IconButton>
+
+                    {/* Popup de Ajuda */}
+                    <Popper
+                      open={Boolean(helpPopupAnchor)}
+                      anchorEl={helpPopupAnchor}
+                      placement="bottom"
+                      sx={{ zIndex: 9999 }}
+                    >
+                      <Paper
+                        sx={{
+                          p: 2,
+                          minWidth: 200,
+                          borderRadius: 2,
+                          boxShadow: theme.shadows[8],
+                          border: `1px solid ${theme.palette.divider}20`,
+                          backgroundColor: theme.palette.background.paper,
+                        }}
+                      >
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            color: theme.palette.text.primary,
+                            fontWeight: 500,
+                            lineHeight: 1.4,
+                          }}
+                        >
+                          Somente anúncios com coordenadas
+                          <br />
+                          são apresentados no mapa
+                        </Typography>
+                      </Paper>
+                    </Popper>
+                  </Box>
+                </Box>
+
+                {/* Controles de Ordenação e Visualização */}
+                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                  {/* Seletor de Ordenação */}
+                  <FormControl
+                    size="small"
+                    sx={{
+                      minWidth: 150,
+                      "& .MuiOutlinedInput-root": {
+                        borderRadius: 2,
+                        backgroundColor: theme.palette.background.paper,
+                      },
+                    }}
+                  >
+                    <InputLabel>Ordenar por</InputLabel>
+                    <Select
+                      value={sortBy}
+                      onChange={(e) =>
+                        handleSortChange(e.target.value as SortOption)
+                      }
+                      label="Ordenar por"
+                    >
+                      <MenuItem value="relevance">Relevância</MenuItem>
+                      <MenuItem value="price-per-m2-asc">
+                        Menor preço/m²
+                      </MenuItem>
+                      <MenuItem value="price-per-m2-desc">
+                        Maior preço/m²
+                      </MenuItem>
+                      <MenuItem value="price-asc">Menor preço</MenuItem>
+                      <MenuItem value="price-desc">Maior preço</MenuItem>
+                      <MenuItem value="area-asc">Menor área útil</MenuItem>
+                      <MenuItem value="area-desc">Maior área útil</MenuItem>
+                    </Select>
+                  </FormControl>
+
+                  {/* Botões de Visualização */}
+                  <Box
+                    sx={{
+                      display: "flex",
+                      borderRadius: 2,
+                      overflow: "hidden",
+                      border: `1px solid ${theme.palette.divider}`,
+                      backgroundColor: theme.palette.background.paper,
+                    }}
+                  >
+                    <IconButton
+                      onClick={() => setViewMode("cards")}
+                      sx={{
+                        borderRadius: 0,
+                        backgroundColor:
+                          viewMode === "cards"
+                            ? theme.palette.primary.main
+                            : "transparent",
+                        color:
+                          viewMode === "cards"
+                            ? theme.palette.primary.contrastText
+                            : theme.palette.text.secondary,
+                        "&:hover": {
+                          backgroundColor:
+                            viewMode === "cards"
+                              ? theme.palette.primary.dark
+                              : theme.palette.action.hover,
+                        },
+                      }}
+                    >
+                      <ViewModule fontSize="small" />
+                    </IconButton>
+                    <IconButton
+                      onClick={() => setViewMode("list")}
+                      sx={{
+                        borderRadius: 0,
+                        backgroundColor:
+                          viewMode === "list"
+                            ? theme.palette.primary.main
+                            : "transparent",
+                        color:
+                          viewMode === "list"
+                            ? theme.palette.primary.contrastText
+                            : theme.palette.text.secondary,
+                        "&:hover": {
+                          backgroundColor:
+                            viewMode === "list"
+                              ? theme.palette.primary.dark
+                              : theme.palette.action.hover,
+                        },
+                      }}
+                    >
+                      <ViewList fontSize="small" />
+                    </IconButton>
+                  </Box>
+                </Box>
+              </Box>
+
+              {/* Loading State */}
+              {loading && (
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    py: 8,
+                  }}
+                >
+                  <CircularProgress size={48} />
+                </Box>
+              )}
+
+              {/* Cards de Propriedades */}
+              {!loading && (
+                <Box
+                  sx={{
+                    flex: 1,
+                    overflow: "auto",
+                    pr: 1, // Padding para scrollbar
+                  }}
+                >
+                  {filteredProperties.length > 0 ? (
+                    viewMode === "cards" ? (
+                      <Box
+                        sx={{
+                          display: "grid",
+                          gridTemplateColumns: {
+                            xs: "1fr",
+                            sm: "repeat(2, 1fr)",
+                            md: "repeat(2, 1fr)", // 2 colunas para telas menores que 1250px
+                            lg: "repeat(3, 1fr)", // 3 colunas para telas maiores que 1250px
+                          },
+                          gap: 2,
+                        }}
+                      >
+                        {paginatedProperties.map((property) => (
+                          <PropertiesCard
+                            key={property.id}
+                            id={property.id}
+                            title={property.title}
+                            price={property.price}
+                            pricePerSquareMeter={property.pricePerSquareMeter}
+                            address={property.address}
+                            city={property.city}
+                            state={property.state}
+                            propertyType={property.propertyType}
+                            bedrooms={property.bedrooms}
+                            bathrooms={property.bathrooms}
+                            area={property.area}
+                            images={property.images}
+                            isFavorite={property.isFavorite}
+                            onFavoriteToggle={handleFavoriteToggle}
+                            onShare={handleShare}
+                            onClick={handlePropertyClick}
+                          />
+                        ))}
+                      </Box>
+                    ) : (
+                      <Box
+                        sx={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 1,
+                        }}
+                      >
+                        {paginatedProperties.map((property, index) => (
+                          <Paper
+                            key={property.id}
+                            sx={{
+                              p: 2,
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 2,
+                              backgroundColor:
+                                index % 2 === 0 ? "grey.50" : "white",
+                              border: "1px solid",
+                              borderColor: "divider",
+                              borderRadius: 2,
+                              "&:hover": {
+                                backgroundColor: "action.hover",
+                              },
+                              cursor: "pointer",
+                            }}
+                            onClick={() => handlePropertyClick(property.id)}
+                          >
+                            {/* Foto miniatura */}
                             <Box
                               sx={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 1,
-                                mb: 0.5,
-                                flexWrap: "wrap",
+                                width: 80,
+                                height: 60,
+                                borderRadius: 1,
+                                overflow: "hidden",
+                                backgroundColor: theme.palette.grey[200],
+                                flexShrink: 0,
                               }}
                             >
-                              <Typography
-                                variant="h6"
+                              {property.images && property.images.length > 0 ? (
+                                <Box
+                                  component="img"
+                                  src={property.images[0]}
+                                  alt={property.title}
+                                  sx={{
+                                    width: "100%",
+                                    height: "100%",
+                                    objectFit: "cover",
+                                  }}
+                                />
+                              ) : (
+                                <Box
+                                  sx={{
+                                    width: "100%",
+                                    height: "100%",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    backgroundColor: theme.palette.grey[200],
+                                    color: theme.palette.grey[500],
+                                  }}
+                                >
+                                  <Typography variant="caption">
+                                    Sem foto
+                                  </Typography>
+                                </Box>
+                              )}
+                            </Box>
+
+                            {/* Informações da propriedade */}
+                            <Box sx={{ flex: 1, minWidth: 0 }}>
+                              <Box
                                 sx={{
-                                  fontWeight: 600,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 1,
+                                  mb: 0.5,
+                                  flexWrap: "wrap",
+                                }}
+                              >
+                                <Typography
+                                  variant="h6"
+                                  sx={{
+                                    fontWeight: 600,
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {property.title}
+                                </Typography>
+
+                                {/* Chip do tipo de propriedade */}
+                                <Chip
+                                  label={property.propertyType}
+                                  size="small"
+                                  sx={{
+                                    backgroundColor: getPropertyTypeColor(
+                                      property.propertyType
+                                    ),
+                                    color: theme.palette.getContrastText(
+                                      getPropertyTypeColor(
+                                        property.propertyType
+                                      )
+                                    ),
+                                    fontWeight: 600,
+                                    textTransform: "uppercase",
+                                    fontSize: "0.6rem",
+                                    height: 20,
+                                    flexShrink: 0,
+                                    "& .MuiChip-label": {
+                                      px: 0.5,
+                                    },
+                                  }}
+                                />
+                              </Box>
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  color: "text.secondary",
                                   overflow: "hidden",
                                   textOverflow: "ellipsis",
                                   whiteSpace: "nowrap",
                                 }}
                               >
-                                {property.title}
+                                {property.address}, {property.city} -{" "}
+                                {property.state}
                               </Typography>
-
-                              {/* Chip do tipo de propriedade */}
-                              <Chip
-                                label={property.propertyType}
-                                size="small"
-                                sx={{
-                                  backgroundColor: getPropertyTypeColor(
-                                    property.propertyType
-                                  ),
-                                  color: theme.palette.getContrastText(
-                                    getPropertyTypeColor(property.propertyType)
-                                  ),
-                                  fontWeight: 600,
-                                  textTransform: "uppercase",
-                                  fontSize: "0.6rem",
-                                  height: 20,
-                                  flexShrink: 0,
-                                  "& .MuiChip-label": {
-                                    px: 0.5,
-                                  },
-                                }}
-                              />
                             </Box>
-                            <Typography
-                              variant="body2"
+
+                            {/* Detalhes específicos */}
+                            <Box
                               sx={{
+                                display: { xs: "none", sm: "flex" },
+                                alignItems: "center",
+                                gap: 2,
                                 color: "text.secondary",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
                               }}
                             >
-                              {property.address}, {property.city} -{" "}
-                              {property.state}
-                            </Typography>
-                          </Box>
-
-                          {/* Detalhes específicos */}
-                          <Box
-                            sx={{
-                              display: { xs: "none", sm: "flex" },
-                              alignItems: "center",
-                              gap: 2,
-                              color: "text.secondary",
-                            }}
-                          >
-                            {/* Para terrenos, mostrar apenas a área */}
-                            {property.propertyType === "TERRENO" ? (
-                              <Box
-                                sx={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 0.5,
-                                }}
-                              >
-                                <SquareFoot
-                                  sx={{
-                                    fontSize: 16,
-                                    color: getIconColor(property.propertyType),
-                                  }}
-                                />
-                                <Typography variant="body2">
-                                  {property.area} m²
-                                </Typography>
-                              </Box>
-                            ) : (
-                              /* Para outros tipos, mostrar quartos, banheiros e área */
-                              <>
-                                {property.bedrooms && property.bedrooms > 0 && (
-                                  <Box
-                                    sx={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: 0.5,
-                                    }}
-                                  >
-                                    <Bed
-                                      sx={{
-                                        fontSize: 16,
-                                        color: getIconColor(
-                                          property.propertyType
-                                        ),
-                                      }}
-                                    />
-                                    <Typography variant="body2">
-                                      {property.bedrooms}
-                                    </Typography>
-                                  </Box>
-                                )}
-                                {property.bathrooms &&
-                                  property.bathrooms > 0 && (
-                                    <Box
-                                      sx={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: 0.5,
-                                      }}
-                                    >
-                                      <DirectionsCar
-                                        sx={{
-                                          fontSize: 16,
-                                          color: getIconColor(
-                                            property.propertyType
-                                          ),
-                                        }}
-                                      />
-                                      <Typography variant="body2">
-                                        {property.bathrooms}
-                                      </Typography>
-                                    </Box>
-                                  )}
+                              {/* Para terrenos, mostrar apenas a área */}
+                              {property.propertyType === "TERRENO" ? (
                                 <Box
                                   sx={{
                                     display: "flex",
@@ -1335,209 +1632,388 @@ export function SearchComponent() {
                                     {property.area} m²
                                   </Typography>
                                 </Box>
-                              </>
-                            )}
-                          </Box>
+                              ) : (
+                                /* Para outros tipos, mostrar quartos, banheiros e área */
+                                <>
+                                  {property.bedrooms &&
+                                    property.bedrooms > 0 && (
+                                      <Box
+                                        sx={{
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: 0.5,
+                                        }}
+                                      >
+                                        <Bed
+                                          sx={{
+                                            fontSize: 16,
+                                            color: getIconColor(
+                                              property.propertyType
+                                            ),
+                                          }}
+                                        />
+                                        <Typography variant="body2">
+                                          {property.bedrooms}
+                                        </Typography>
+                                      </Box>
+                                    )}
+                                  {property.bathrooms &&
+                                    property.bathrooms > 0 && (
+                                      <Box
+                                        sx={{
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: 0.5,
+                                        }}
+                                      >
+                                        <DirectionsCar
+                                          sx={{
+                                            fontSize: 16,
+                                            color: getIconColor(
+                                              property.propertyType
+                                            ),
+                                          }}
+                                        />
+                                        <Typography variant="body2">
+                                          {property.bathrooms}
+                                        </Typography>
+                                      </Box>
+                                    )}
+                                  <Box
+                                    sx={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: 0.5,
+                                    }}
+                                  >
+                                    <SquareFoot
+                                      sx={{
+                                        fontSize: 16,
+                                        color: getIconColor(
+                                          property.propertyType
+                                        ),
+                                      }}
+                                    />
+                                    <Typography variant="body2">
+                                      {property.area} m²
+                                    </Typography>
+                                  </Box>
+                                </>
+                              )}
+                            </Box>
 
-                          {/* Menu de ações */}
-                          <IconButton
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleMenuOpen(e, property.id);
-                            }}
-                            sx={{ ml: 1 }}
-                          >
-                            <MoreVert />
-                          </IconButton>
-                        </Paper>
-                      ))}
+                            {/* Menu de ações */}
+                            <IconButton
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMenuOpen(e, property.id);
+                              }}
+                              sx={{ ml: 1 }}
+                            >
+                              <MoreVert />
+                            </IconButton>
+                          </Paper>
+                        ))}
+                      </Box>
+                    )
+                  ) : (
+                    <Box
+                      sx={{
+                        textAlign: "center",
+                        py: 8,
+                        px: 3,
+                      }}
+                    >
+                      <Typography
+                        variant="h5"
+                        sx={{
+                          fontWeight: 600,
+                          color: theme.palette.text.primary,
+                          mb: 2,
+                        }}
+                      >
+                        Nenhuma propriedade encontrada
+                      </Typography>
+                      <Typography
+                        variant="body1"
+                        sx={{
+                          color: theme.palette.text.secondary,
+                          mb: 3,
+                          maxWidth: 400,
+                          mx: "auto",
+                        }}
+                      >
+                        Tente ajustar os filtros de busca para encontrar mais
+                        propriedades que correspondam aos seus critérios.
+                      </Typography>
+                      <Button
+                        variant="outlined"
+                        onClick={() =>
+                          applyFilters({
+                            search: "",
+                            cities: ["CURITIBA"],
+                            neighborhoods: [],
+                            // Negócio
+                            venda: false,
+                            aluguel: false,
+                            // Finalidade
+                            residencial: false,
+                            comercial: false,
+                            industrial: false,
+                            agricultura: false,
+                            // Apartamentos
+                            apartamento_padrao: false,
+                            apartamento_flat: false,
+                            apartamento_loft: false,
+                            apartamento_studio: false,
+                            apartamento_duplex: false,
+                            apartamento_triplex: false,
+                            apartamento_cobertura: false,
+                            // Comerciais
+                            comercial_sala: false,
+                            comercial_casa: false,
+                            comercial_ponto: false,
+                            comercial_galpao: false,
+                            comercial_loja: false,
+                            comercial_predio: false,
+                            comercial_clinica: false,
+                            comercial_coworking: false,
+                            comercial_sobreloja: false,
+                            // Casas e Sítios
+                            casa_casa: false,
+                            casa_sobrado: false,
+                            casa_sitio: false,
+                            casa_chale: false,
+                            casa_chacara: false,
+                            casa_edicula: false,
+                            // Terrenos
+                            terreno_terreno: false,
+                            terreno_fazenda: false,
+                            // Outros
+                            outros_garagem: false,
+                            outros_quarto: false,
+                            outros_resort: false,
+                            outros_republica: false,
+                            outros_box: false,
+                            outros_tombado: false,
+                            outros_granja: false,
+                            outros_haras: false,
+                            outros_outros: false,
+                            // Cômodos
+                            quartos: null,
+                            banheiros: null,
+                            suites: null,
+                            garagem: null,
+                            // Sliders
+                            area_min: 0,
+                            area_max: 1000000,
+                            preco_min: 0,
+                            preco_max: 100000000,
+                            // Tipo de Anunciante
+                            proprietario_direto: false,
+                            imobiliaria: false,
+                            portal: false,
+                          })
+                        }
+                        sx={{
+                          borderRadius: 2,
+                          px: 4,
+                          py: 1.5,
+                          textTransform: "none",
+                          fontWeight: 600,
+                          color: theme.palette.text.primary,
+                          borderColor: theme.palette.divider,
+                          "&:hover": {
+                            borderColor: theme.palette.text.primary,
+                            backgroundColor: theme.palette.action.hover,
+                          },
+                        }}
+                      >
+                        Limpar Filtros
+                      </Button>
                     </Box>
-                  )
-                ) : (
-                  <Box
-                    sx={{
-                      textAlign: "center",
-                      py: 8,
-                      px: 3,
-                    }}
-                  >
-                    <Typography
-                      variant="h5"
-                      sx={{
-                        fontWeight: 600,
-                        color: theme.palette.text.primary,
-                        mb: 2,
-                      }}
-                    >
-                      Nenhuma propriedade encontrada
-                    </Typography>
-                    <Typography
-                      variant="body1"
-                      sx={{
-                        color: theme.palette.text.secondary,
-                        mb: 3,
-                        maxWidth: 400,
-                        mx: "auto",
-                      }}
-                    >
-                      Tente ajustar os filtros de busca para encontrar mais
-                      propriedades que correspondam aos seus critérios.
-                    </Typography>
-                    <Button
-                      variant="outlined"
-                      onClick={() =>
-                        applyFilters({
-                          search: "",
-                          cities: ["CURITIBA"],
-                          neighborhoods: [],
-                          // Negócio
-                          venda: false,
-                          aluguel: false,
-                          // Finalidade
-                          residencial: false,
-                          comercial: false,
-                          industrial: false,
-                          agricultura: false,
-                          // Apartamentos
-                          apartamento_padrao: false,
-                          apartamento_flat: false,
-                          apartamento_loft: false,
-                          apartamento_studio: false,
-                          apartamento_duplex: false,
-                          apartamento_triplex: false,
-                          apartamento_cobertura: false,
-                          // Comerciais
-                          comercial_sala: false,
-                          comercial_casa: false,
-                          comercial_ponto: false,
-                          comercial_galpao: false,
-                          comercial_loja: false,
-                          comercial_predio: false,
-                          comercial_clinica: false,
-                          comercial_coworking: false,
-                          comercial_sobreloja: false,
-                          // Casas e Sítios
-                          casa_casa: false,
-                          casa_sobrado: false,
-                          casa_sitio: false,
-                          casa_chale: false,
-                          casa_chacara: false,
-                          casa_edicula: false,
-                          // Terrenos
-                          terreno_terreno: false,
-                          terreno_fazenda: false,
-                          // Outros
-                          outros_garagem: false,
-                          outros_quarto: false,
-                          outros_resort: false,
-                          outros_republica: false,
-                          outros_box: false,
-                          outros_tombado: false,
-                          outros_granja: false,
-                          outros_haras: false,
-                          outros_outros: false,
-                          // Cômodos
-                          quartos: null,
-                          banheiros: null,
-                          suites: null,
-                          garagem: null,
-                          // Sliders
-                          area_min: 0,
-                          area_max: 1000000,
-                          preco_min: 0,
-                          preco_max: 100000000,
-                          // Tipo de Anunciante
-                          proprietario_direto: false,
-                          imobiliaria: false,
-                          portal: false,
-                        })
-                      }
-                      sx={{
-                        borderRadius: 2,
-                        px: 4,
-                        py: 1.5,
-                        textTransform: "none",
-                        fontWeight: 600,
-                        color: theme.palette.text.primary,
-                        borderColor: theme.palette.divider,
-                        "&:hover": {
-                          borderColor: theme.palette.text.primary,
-                          backgroundColor: theme.palette.action.hover,
-                        },
-                      }}
-                    >
-                      Limpar Filtros
-                    </Button>
-                  </Box>
-                )}
-
-                {/* Paginação - Dentro da área scrollável */}
-                {!loading &&
-                  filteredProperties.length > 0 &&
-                  totalPages > 1 && (
-                    <CustomPagination
-                      currentPage={currentPage}
-                      totalPages={totalPages}
-                      onPageChange={setCurrentPage}
-                      maxVisiblePages={5}
-                    />
                   )}
-              </Box>
-            )}
-          </Box>
 
-          {/* Coluna Direita: Mapa */}
-          <Box
-            sx={{
-              flex: 1, // 40% do espaço
-              minWidth: 0,
-              display: { xs: "none", md: "block" }, // Esconde em telas pequenas
-            }}
-          >
-            <MapComponent
-              properties={filteredProperties}
-              onPropertyClick={handlePropertyClick}
-              height="100%"
-              center={{
-                lat: -25.4284, // Curitiba
-                lng: -49.2733,
+                  {/* Paginação - Dentro da área scrollável */}
+                  {!loading &&
+                    filteredProperties.length > 0 &&
+                    totalPages > 1 && (
+                      <CustomPagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        onPageChange={setCurrentPage}
+                        maxVisiblePages={5}
+                      />
+                    )}
+                </Box>
+              )}
+            </Box>
+
+            {/* Coluna Direita: Mapa */}
+            <Box
+              sx={{
+                flex: 1, // 40% do espaço
+                minWidth: 0,
+                display: { xs: "none", md: "block" }, // Esconde em telas pequenas
               }}
-              zoom={12}
-              onDrawingComplete={handleDrawingComplete}
-              onClearFilters={handleClearFilters}
-            />
+            >
+              <MapComponent
+                properties={filteredProperties}
+                onPropertyClick={handlePropertyClick}
+                height="100%"
+                center={{
+                  lat: -25.4284, // Curitiba
+                  lng: -49.2733,
+                }}
+                zoom={12}
+                onDrawingComplete={handleDrawingComplete}
+                onClearFilters={handleClearFilters}
+              />
+            </Box>
           </Box>
-        </Box>
+        </Container>
+      )}
 
-        {/* Menu de ações */}
-        <Menu
-          anchorEl={anchorEl}
-          open={Boolean(anchorEl)}
-          onClose={handleMenuClose}
-          anchorOrigin={{
-            vertical: "bottom",
-            horizontal: "right",
-          }}
-          transformOrigin={{
-            vertical: "top",
-            horizontal: "right",
+      {/* Componentes Compartilhados */}
+      {/* Menu de ações */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+        anchorOrigin={{
+          vertical: "bottom",
+          horizontal: "right",
+        }}
+        transformOrigin={{
+          vertical: "top",
+          horizontal: "right",
+        }}
+      >
+        <MenuItem onClick={handleOpenInNewTab}>
+          <ListItemIcon>
+            <OpenInNew fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Abrir em nova guia</ListItemText>
+        </MenuItem>
+      </Menu>
+
+      {/* Modal de Detalhes da Propriedade */}
+      <PropertyDetails
+        open={propertyDetailsOpen}
+        onClose={handleClosePropertyDetails}
+        propertyId={propertyId}
+      />
+
+      {/* Botão flutuante para abrir mapa (apenas entre 600px e 900px) */}
+      {isMediumScreen && (
+        <Box
+          sx={{
+            position: "fixed",
+            bottom: 24,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 1300,
           }}
         >
-          <MenuItem onClick={handleOpenInNewTab}>
-            <ListItemIcon>
-              <OpenInNew fontSize="small" />
-            </ListItemIcon>
-            <ListItemText>Abrir em nova guia</ListItemText>
-          </MenuItem>
-        </Menu>
+          <Button
+            variant="contained"
+            startIcon={mapModalOpen ? <Close /> : <Map />}
+            onClick={() => setMapModalOpen(!mapModalOpen)}
+            sx={{
+              borderRadius: 3,
+              px: 4,
+              py: 1.5,
+              fontSize: "1rem",
+              fontWeight: 600,
+              textTransform: "none",
+              boxShadow: theme.shadows[8],
+              "&:hover": {
+                boxShadow: theme.shadows[12],
+              },
+            }}
+          >
+            {mapModalOpen ? "Fechar mapa" : "Abrir mapa"}
+          </Button>
+        </Box>
+      )}
 
-        {/* Modal de Detalhes da Propriedade */}
-        <PropertyDetails
-          open={propertyDetailsOpen}
-          onClose={handleClosePropertyDetails}
-          propertyId={propertyId}
-        />
-      </Container>
+      {/* Modal do Mapa (apenas entre 600px e 900px) */}
+      {isMediumScreen && (
+        <Modal
+          open={mapModalOpen}
+          onClose={() => setMapModalOpen(false)}
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Box
+            sx={{
+              position: "relative",
+              width: "95vw",
+              height: "90vh",
+              maxWidth: 900,
+              maxHeight: 800,
+              backgroundColor: theme.palette.background.paper,
+              borderRadius: 3,
+              overflow: "hidden",
+              boxShadow: theme.shadows[24],
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            {/* Cabeçalho do Modal */}
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                p: 2,
+                borderBottom: `1px solid ${theme.palette.divider}`,
+                backgroundColor: theme.palette.background.paper,
+              }}
+            >
+              <Typography
+                variant="h6"
+                sx={{
+                  fontWeight: 600,
+                  fontSize: "1.25rem",
+                }}
+              >
+                Mapa de Propriedades
+              </Typography>
+              <IconButton
+                onClick={() => setMapModalOpen(false)}
+                sx={{
+                  color: theme.palette.text.primary,
+                  "&:hover": {
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                }}
+              >
+                <Close />
+              </IconButton>
+            </Box>
+
+            {/* Mapa */}
+            <Box sx={{ flex: 1, position: "relative", overflow: "hidden" }}>
+              <MapComponent
+                properties={filteredProperties}
+                onPropertyClick={handlePropertyClick}
+                height="100%"
+                center={{
+                  lat: -25.4284, // Curitiba
+                  lng: -49.2733,
+                }}
+                zoom={12}
+                onDrawingComplete={handleDrawingComplete}
+                onClearFilters={handleClearFilters}
+              />
+            </Box>
+          </Box>
+        </Modal>
+      )}
     </Box>
   );
 }
