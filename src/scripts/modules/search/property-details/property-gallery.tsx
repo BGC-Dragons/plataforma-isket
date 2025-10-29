@@ -56,6 +56,9 @@ export function PropertyGallery({
         overflow: "hidden",
         position: "relative",
         minHeight: 400,
+        "@media (max-width: 750px)": {
+          minHeight: "auto",
+        },
       }}
     >
       {/* Layout da Galeria */}
@@ -68,7 +71,7 @@ export function PropertyGallery({
           // Apenas para telas menores que 750px
           "@media (max-width: 750px)": {
             flexDirection: "column",
-            height: 300,
+            height: "auto",
           },
         }}
       >
@@ -85,8 +88,9 @@ export function PropertyGallery({
             justifyContent: "center",
             // Apenas para telas menores que 750px
             "@media (max-width: 750px)": {
-              flex: 1,
+              flex: "unset",
               width: "100%",
+              aspectRatio: "16 / 9",
             },
           }}
         >
@@ -199,6 +203,54 @@ export function PropertyGallery({
             </Box>
           )}
         </Box>
+
+        {/* Miniaturas - Faixa horizontal (somente mobile) */}
+        {images.length > 1 && (
+          <Box
+            sx={{
+              display: "none",
+              "@media (max-width: 750px)": {
+                display: "flex",
+              },
+              gap: 1,
+              pt: 1,
+              overflowX: "auto",
+              WebkitOverflowScrolling: "touch",
+            }}
+          >
+            {images.map((image, index) => (
+              <Box
+                key={index}
+                onClick={() => handleThumbnailClick(index)}
+                sx={{
+                  position: "relative",
+                  borderRadius: 1,
+                  overflow: "hidden",
+                  cursor: "pointer",
+                  backgroundColor: theme.palette.grey[200],
+                  width: 72,
+                  height: 56,
+                  flex: "0 0 auto",
+                  border: currentImageIndex === index ? 2 : 0,
+                  borderColor: theme.palette.primary.main,
+                  transition: "transform 0.2s ease",
+                  "&:active": { transform: "scale(0.98)" },
+                }}
+              >
+                <Box
+                  component="img"
+                  src={image}
+                  alt={`Miniatura ${index + 1}`}
+                  sx={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                  }}
+                />
+              </Box>
+            ))}
+          </Box>
+        )}
 
         {/* Fotos Menores - Lado Direito */}
         <Box

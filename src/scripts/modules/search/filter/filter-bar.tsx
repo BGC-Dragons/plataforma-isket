@@ -390,6 +390,8 @@ export function FilterBar({
           "@media (max-width: 750px)": {
             flexDirection: "column",
             alignItems: "stretch",
+            p: 1.25,
+            gap: 1,
           },
         }}
       >
@@ -416,6 +418,10 @@ export function FilterBar({
             maxWidth: { xs: "100%", sm: 300, md: 350 },
             "@media (max-width: 750px)": {
               maxWidth: "100%",
+              "& .MuiInputBase-root": {
+                height: 36,
+                fontSize: "0.875rem",
+              },
             },
           }}
         />
@@ -446,6 +452,13 @@ export function FilterBar({
               "@media (max-width: 750px)": {
                 flex: 1,
                 minWidth: "auto",
+                "& .MuiSelect-select": {
+                  py: 0.5,
+                },
+                "& .MuiInputBase-root": {
+                  height: 36,
+                  fontSize: "0.875rem",
+                },
               },
             }}
           >
@@ -472,6 +485,13 @@ export function FilterBar({
               "@media (max-width: 750px)": {
                 flex: 1,
                 minWidth: "auto",
+                "& .MuiSelect-select": {
+                  py: 0.5,
+                },
+                "& .MuiInputBase-root": {
+                  height: 36,
+                  fontSize: "0.875rem",
+                },
               },
             }}
           >
@@ -509,10 +529,11 @@ export function FilterBar({
             startIcon={<Search />}
             sx={{
               borderRadius: 2,
-              px: 3,
-              py: 1,
+              px: 2,
+              py: 0.5,
               textTransform: "none",
               fontWeight: 600,
+              fontSize: "0.85rem",
               backgroundColor: theme.palette.primary.main,
               color: "white",
               flex: 1,
@@ -531,10 +552,11 @@ export function FilterBar({
             startIcon={<FilterList />}
             sx={{
               borderRadius: 2,
-              px: 3,
-              py: 1,
+              px: 2,
+              py: 0.5,
               textTransform: "none",
               fontWeight: 600,
+              fontSize: "0.85rem",
               backgroundColor: theme.palette.primary.main,
               flex: 1,
               "&:hover": {

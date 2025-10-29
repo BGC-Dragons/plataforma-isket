@@ -992,11 +992,6 @@ export function SearchComponent() {
               properties={filteredProperties}
               onPropertyClick={handlePropertyClick}
               height="100%"
-              center={{
-                lat: -25.4284, // Curitiba
-                lng: -49.2733,
-              }}
-              zoom={12}
               onDrawingComplete={handleDrawingComplete}
               onClearFilters={handleClearFilters}
             />
@@ -2002,11 +1997,6 @@ export function SearchComponent() {
                 properties={filteredProperties}
                 onPropertyClick={handlePropertyClick}
                 height="100%"
-                center={{
-                  lat: -25.4284, // Curitiba
-                  lng: -49.2733,
-                }}
-                zoom={12}
                 onDrawingComplete={handleDrawingComplete}
                 onClearFilters={handleClearFilters}
               />
