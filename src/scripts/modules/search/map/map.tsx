@@ -1,4 +1,4 @@
-import { useCallback, useState, useMemo } from "react";
+import { useCallback, useState, useMemo, useRef } from "react";
 import {
   GoogleMap,
   Marker,
@@ -26,6 +26,7 @@ import {
   RadioButtonUnchecked,
   Stop,
   Delete,
+  Gesture,
 } from "@mui/icons-material";
 import { GOOGLE_CONFIG } from "../../../config/google.constant";
 
@@ -115,6 +116,13 @@ export function MapComponent({
   const [drawnOverlays, setDrawnOverlays] = useState<
     google.maps.drawing.OverlayCompleteEvent[]
   >([]);
+  const [map, setMap] = useState<google.maps.Map | null>(null);
+  const [freehandActive, setFreehandActive] = useState<boolean>(false);
+  const isMouseDownRef = useRef<boolean>(false);
+  const freehandPolylineRef = useRef<google.maps.Polyline | null>(null);
+  const mouseMoveListenerRef = useRef<google.maps.MapsEventListener | null>(null);
+  const mouseDownListenerRef = useRef<google.maps.MapsEventListener | null>(null);
+  const mouseUpListenerRef = useRef<google.maps.MapsEventListener | null>(null);
   // Carrega o script do Google Maps
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: GOOGLE_CONFIG.MAPS_API_KEY,
@@ -131,8 +139,8 @@ export function MapComponent({
   }, [properties]);
 
   // Callback quando o mapa é carregado
-  const onMapLoad = useCallback(() => {
-    // Mapa carregado com sucesso
+  const onMapLoad = useCallback((loadedMap: google.maps.Map) => {
+    setMap(loadedMap);
   }, []);
 
   // Callback quando o mapa é clicado
@@ -162,12 +170,109 @@ export function MapComponent({
     [onDrawingComplete]
   );
 
+  // -------- Freehand drawing (desenho à mão livre) ---------
+  const teardownFreehandListeners = useCallback(() => {
+    mouseMoveListenerRef.current?.remove();
+    mouseDownListenerRef.current?.remove();
+    mouseUpListenerRef.current?.remove();
+    mouseMoveListenerRef.current = null;
+    mouseDownListenerRef.current = null;
+    mouseUpListenerRef.current = null;
+  }, []);
+
+  const stopFreehand = useCallback(() => {
+    setFreehandActive(false);
+    isMouseDownRef.current = false;
+    teardownFreehandListeners();
+    if (map) {
+      map.setOptions({ draggable: true });
+      map.setOptions({ draggableCursor: undefined });
+    }
+  }, [map, teardownFreehandListeners]);
+
+  const startFreehand = useCallback(() => {
+    if (!map) return;
+    setDrawingMode(null);
+    drawingManager?.setDrawingMode(null);
+    setFreehandActive(true);
+
+    map.setOptions({ draggable: false });
+    map.setOptions({ draggableCursor: "crosshair" });
+
+    mouseDownListenerRef.current = map.addListener("mousedown", (e: google.maps.MapMouseEvent) => {
+      isMouseDownRef.current = true;
+      // Inicia um novo traço
+      if (freehandPolylineRef.current) {
+        freehandPolylineRef.current.setMap(null);
+        freehandPolylineRef.current = null;
+      }
+      freehandPolylineRef.current = new google.maps.Polyline({
+        map,
+        clickable: false,
+        strokeColor: "#4285F4",
+        strokeOpacity: 0.8,
+        strokeWeight: 2,
+      });
+      const path = freehandPolylineRef.current.getPath();
+      if (e.latLng) path.push(e.latLng);
+    });
+
+    mouseMoveListenerRef.current = map.addListener("mousemove", (e: google.maps.MapMouseEvent) => {
+      if (!isMouseDownRef.current || !freehandPolylineRef.current) return;
+      const path = freehandPolylineRef.current.getPath();
+      if (e.latLng) path.push(e.latLng);
+    });
+
+    mouseUpListenerRef.current = map.addListener("mouseup", () => {
+      if (!freehandPolylineRef.current) return;
+      isMouseDownRef.current = false;
+      // Converte o polyline para polygon
+      const path = freehandPolylineRef.current.getPath();
+      const polygon = new google.maps.Polygon({
+        map,
+        paths: path,
+        fillColor: "#4285F4",
+        fillOpacity: 0.2,
+        strokeColor: "#4285F4",
+        strokeOpacity: 0.8,
+        strokeWeight: 2,
+        clickable: true,
+        editable: true,
+        draggable: true,
+      });
+      freehandPolylineRef.current.setMap(null);
+      freehandPolylineRef.current = null;
+
+      // Emula OverlayCompleteEvent para manter fluxo existente
+      const fakeEvent = {
+        type: google.maps.drawing.OverlayType.POLYGON,
+        overlay: polygon,
+      } as unknown as google.maps.drawing.OverlayCompleteEvent;
+
+      setDrawnOverlays((prev) => [...prev, fakeEvent]);
+      if (onDrawingComplete) onDrawingComplete(fakeEvent);
+      setDrawingMode(null);
+      // Mantém modo freehand ativo até usuário desativar no botão
+    });
+  }, [map, drawingManager, onDrawingComplete]);
+
+  const toggleFreehand = useCallback(() => {
+    if (freehandActive) {
+      stopFreehand();
+    } else {
+      startFreehand();
+    }
+  }, [freehandActive, startFreehand, stopFreehand]);
+
   // Função para parar de desenhar
   const stopDrawing = () => {
     console.log("Parando de desenhar");
     setDrawingMode(null);
     if (drawingManager) {
       drawingManager.setDrawingMode(null);
+    }
+    if (freehandActive) {
+      stopFreehand();
     }
   };
 
@@ -184,6 +289,9 @@ export function MapComponent({
     if (drawingManager) {
       drawingManager.setDrawingMode(null);
     }
+    if (freehandActive) {
+      stopFreehand();
+    }
 
     // Limpar filtros para mostrar todas as propriedades
     if (onClearFilters) {
@@ -198,6 +306,9 @@ export function MapComponent({
   ) => {
     console.log("🎨 Mudando modo de desenho para:", mode);
     console.log("🎨 DrawingManager disponível:", !!drawingManager);
+    if (freehandActive) {
+      stopFreehand();
+    }
     setDrawingMode(mode);
 
     // Aguardar um pouco para garantir que o drawingManager foi carregado
@@ -370,16 +481,7 @@ export function MapComponent({
               editable: true,
               draggable: true,
             },
-            rectangleOptions: {
-              fillColor: "#4285F4",
-              fillOpacity: 0.2,
-              strokeColor: "#4285F4",
-              strokeOpacity: 0.8,
-              strokeWeight: 2,
-              clickable: true,
-              editable: true,
-              draggable: true,
-            },
+            // Retângulo foi substituído por desenho livre
           }}
         />
 
@@ -745,43 +847,30 @@ export function MapComponent({
               <RadioButtonUnchecked fontSize="inherit" />
             </Button>
 
-            {/* Botão Retângulo */}
+            {/* Botão Desenho Livre (substitui Retângulo) */}
             <Button
-              variant={
-                drawingMode === google.maps.drawing.OverlayType.RECTANGLE
-                  ? "contained"
-                  : "outlined"
-              }
+              variant={freehandActive ? "contained" : "outlined"}
               size="small"
-              onClick={() =>
-                setDrawingModeHandler(
-                  drawingMode === google.maps.drawing.OverlayType.RECTANGLE
-                    ? null
-                    : google.maps.drawing.OverlayType.RECTANGLE
-                )
-              }
+              onClick={toggleFreehand}
               sx={{
                 minWidth: 18,
                 height: 18,
                 borderRadius: 0.25,
-                backgroundColor:
-                  drawingMode === google.maps.drawing.OverlayType.RECTANGLE
-                    ? theme.palette.primary.main
-                    : "transparent",
-                color:
-                  drawingMode === google.maps.drawing.OverlayType.RECTANGLE
-                    ? theme.palette.primary.contrastText
-                    : theme.palette.text.primary,
+                backgroundColor: freehandActive
+                  ? theme.palette.primary.main
+                  : "transparent",
+                color: freehandActive
+                  ? theme.palette.primary.contrastText
+                  : theme.palette.text.primary,
                 borderColor: theme.palette.divider,
                 "&:hover": {
-                  backgroundColor:
-                    drawingMode === google.maps.drawing.OverlayType.RECTANGLE
-                      ? theme.palette.primary.dark
-                      : theme.palette.action.hover,
+                  backgroundColor: freehandActive
+                    ? theme.palette.primary.dark
+                    : theme.palette.action.hover,
                 },
               }}
             >
-              <CropSquare fontSize="inherit" />
+              <Gesture fontSize="inherit" />
             </Button>
 
             {/* Botão Parar Desenho */}
