@@ -123,13 +123,6 @@ export function PropertyLocalization({
           streetViewControl: true,
           mapTypeControl: true,
           fullscreenControl: true,
-          styles: [
-            {
-              featureType: "poi",
-              elementType: "labels",
-              stylers: [{ visibility: "off" }],
-            },
-          ],
         }}
       >
         {/* Marcador da propriedade */}
