@@ -31,7 +31,7 @@ import {
 } from "@mui/icons-material";
 import { useAuth } from "../../../../modules/access-manager/auth.hook";
 import {
-  getUsers,
+  useGetUsers,
   type IGetUsersResponseSuccess,
 } from "../../../../../services/get-users.service";
 import {
@@ -95,19 +95,12 @@ export function CollaboratorsSection() {
   const [isSaving, setIsSaving] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
-  // Carregar colaboradores da API
-  const loadCollaborators = useCallback(async () => {
-    if (!store.token) {
-      return;
-    }
+  // Data via SWR
+  const { data: usersData, error: usersError, isLoading: isLoadingSWR } = useGetUsers();
 
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      const response = await getUsers(store.token);
-
-      const users = response.data.map(
+  useEffect(() => {
+    if (usersData) {
+      const users = usersData.map(
         (user: IGetUsersResponseSuccess): Collaborator => {
           const processedUser = {
             ...user,
@@ -121,19 +114,18 @@ export function CollaboratorsSection() {
           return processedUser;
         }
       );
-
       setCollaborators(users);
-    } catch (err) {
-      console.error("Erro ao carregar colaboradores:", err);
-      setError("Erro ao carregar colaboradores. Tente novamente.");
-    } finally {
       setIsLoading(false);
     }
-  }, [store.token]);
-
-  useEffect(() => {
-    loadCollaborators();
-  }, [loadCollaborators]);
+    if (usersError) {
+      console.error("Erro ao carregar colaboradores:", usersError);
+      setError("Erro ao carregar colaboradores. Tente novamente.");
+      setIsLoading(false);
+    }
+    if (isLoadingSWR && !usersData) {
+      setIsLoading(true);
+    }
+  }, [usersData, usersError, isLoadingSWR]);
 
   const getStatusColor = (inactive?: boolean) => {
     return inactive ? "error" : "success";

@@ -1,4 +1,5 @@
-import axios, { type AxiosResponse } from "axios";
+import { type AxiosResponse } from "axios";
+import { isketApiClient } from "./clients/isket-api.client";
 import { endpoints } from "./helpers/endpoint.constant";
 
 export interface IVerifyCodeRequest {
@@ -21,5 +22,5 @@ export const postAuthVerifyCodeURL = `${endpoints.api}/auth/verifyCode`;
 export const postAuthVerifyCode = (
   params: IVerifyCodeRequest
 ): Promise<AxiosResponse<IVerifyCodeResponse>> => {
-  return axios.post<IVerifyCodeResponse>(postAuthVerifyCodeURL, params);
+  return isketApiClient.post<IVerifyCodeResponse>(postAuthVerifyCodeURL, params);
 };

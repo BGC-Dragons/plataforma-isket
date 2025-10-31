@@ -1,5 +1,8 @@
-import axios, { type AxiosResponse } from "axios";
-import { endpoints } from "./helpers/endpoint.constant";
+import { type AxiosResponse } from "axios";
+import { useCallback } from "react";
+import { useAuth } from "../scripts/modules/access-manager/auth.hook";
+import { isketApiClient } from "./clients/isket-api.client";
+import { getHeader } from "./helpers/get-header-function";
 
 export interface IPatchProfileRequest {
   name?: string;
@@ -31,16 +34,27 @@ export interface IPatchProfileResponseSuccess {
   accountId: string;
 }
 
-export const patchProfileURL = `${endpoints.api}/auth/profile`;
+export const patchProfilePATH = "/auth/profile";
 
 export const patchProfile = (
   token: string,
   data: IPatchProfileRequest
 ): Promise<AxiosResponse<IPatchProfileResponseSuccess>> => {
-  return axios.patch<IPatchProfileResponseSuccess>(patchProfileURL, data, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-  });
+  return isketApiClient.patch<IPatchProfileResponseSuccess>(
+    patchProfilePATH,
+    data,
+    {
+      headers: getHeader({ token }),
+    }
+  );
+};
+
+export const useAuthedPatchProfile = () => {
+  const auth = useAuth();
+  const fn = useCallback(
+    (data: IPatchProfileRequest) =>
+      patchProfile(auth.store.token as string, data),
+    [auth]
+  );
+  return fn;
 };

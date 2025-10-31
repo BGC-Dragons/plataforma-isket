@@ -33,9 +33,11 @@ import {
   TrendingDown,
 } from "@mui/icons-material";
 import { useAuth } from "../../../../modules/access-manager/auth.hook";
-import { getUser } from "../../../../../services/get-user.service";
 import {
-  getDashboardUser,
+  useGetUser,
+} from "../../../../../services/get-user.service";
+import {
+  useGetDashboardUser,
   type IGetDashboardUserResponseSuccess,
 } from "../../../../../services/get-dashboard-user.service";
 import type { IGetUsersResponseSuccess } from "../../../../../services/get-users.service";
@@ -85,103 +87,106 @@ export function UserDetailsComponent({ userId, onBack }: UserDetailsProps) {
     personalId: "",
   });
 
-  // Carregar dados do usuário
-  const loadUserData = async () => {
-    if (!store.token || !userId) return;
+  // Data via SWR
+  const {
+    data: userData,
+    error: userError,
+    isLoading: isLoadingUser,
+  } = useGetUser(userId);
+  const {
+    data: dashboardData,
+    error: dashboardError,
+    isLoading: isLoadingDashboard,
+  } = useGetDashboardUser(userId);
 
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      const response = await getUser(store.token, userId);
-      const userData = response.data;
-
+  // Processar dados do usuário quando disponível
+  useEffect(() => {
+    if (userData) {
       setUser(userData);
       setEditData({
         name: userData.name,
         personalId: userData.personalId || "",
       });
-
-      // Buscar dados consolidados do dashboard (público)
-      try {
-        const dashboardResp = await getDashboardUser(userId);
-        setDashboardUser(dashboardResp.data);
-
-        // Processar dados do dashboard imediatamente
-        const dashboardData = dashboardResp.data;
-
-        // Pegar o primeiro item do histórico de compras (mais recente)
-        const latestPurchase = dashboardData.purchaseHistory?.[0];
-
-        // Converter cidades do formato API para formato legível
-        const formatCityName = (cityCode: string) => {
-          // Converter de "curitiba_pr" para "Curitiba - PR"
-          const parts = cityCode.split("_");
-          if (parts.length >= 2) {
-            const cityName = parts[0]
-              .replace(/_/g, " ")
-              .replace(/\b\w/g, (l) => l.toUpperCase());
-            const state = parts[parts.length - 1].toUpperCase();
-            return `${cityName} - ${state}`;
-          }
-          return cityCode;
-        };
-
-        // Usar dados reais do remainingUnits
-        const propertyValuationUnit = latestPurchase?.remainingUnits?.find(
-          (unit) => unit.type === "PROPERTY_VALUATION"
-        );
-        const residentSearchUnit = latestPurchase?.remainingUnits?.find(
-          (unit) => unit.type === "RESIDENT_SEARCH"
-        );
-        const radarsUnit = latestPurchase?.remainingUnits?.find(
-          (unit) => unit.type === "RADARS"
-        );
-
-        const realStats: UserStats = {
-          propertyValuations: {
-            total: propertyValuationUnit?.unitsRemaining || 0,
-            remaining: propertyValuationUnit?.unitsRemaining || 0,
-            used: 0, // Não temos dados de usados, apenas restantes
-          },
-          residentSearches: {
-            total: residentSearchUnit?.unitsRemaining || 0,
-            remaining: residentSearchUnit?.unitsRemaining || 0,
-            used: 0, // Não temos dados de usados, apenas restantes
-          },
-          radars: {
-            total: radarsUnit?.unitsRemaining || 0,
-            remaining: radarsUnit?.unitsRemaining || 0,
-            used: 0, // Não temos dados de usados, apenas restantes
-          },
-          cities: latestPurchase?.chosenCities?.map(formatCityName) || [],
-        };
-
-        setUserStats(realStats);
-      } catch (e) {
-        // Não bloqueia a tela se der erro; segue com dados básicos
-        console.warn("Falha ao carregar dashboard do usuário", e);
-
-        // Fallback para dados vazios se não houver dados do dashboard
-        setUserStats({
-          propertyValuations: { total: 0, remaining: 0, used: 0 },
-          residentSearches: { total: 0, remaining: 0, used: 0 },
-          radars: { total: 0, remaining: 0, used: 0 },
-          cities: [],
-        });
-      }
-    } catch (err) {
-      console.error("Erro ao carregar dados do usuário:", err);
-      setError("Erro ao carregar dados do usuário. Tente novamente.");
-    } finally {
-      setIsLoading(false);
     }
-  };
+    if (userError) {
+      console.error("Erro ao carregar dados do usuário:", userError);
+      setError("Erro ao carregar dados do usuário. Tente novamente.");
+    }
+  }, [userData, userError]);
 
+  // Processar dados do dashboard quando disponível
   useEffect(() => {
-    loadUserData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, store.token]);
+    if (dashboardData) {
+      setDashboardUser(dashboardData);
+
+      // Processar dados do dashboard imediatamente
+      // Pegar o primeiro item do histórico de compras (mais recente)
+      const latestPurchase = dashboardData.purchaseHistory?.[0];
+
+      // Converter cidades do formato API para formato legível
+      const formatCityName = (cityCode: string) => {
+        // Converter de "curitiba_pr" para "Curitiba - PR"
+        const parts = cityCode.split("_");
+        if (parts.length >= 2) {
+          const cityName = parts[0]
+            .replace(/_/g, " ")
+            .replace(/\b\w/g, (l) => l.toUpperCase());
+          const state = parts[parts.length - 1].toUpperCase();
+          return `${cityName} - ${state}`;
+        }
+        return cityCode;
+      };
+
+      // Usar dados reais do remainingUnits
+      const propertyValuationUnit = latestPurchase?.remainingUnits?.find(
+        (unit) => unit.type === "PROPERTY_VALUATION"
+      );
+      const residentSearchUnit = latestPurchase?.remainingUnits?.find(
+        (unit) => unit.type === "RESIDENT_SEARCH"
+      );
+      const radarsUnit = latestPurchase?.remainingUnits?.find(
+        (unit) => unit.type === "RADARS"
+      );
+
+      const realStats: UserStats = {
+        propertyValuations: {
+          total: propertyValuationUnit?.unitsRemaining || 0,
+          remaining: propertyValuationUnit?.unitsRemaining || 0,
+          used: 0, // Não temos dados de usados, apenas restantes
+        },
+        residentSearches: {
+          total: residentSearchUnit?.unitsRemaining || 0,
+          remaining: residentSearchUnit?.unitsRemaining || 0,
+          used: 0, // Não temos dados de usados, apenas restantes
+        },
+        radars: {
+          total: radarsUnit?.unitsRemaining || 0,
+          remaining: radarsUnit?.unitsRemaining || 0,
+          used: 0, // Não temos dados de usados, apenas restantes
+        },
+        cities: latestPurchase?.chosenCities?.map(formatCityName) || [],
+      };
+
+      setUserStats(realStats);
+    }
+    if (dashboardError) {
+      // Não bloqueia a tela se der erro; segue com dados básicos
+      console.warn("Falha ao carregar dashboard do usuário", dashboardError);
+
+      // Fallback para dados vazios se não houver dados do dashboard
+      setUserStats({
+        propertyValuations: { total: 0, remaining: 0, used: 0 },
+        residentSearches: { total: 0, remaining: 0, used: 0 },
+        radars: { total: 0, remaining: 0, used: 0 },
+        cities: [],
+      });
+    }
+  }, [dashboardData, dashboardError]);
+
+  // Controlar estado de loading combinado
+  useEffect(() => {
+    setIsLoading(isLoadingUser || isLoadingDashboard);
+  }, [isLoadingUser, isLoadingDashboard]);
 
   const handleEditUser = async () => {
     if (!store.token || !user) return;

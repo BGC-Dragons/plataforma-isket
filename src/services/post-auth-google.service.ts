@@ -1,6 +1,6 @@
-import axios from "axios";
 import { getHeader } from "./helpers/get-header-function";
 import { endpoints } from "./helpers/endpoint.constant";
+import { isketApiClient } from "./clients/isket-api.client";
 
 export interface IPostAuthGoogleParams {
   code: string;
@@ -28,8 +28,8 @@ export const postAuthGoogle = async (
   data: IPostAuthGoogleParams
 ): Promise<GoogleAuthResponse> => {
   try {
-    const response = await axios.post<GoogleAuthResponse>(
-      `${endpoints}/auth/signInGoogle`,
+    const response = await isketApiClient.post<GoogleAuthResponse>(
+      `/auth/signInGoogle`,
       data,
       {
         headers: getHeader(),

@@ -1,4 +1,5 @@
-import axios, { type AxiosResponse } from "axios";
+import { type AxiosResponse } from "axios";
+import { isketApiClient } from "./clients/isket-api.client";
 import { endpoints } from "./helpers/endpoint.constant";
 
 export interface IVerifyChangePasswordRequest {
@@ -16,7 +17,7 @@ export const postAuthVerifyChangePasswordURL = `${endpoints.api}/auth/verifyAndC
 export const postAuthVerifyChangePassword = (
   data: IVerifyChangePasswordRequest
 ): Promise<AxiosResponse<IVerifyChangePasswordResponse>> => {
-  return axios.post<IVerifyChangePasswordResponse>(
+  return isketApiClient.post<IVerifyChangePasswordResponse>(
     postAuthVerifyChangePasswordURL,
     data
   );

@@ -1,5 +1,9 @@
-import axios, { type AxiosResponse } from "axios";
+import { type AxiosResponse } from "axios";
+import { useCallback } from "react";
 import { endpoints } from "./helpers/endpoint.constant";
+import { isketApiClient } from "./clients/isket-api.client";
+import { useAuth } from "../scripts/modules/access-manager/auth.hook";
+import { getHeader } from "./helpers/get-header-function";
 
 export type ProductUnitType =
   | "USERS"
@@ -38,14 +42,21 @@ export const postPurchasesAddCity = (
   cityCode: string,
   token: string
 ): Promise<AxiosResponse<IAddCityResponseSuccess>> => {
-  return axios.post<IAddCityResponseSuccess>(
-    postPurchasesAddCityURL(id),
+  return isketApiClient.post<IAddCityResponseSuccess>(
+    `/payments/purchases/add-city/${id}`,
     { cityCode },
     {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+      headers: getHeader({ token }),
     }
   );
+};
+
+export const useAuthedPostPurchasesAddCity = (id: string) => {
+  const auth = useAuth();
+  const fn = useCallback(
+    (cityCode: string) =>
+      postPurchasesAddCity(id, cityCode, auth.store.token as string),
+    [auth, id]
+  );
+  return fn;
 };

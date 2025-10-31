@@ -1,5 +1,9 @@
-import axios, { type AxiosResponse } from "axios";
-import { endpoints } from "./helpers/endpoint.constant";
+import { type AxiosResponse } from "axios";
+import { useCallback } from "react";
+import useSWR, { mutate } from "swr";
+import { useAuth } from "../scripts/modules/access-manager/auth.hook";
+import { isketApiClient } from "./clients/isket-api.client";
+import { getHeader } from "./helpers/get-header-function";
 
 export interface IDashboardUserPlan {
   name: string;
@@ -46,13 +50,44 @@ export interface IGetDashboardUserResponseSuccess {
   purchaseHistory: IDashboardUserPurchaseHistoryItem[];
 }
 
-export const getDashboardUserURL = (userId: string) =>
-  `${endpoints.api}/dashboard/users/${userId}`;
+export const getDashboardUserPATH = (userId: string) =>
+  `/dashboard/users/${userId}`;
 
 export const getDashboardUser = (
+  token: string,
   userId: string
 ): Promise<AxiosResponse<IGetDashboardUserResponseSuccess>> => {
-  return axios.get<IGetDashboardUserResponseSuccess>(
-    getDashboardUserURL(userId)
+  return isketApiClient.get<IGetDashboardUserResponseSuccess>(
+    getDashboardUserPATH(userId),
+    { headers: getHeader({ token }) }
   );
+};
+
+export const useAuthedGetDashboardUser = (userId: string) => {
+  const auth = useAuth();
+  const fn = useCallback(
+    () => getDashboardUser(auth.store.token as string, userId),
+    [auth, userId]
+  );
+  return fn;
+};
+
+export const useGetDashboardUser = (userId: string) => {
+  const fetcher = useAuthedGetDashboardUser(userId);
+  const auth = useAuth();
+  // Incluir userId na chave para isolamento entre usuários
+  const cacheKey = auth.store.user?.id
+    ? [getDashboardUserPATH(userId), auth.store.user.id]
+    : null;
+  return useSWR(cacheKey, () => fetcher().then((r) => r.data), {
+    revalidateOnMount: true,
+  });
+};
+
+// Função para invalidar cache de dashboard user
+export const clearDashboardUserCache = (userId?: string) => {
+  if (userId) {
+    mutate(getDashboardUserPATH(userId));
+  }
+  mutate((key) => Array.isArray(key) && typeof key[0] === "string" && key[0].startsWith("/dashboard/users/"));
 };

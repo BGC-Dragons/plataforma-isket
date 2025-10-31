@@ -15,9 +15,12 @@ import {
 import { PhotoCamera } from "@mui/icons-material";
 import { useAuth } from "../../../../modules/access-manager/auth.hook";
 import {
-  getAuthMe,
+  useGetAuthMe,
+  clearAuthMeCache,
   type IGetAuthMeResponseSuccess,
 } from "../../../../../services/get-auth-me.service";
+import { mutate } from "swr";
+import { getAuthMePATH } from "../../../../../services/get-auth-me.service";
 import {
   patchProfile,
   type IPatchProfileRequest,
@@ -46,34 +49,27 @@ export function ProfileSection() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
+  // Data via SWR
+  const { data: profileDataSWR, isLoading: isLoadingSWR } = useGetAuthMe();
+
   useEffect(() => {
-    const loadProfile = async () => {
-      if (!store.token) return;
-
-      try {
-        setIsLoadingProfile(true);
-        const response = await getAuthMe(store.token);
-        const profileData = response.data;
-        console.log(profileData.profile);
-
-        setProfileInfo(profileData);
-        setProfileData({
-          email: profileData.profile.email || "",
-          phone: profileData.profile.phoneNumber
-            ? formatPhoneNumber(profileData.profile.phoneNumber)
-            : "",
-          address: profileData.profile.formattedAddress || "",
-          cpf: profileData.personalId ? formatCPF(profileData.personalId) : "",
-        });
-      } catch (error) {
-        console.error("Erro ao carregar perfil:", error);
-      } finally {
-        setIsLoadingProfile(false);
-      }
-    };
-
-    loadProfile();
-  }, [store.token]);
+    if (profileDataSWR) {
+      console.log(profileDataSWR.profile);
+      setProfileInfo(profileDataSWR);
+      setProfileData({
+        email: profileDataSWR.profile.email || "",
+        phone: profileDataSWR.profile.phoneNumber
+          ? formatPhoneNumber(profileDataSWR.profile.phoneNumber)
+          : "",
+        address: profileDataSWR.profile.formattedAddress || "",
+        cpf: profileDataSWR.personalId ? formatCPF(profileDataSWR.personalId) : "",
+      });
+      setIsLoadingProfile(false);
+    }
+    if (isLoadingSWR && !profileDataSWR) {
+      setIsLoadingProfile(true);
+    }
+  }, [profileDataSWR, isLoadingSWR]);
 
   const formatPhoneNumber = (value: string) => {
     const numbers = value.replace(/\D/g, "");
@@ -231,13 +227,9 @@ export function ProfileSection() {
 
         await patchProfile(store.token, updateData);
 
-        // Recarregar dados do perfil
-        const updatedProfile = await getAuthMe(store.token);
-        console.log(
-          "🔍 Debug - Perfil atualizado após foto:",
-          updatedProfile.data
-        );
-        setProfileInfo(updatedProfile.data);
+        // Invalidar cache e recarregar dados do perfil
+        clearAuthMeCache();
+        mutate(getAuthMePATH);
 
         // Limpar preview
         setPhotoPreview(null);
@@ -293,9 +285,9 @@ export function ProfileSection() {
       // Chamar API de atualização
       await patchProfile(store.token, updateData);
 
-      // Recarregar dados completos do perfil
-      const updatedProfile = await getAuthMe(store.token);
-      setProfileInfo(updatedProfile.data);
+      // Invalidar cache e recarregar dados completos do perfil
+      clearAuthMeCache();
+      mutate(getAuthMePATH);
 
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);

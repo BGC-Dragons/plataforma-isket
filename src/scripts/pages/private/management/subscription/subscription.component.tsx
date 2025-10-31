@@ -34,7 +34,8 @@ import {
 } from "@mui/icons-material";
 import { useAuth } from "../../../../modules/access-manager/auth.hook";
 import {
-  getPurchases,
+  useGetPurchases,
+  clearPurchasesCache,
   type IGetPurchasesResponseSuccess,
   type ProductUnitType,
   type ProductType,
@@ -47,6 +48,8 @@ import {
 } from "../../../../../services/put-purchases-update-city.service";
 import { AddCitiesModal } from "../../../../library/components/add-cities-modal";
 import { EditCityModal } from "../../../../library/components/edit-city-modal";
+import { mutate } from "swr";
+import { getPurchasesPATH } from "../../../../../services/get-purchases.service";
 
 export function SubscriptionSection() {
   const theme = useTheme();
@@ -55,8 +58,26 @@ export function SubscriptionSection() {
   const [purchases, setPurchases] = useState<IGetPurchasesResponseSuccess[]>(
     []
   );
-  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Data via SWR
+  const {
+    data: purchasesData,
+    error: purchasesError,
+    isLoading,
+  } = useGetPurchases();
+
+  useEffect(() => {
+    if (purchasesData) {
+      setPurchases(purchasesData);
+      console.log(purchasesData);
+    }
+    if (purchasesError) {
+      setError("Erro ao carregar compras. Tente novamente.");
+      console.error("Erro ao carregar compras:", purchasesError);
+    }
+  }, [purchasesData, purchasesError]);
+
   const [isAddCitiesModalOpen, setIsAddCitiesModalOpen] = useState(false);
   const [isAddingCity, setIsAddingCity] = useState(false);
   const [addCityError, setAddCityError] = useState<string | null>(null);
@@ -90,8 +111,9 @@ export function SubscriptionSection() {
         return;
       }
 
-      const response = await getPurchases(store.token);
-      setPurchases(response.data);
+      // Invalidar cache e recarregar purchases
+      clearPurchasesCache();
+      mutate(getPurchasesPATH);
     } catch (err: unknown) {
       console.error("Erro ao adicionar cidade:", err);
 
@@ -165,9 +187,9 @@ export function SubscriptionSection() {
 
       console.log("✅ Cidade atualizada com sucesso");
 
-      // Recarregar dados
-      const purchasesResponse = await getPurchases(store.token);
-      setPurchases(purchasesResponse.data);
+      // Invalidar cache e recarregar dados
+      clearPurchasesCache();
+      mutate(getPurchasesPATH);
 
       setIsEditCityModalOpen(false);
       setEditingCity(null);
@@ -221,27 +243,6 @@ export function SubscriptionSection() {
       setIsEditingCity(false);
     }
   };
-
-  useEffect(() => {
-    const loadPurchases = async () => {
-      if (!store.token) return;
-
-      try {
-        setIsLoading(true);
-        setError(null);
-        const response = await getPurchases(store.token);
-        setPurchases(response.data);
-        console.log(response.data);
-      } catch (err) {
-        console.error("Erro ao carregar compras:", err);
-        setError("Erro ao carregar dados da assinatura");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadPurchases();
-  }, [store.token]);
 
   const translateProductType = (type: ProductType): string => {
     const translations: Record<ProductType, string> = {

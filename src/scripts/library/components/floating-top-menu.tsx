@@ -30,11 +30,11 @@ import {
 import { useNavigate, useLocation } from "react-router";
 import { useAuth } from "../../modules/access-manager/auth.hook";
 import {
-  getAuthMe,
+  useGetAuthMe,
   type IGetAuthMeResponseSuccess,
 } from "../../../services/get-auth-me.service";
 import {
-  getPurchases,
+  useGetPurchases,
   type IGetPurchasesResponseSuccess,
 } from "../../../services/get-purchases.service";
 import isketLogo from "../../../assets/simbolo-isket.svg";
@@ -61,37 +61,15 @@ export function FloatingTopMenu() {
   );
   const [hoveredIcon, setHoveredIcon] = useState<string | null>(null);
 
-  // Carregar dados do perfil
+  // Data via SWR
+  const { data: meData } = useGetAuthMe();
+  const { data: purchasesData } = useGetPurchases();
   useEffect(() => {
-    const loadProfile = async () => {
-      if (!store.token) return;
-
-      try {
-        const response = await getAuthMe(store.token);
-        setProfileInfo(response.data);
-      } catch (error) {
-        console.error("Erro ao carregar perfil no menu:", error);
-      }
-    };
-
-    loadProfile();
-  }, [store.token]);
-
-  // Carregar dados de purchases
+    if (meData) setProfileInfo(meData);
+  }, [meData]);
   useEffect(() => {
-    const loadPurchases = async () => {
-      if (!store.token) return;
-
-      try {
-        const response = await getPurchases(store.token);
-        setPurchases(response.data);
-      } catch (error) {
-        console.error("Erro ao carregar purchases no menu:", error);
-      }
-    };
-
-    loadPurchases();
-  }, [store.token]);
+    if (purchasesData) setPurchases(purchasesData);
+  }, [purchasesData]);
 
   const allMenuItems = [
     {

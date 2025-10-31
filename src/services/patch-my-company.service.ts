@@ -1,5 +1,8 @@
-import axios, { type AxiosResponse } from "axios";
-import { endpoints } from "./helpers/endpoint.constant";
+import { type AxiosResponse } from "axios";
+import { useCallback } from "react";
+import { useAuth } from "../scripts/modules/access-manager/auth.hook";
+import { isketApiClient } from "./clients/isket-api.client";
+import { getHeader } from "./helpers/get-header-function";
 
 export interface IPatchMyCompanyRequest {
   name?: string;
@@ -41,16 +44,27 @@ export interface IPatchMyCompanyResponseSuccess {
   updatedAt: string;
 }
 
-export const patchMyCompanyURL = `${endpoints.api}/auth/companies/my-company`;
+export const patchMyCompanyPATH = "/auth/companies/my-company";
 
 export const patchMyCompany = (
   token: string,
   data: IPatchMyCompanyRequest
 ): Promise<AxiosResponse<IPatchMyCompanyResponseSuccess>> => {
-  return axios.patch<IPatchMyCompanyResponseSuccess>(patchMyCompanyURL, data, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-  });
+  return isketApiClient.patch<IPatchMyCompanyResponseSuccess>(
+    patchMyCompanyPATH,
+    data,
+    {
+      headers: getHeader({ token }),
+    }
+  );
+};
+
+export const useAuthedPatchMyCompany = () => {
+  const auth = useAuth();
+  const fn = useCallback(
+    (data: IPatchMyCompanyRequest) =>
+      patchMyCompany(auth.store.token as string, data),
+    [auth]
+  );
+  return fn;
 };

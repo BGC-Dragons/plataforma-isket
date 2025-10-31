@@ -1,4 +1,5 @@
-import axios, { type AxiosResponse } from "axios";
+import { type AxiosResponse } from "axios";
+import { isketApiClient } from "./clients/isket-api.client";
 import type { ErrorResponse } from "react-router";
 import { endpoints } from "./helpers/endpoint.constant";
 
@@ -26,5 +27,8 @@ export const postAuthLoginURL = `${endpoints.api}/auth/login`;
 export const postAuthLogin = (
   params: IPostAuthLoginParams
 ): Promise<AxiosResponse<IPostAuthLoginResponseSuccess>> => {
-  return axios.post<IPostAuthLoginResponseSuccess>(postAuthLoginURL, params);
+  return isketApiClient.post<IPostAuthLoginResponseSuccess>(
+    postAuthLoginURL,
+    params
+  );
 };

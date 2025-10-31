@@ -4,6 +4,7 @@ import { postAuthGoogle } from "../../../services/post-auth-google.service";
 import { postAuthRefreshToken } from "../../../services/post-auth-refresh-token.service";
 import { getAuthMe } from "../../../services/get-auth-me.service";
 import { setupAxiosInterceptors } from "../../../services/helpers/axios-interceptor.function";
+import { clearAllUserDataCache } from "../../../services/helpers/clear-swr-cache.function";
 import type { IAuthStore, IAuthUser } from "./auth.interface";
 import type { IAuth } from "./auth-context.types";
 import { AuthContext } from "./auth-context-definition";
@@ -96,6 +97,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       user: IAuthUser,
       redirect?: string
     ) => {
+      // Limpar cache do SWR antes de fazer login para evitar mostrar dados de usuário anterior
+      clearAllUserDataCache();
+      
       // Marcar que estamos fazendo login para evitar interferências
       setIsLoggingIn(true);
       setIsValidating(false);
@@ -153,6 +157,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const logout = useCallback(() => {
+    // Limpar cache do SWR antes de limpar o store
+    clearAllUserDataCache();
+    
     setStore({
       token: null,
       refreshToken: null,

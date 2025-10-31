@@ -1,5 +1,9 @@
-import axios, { type AxiosResponse } from "axios";
+import { type AxiosResponse } from "axios";
+import { useCallback } from "react";
 import { endpoints } from "./helpers/endpoint.constant";
+import { isketApiClient } from "./clients/isket-api.client";
+import { useAuth } from "../scripts/modules/access-manager/auth.hook";
+import { getHeader } from "./helpers/get-header-function";
 
 export interface IPostUsersInviteRequest {
   emails: string[];
@@ -23,10 +27,17 @@ export const postUsersInvite = (
   token: string,
   data: IPostUsersInviteRequest
 ): Promise<AxiosResponse<IUserInvite[]>> => {
-  return axios.post<IUserInvite[]>(postUsersInviteURL, data, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
+  return isketApiClient.post<IUserInvite[]>(postUsersInviteURL, data, {
+    headers: getHeader({ token }),
   });
+};
+
+export const useAuthedPostUsersInvite = () => {
+  const auth = useAuth();
+  const fn = useCallback(
+    (data: IPostUsersInviteRequest) =>
+      postUsersInvite(auth.store.token as string, data),
+    [auth]
+  );
+  return fn;
 };

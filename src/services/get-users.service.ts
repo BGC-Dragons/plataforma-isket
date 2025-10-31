@@ -1,5 +1,9 @@
-import axios, { type AxiosResponse } from "axios";
-import { endpoints } from "./helpers/endpoint.constant";
+import { type AxiosResponse } from "axios";
+import { useCallback } from "react";
+import useSWR, { mutate } from "swr";
+import { useAuth } from "../scripts/modules/access-manager/auth.hook";
+import { isketApiClient } from "./clients/isket-api.client";
+import { getHeader } from "./helpers/get-header-function";
 
 export interface IUserRole {
   id: string;
@@ -45,7 +49,7 @@ export interface IGetUsersResponseSuccess {
   updatedAt: string;
 }
 
-export const getUsersURL = `${endpoints.api}/auth/users`;
+export const getUsersPATH = "/auth/users";
 
 export const getUsers = (
   token: string,
@@ -56,10 +60,45 @@ export const getUsers = (
     role?: string;
   }
 ): Promise<AxiosResponse<IGetUsersResponseSuccess[]>> => {
-  return axios.get<IGetUsersResponseSuccess[]>(getUsersURL, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+  return isketApiClient.get<IGetUsersResponseSuccess[]>(getUsersPATH, {
+    headers: getHeader({ token }),
     params,
   });
+};
+
+export const useAuthedGetUsers = (params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  role?: string;
+}) => {
+  const auth = useAuth();
+  const fn = useCallback(
+    () => getUsers(auth.store.token as string, params),
+    [auth, params?.page, params?.limit, params?.search, params?.role]
+  );
+  return fn;
+};
+
+export const useGetUsers = (params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  role?: string;
+}) => {
+  const fetcher = useAuthedGetUsers(params);
+  const auth = useAuth();
+  // Incluir userId na chave para isolamento entre usuários
+  const cacheKey = auth.store.user?.id
+    ? [getUsersPATH, auth.store.user.id, params]
+    : null;
+  return useSWR(cacheKey, () => fetcher().then((r) => r.data), {
+    revalidateOnMount: true,
+  });
+};
+
+// Função para invalidar cache de users
+export const clearUsersCache = () => {
+  mutate(getUsersPATH);
+  mutate((key) => Array.isArray(key) && key[0] === getUsersPATH);
 };

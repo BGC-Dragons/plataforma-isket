@@ -1,5 +1,9 @@
-import axios, { type AxiosResponse } from "axios";
-import { endpoints } from "./helpers/endpoint.constant";
+import { type AxiosResponse } from "axios";
+import { useCallback } from "react";
+import useSWR, { mutate } from "swr";
+import { useAuth } from "../scripts/modules/access-manager/auth.hook";
+import { isketApiClient } from "./clients/isket-api.client";
+import { getHeader } from "./helpers/get-header-function";
 
 export type ProductUnitType =
   | "USERS"
@@ -70,14 +74,36 @@ export interface IGetPurchasesResponseSuccess {
   product: IProduct;
 }
 
-export const getPurchasesURL = `${endpoints.api}/payments/purchases`;
+export const getPurchasesPATH = "/payments/purchases";
 
 export const getPurchases = (
   token: string
 ): Promise<AxiosResponse<IGetPurchasesResponseSuccess[]>> => {
-  return axios.get<IGetPurchasesResponseSuccess[]>(getPurchasesURL, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+  return isketApiClient.get<IGetPurchasesResponseSuccess[]>(getPurchasesPATH, {
+    headers: getHeader({ token }),
   });
+};
+
+export const useAuthedGetPurchases = () => {
+  const auth = useAuth();
+  const fn = useCallback(() => getPurchases(auth.store.token as string), [auth]);
+  return fn;
+};
+
+export const useGetPurchases = () => {
+  const fetcher = useAuthedGetPurchases();
+  const auth = useAuth();
+  // Incluir userId na chave para isolamento entre usuários
+  const cacheKey = auth.store.user?.id
+    ? [getPurchasesPATH, auth.store.user.id]
+    : null;
+  return useSWR(cacheKey, () => fetcher().then((r) => r.data), {
+    revalidateOnMount: true,
+  });
+};
+
+// Função para invalidar cache de purchases
+export const clearPurchasesCache = () => {
+  mutate(getPurchasesPATH);
+  mutate((key) => Array.isArray(key) && key[0] === getPurchasesPATH);
 };

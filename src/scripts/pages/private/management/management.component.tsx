@@ -27,11 +27,11 @@ import {
 } from "@mui/icons-material";
 import { useAuth } from "../../../modules/access-manager/auth.hook";
 import {
-  getPurchases,
+  useGetPurchases,
   type IGetPurchasesResponseSuccess,
 } from "../../../../services/get-purchases.service";
 import {
-  getAuthMe,
+  useGetAuthMe,
   type IGetAuthMeResponseSuccess,
 } from "../../../../services/get-auth-me.service";
 import { ProfileSection } from "./profile/profile.component";
@@ -88,37 +88,15 @@ export function ManagementComponent() {
     }
   }, [location.search]);
 
-  // Carregar compras para verificar o tipo de conta
+  // Data via SWR
+  const { data: meData } = useGetAuthMe();
+  const { data: purchasesData } = useGetPurchases();
   useEffect(() => {
-    const loadPurchases = async () => {
-      if (!store.token) return;
-
-      try {
-        const response = await getPurchases(store.token);
-        setPurchases(response.data);
-      } catch (err) {
-        console.error("Erro ao carregar compras:", err);
-      }
-    };
-
-    loadPurchases();
-  }, [store.token]);
-
-  // Carregar dados do perfil
+    if (meData) setProfileInfo(meData);
+  }, [meData]);
   useEffect(() => {
-    const loadProfile = async () => {
-      if (!store.token) return;
-
-      try {
-        const response = await getAuthMe(store.token);
-        setProfileInfo(response.data);
-      } catch (error) {
-        console.error("Erro ao carregar perfil no management:", error);
-      }
-    };
-
-    loadProfile();
-  }, [store.token]);
+    if (purchasesData) setPurchases(purchasesData);
+  }, [purchasesData]);
 
   // Seção CONTA
   const accountMenuItems = [

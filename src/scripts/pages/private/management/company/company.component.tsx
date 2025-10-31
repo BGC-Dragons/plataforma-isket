@@ -12,7 +12,7 @@ import {
 import { Business, Save } from "@mui/icons-material";
 import { useAuth } from "../../../../modules/access-manager/auth.hook";
 import {
-  getMyCompany,
+  useGetMyCompany,
   type IGetMyCompanyResponseSuccess,
 } from "../../../../../services/get-my-company.service";
 import {
@@ -37,35 +37,32 @@ export function CompanySection() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Carregar dados da empresa
+  // Data via SWR
+  const { data: companyDataSWR, error: companyError, isLoading: isLoadingSWR } = useGetMyCompany();
+  
   useEffect(() => {
-    const loadCompanyData = async () => {
-      if (!store.token) return;
-
+    if (companyDataSWR) {
+      setCompanyData(companyDataSWR);
+      setFormData({
+        name: companyDataSWR.name || "",
+        nationalId: companyDataSWR.nationalId || "",
+        phoneNumber: companyDataSWR.profile?.phoneNumber
+          ? formatPhoneNumber(companyDataSWR.profile.phoneNumber)
+          : "",
+        site: companyDataSWR.profile?.site || "",
+        formattedAddress: companyDataSWR.profile?.formattedAddress || "",
+      });
+      setIsLoading(false);
+    }
+    if (companyError) {
+      setError("Erro ao carregar dados da empresa.");
+      console.error("Erro ao carregar dados da empresa:", companyError);
+      setIsLoading(false);
+    }
+    if (isLoadingSWR && !companyDataSWR) {
       setIsLoading(true);
-      setError(null);
-      try {
-        const response = await getMyCompany(store.token);
-        setCompanyData(response.data);
-        setFormData({
-          name: response.data.name || "",
-          nationalId: response.data.nationalId || "",
-          phoneNumber: response.data.profile?.phoneNumber
-            ? formatPhoneNumber(response.data.profile.phoneNumber)
-            : "",
-          site: response.data.profile?.site || "",
-          formattedAddress: response.data.profile?.formattedAddress || "",
-        });
-      } catch (err) {
-        setError("Erro ao carregar dados da empresa.");
-        console.error("Erro ao carregar dados da empresa:", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadCompanyData();
-  }, [store.token]);
+    }
+  }, [companyDataSWR, companyError, isLoadingSWR]);
 
   const formatPhoneNumber = (value: string) => {
     const numbers = value.replace(/\D/g, "");
