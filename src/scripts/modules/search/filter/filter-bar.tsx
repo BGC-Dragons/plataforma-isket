@@ -10,8 +10,9 @@ import {
   InputAdornment,
   Chip,
   CircularProgress,
+  IconButton,
 } from "@mui/material";
-import { Search, FilterList } from "@mui/icons-material";
+import { Search, FilterList, Close } from "@mui/icons-material";
 import { FilterModal } from "./filter-modal";
 import { useAuth } from "../../access-manager/auth.hook";
 import {
@@ -107,7 +108,7 @@ export function FilterBar({
   // Estados dos filtros
   const [tempFilters, setTempFilters] = useState<FilterState>({
     search: "",
-    cities: [defaultCity],
+    cities: [],
     neighborhoods: [],
     // Negócio
     venda: false,
@@ -178,7 +179,6 @@ export function FilterBar({
     useState<FilterState>(tempFilters);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [neighborhoods, setNeighborhoods] = useState<string[]>([]);
-  const [selectedNeighborhood, setSelectedNeighborhood] = useState<string>("");
   const [isLoadingNeighborhoods, setIsLoadingNeighborhoods] = useState(false);
   const [neighborhoodsLoaded, setNeighborhoodsLoaded] = useState(false);
 
@@ -187,13 +187,25 @@ export function FilterBar({
     setTempFilters((prev) => ({ ...prev, ...updates }));
   }, []);
 
-  // Resetar bairros quando a cidade mudar
-  const handleCityChange = useCallback((city: string) => {
-    handleFilterChange({ cities: [city] });
+  // Resetar bairros quando as cidades mudarem
+  const handleCityChange = useCallback((cities: string[]) => {
+    setTempFilters((prev) => ({
+      ...prev,
+      cities,
+      // Limpar bairros quando as cidades mudarem (serão recarregados)
+      neighborhoods: [],
+    }));
     setNeighborhoods([]);
-    setSelectedNeighborhood("");
     setNeighborhoodsLoaded(false);
-  }, [handleFilterChange]);
+  }, []);
+
+  // Função para limpar todas as cidades selecionadas
+  const handleClearCities = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Limpar todas as cidades (deixar vazio para que o select fique disabled)
+    handleCityChange([]);
+  }, [handleCityChange]);
 
   // Função para buscar bairros da API
   const loadNeighborhoods = useCallback(async () => {
@@ -201,10 +213,12 @@ export function FilterBar({
       return;
     }
 
-    const selectedCity = tempFilters.cities[0];
-    const cityStateCode = cityToCodeMap[selectedCity];
+    // Obter códigos das cidades selecionadas
+    const cityStateCodes = tempFilters.cities
+      .map((city) => cityToCodeMap[city])
+      .filter((code): code is string => Boolean(code));
 
-    if (!cityStateCode) {
+    if (cityStateCodes.length === 0) {
       setNeighborhoods([]);
       return;
     }
@@ -212,7 +226,7 @@ export function FilterBar({
     setIsLoadingNeighborhoods(true);
     try {
       const response = await postNeighborhoodsFindManyByCities(
-        { cityStateCodes: [cityStateCode] },
+        { cityStateCodes },
         store.token
       );
 
@@ -276,32 +290,23 @@ export function FilterBar({
 
   // Função para pesquisar
   const handleSearch = useCallback(() => {
-    const searchFilters = {
-      ...tempFilters,
-      neighborhoods: selectedNeighborhood ? [selectedNeighborhood] : [],
-    };
-    setAppliedFilters(searchFilters);
-    onFiltersChange(searchFilters);
-  }, [tempFilters, selectedNeighborhood, onFiltersChange]);
+    setAppliedFilters(tempFilters);
+    onFiltersChange(tempFilters);
+  }, [tempFilters, onFiltersChange]);
 
-  // Função para lidar com mudança de bairro
-  const handleNeighborhoodChange = useCallback((neighborhood: string) => {
-    setSelectedNeighborhood(neighborhood);
+  // Função para lidar com mudança de bairros
+  const handleNeighborhoodChange = useCallback((neighborhoods: string[]) => {
     setTempFilters((prev) => ({
       ...prev,
-      neighborhoods: neighborhood ? [neighborhood] : [],
+      neighborhoods,
     }));
   }, []);
 
   // Função para limpar todos os filtros
   const clearAllFilters = useCallback(() => {
-    setSelectedNeighborhood("");
-    // Preservar a cidade atual (não resetar para defaultCity)
-    const currentCity = tempFilters.cities.length > 0 ? tempFilters.cities : appliedFilters.cities.length > 0 ? appliedFilters.cities : [defaultCity];
-    
     const clearedFilters: FilterState = {
       search: "",
-      cities: currentCity,
+      cities: [],
       neighborhoods: [],
       // Negócio
       venda: false,
@@ -523,12 +528,73 @@ export function FilterBar({
           }}
         >
           <Select
-            value={tempFilters.cities.length > 0 ? tempFilters.cities[0] : (appliedFilters.cities.length > 0 ? appliedFilters.cities[0] : defaultCity)}
-            onChange={(e) => handleCityChange(e.target.value)}
+            multiple
+            value={tempFilters.cities}
+            onChange={(e) => handleCityChange(typeof e.target.value === 'string' ? [e.target.value] : e.target.value)}
             displayEmpty
             size="small"
+            renderValue={(selected) => {
+              const selectedArray = selected as string[];
+              // Mostrar botão de limpar se houver cidades selecionadas
+              const showClearButton = selectedArray.length > 0;
+              
+              if (selectedArray.length === 0) {
+                return <em>Selecione cidades</em>;
+              }
+              
+              return (
+                <Box 
+                  sx={{ display: 'flex', alignItems: 'center', gap: 0.5, width: '100%', position: 'relative' }}
+                  onMouseDown={(e) => {
+                    // Prevenir que o select abra quando clicar no botão de limpar
+                    const target = e.target as HTMLElement;
+                    if (target.closest('button')) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }
+                  }}
+                >
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, flex: 1, minWidth: 0 }}>
+                    {selectedArray.length <= 2 ? (
+                      selectedArray.map((city) => (
+                        <Chip key={city} label={city} size="small" />
+                      ))
+                    ) : (
+                      <>
+                        {selectedArray.slice(0, 2).map((city) => (
+                          <Chip key={city} label={city} size="small" />
+                        ))}
+                        <Chip label={`+${selectedArray.length - 2}`} size="small" />
+                      </>
+                    )}
+                  </Box>
+                  {showClearButton && (
+                    <IconButton
+                      size="small"
+                      onClick={handleClearCities}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
+                      sx={{
+                        flexShrink: 0,
+                        p: 0.25,
+                        color: theme.palette.text.secondary,
+                        pointerEvents: 'auto',
+                        '&:hover': {
+                          color: theme.palette.error.main,
+                          backgroundColor: theme.palette.error.light,
+                        },
+                      }}
+                    >
+                      <Close fontSize="small" />
+                    </IconButton>
+                  )}
+                </Box>
+              );
+            }}
             sx={{
-              minWidth: 100,
+              minWidth: 150,
               borderRadius: 2,
               "& .MuiOutlinedInput-notchedOutline": {
                 borderColor: theme.palette.divider,
@@ -542,6 +608,13 @@ export function FilterBar({
                 "& .MuiInputBase-root": {
                   height: 36,
                   fontSize: "0.875rem",
+                },
+              },
+            }}
+            MenuProps={{
+              PaperProps: {
+                style: {
+                  maxHeight: 300,
                 },
               },
             }}
@@ -555,14 +628,41 @@ export function FilterBar({
 
           {/* Seletor de Bairros */}
           <Select
-            value={selectedNeighborhood}
-            onChange={(e) => handleNeighborhoodChange(e.target.value)}
+            multiple
+            value={tempFilters.neighborhoods}
+            onChange={(e) => handleNeighborhoodChange(typeof e.target.value === 'string' ? [e.target.value] : e.target.value)}
             onOpen={handleNeighborhoodSelectOpen}
             displayEmpty
             size="small"
-            disabled={tempFilters.cities.length === 0 || isLoadingNeighborhoods}
+            disabled={
+              tempFilters.cities.length === 0 ||
+              isLoadingNeighborhoods
+            }
+            renderValue={(selected) => {
+              const selectedArray = selected as string[];
+              if (selectedArray.length === 0) {
+                return <em>Todos os bairros</em>;
+              }
+              if (selectedArray.length <= 2) {
+                return (
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    {selectedArray.map((neighborhood) => (
+                      <Chip key={neighborhood} label={neighborhood} size="small" />
+                    ))}
+                  </Box>
+                );
+              }
+              return (
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                  {selectedArray.slice(0, 2).map((neighborhood) => (
+                    <Chip key={neighborhood} label={neighborhood} size="small" />
+                  ))}
+                  <Chip label={`+${selectedArray.length - 2}`} size="small" />
+                </Box>
+              );
+            }}
             sx={{
-              minWidth: 100,
+              minWidth: 150,
               borderRadius: 2,
               "& .MuiOutlinedInput-notchedOutline": {
                 borderColor: theme.palette.divider,
@@ -579,10 +679,14 @@ export function FilterBar({
                 },
               },
             }}
+            MenuProps={{
+              PaperProps: {
+                style: {
+                  maxHeight: 300,
+                },
+              },
+            }}
           >
-            <MenuItem value="">
-              <em>Todos os bairros</em>
-            </MenuItem>
             {isLoadingNeighborhoods ? (
               <MenuItem disabled>
                 <CircularProgress size={16} sx={{ mr: 1 }} />
