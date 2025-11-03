@@ -302,6 +302,13 @@ export function FilterBar({
     }));
   }, []);
 
+  // Função para limpar todos os bairros selecionados
+  const handleClearNeighborhoods = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleNeighborhoodChange([]);
+  }, [handleNeighborhoodChange]);
+
   // Função para limpar todos os filtros
   const clearAllFilters = useCallback(() => {
     const clearedFilters: FilterState = {
@@ -640,24 +647,60 @@ export function FilterBar({
             }
             renderValue={(selected) => {
               const selectedArray = selected as string[];
+              const showClearButton = selectedArray.length > 0;
+              
               if (selectedArray.length === 0) {
                 return <em>Todos os bairros</em>;
               }
-              if (selectedArray.length <= 2) {
-                return (
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                    {selectedArray.map((neighborhood) => (
-                      <Chip key={neighborhood} label={neighborhood} size="small" />
-                    ))}
-                  </Box>
-                );
-              }
+              
               return (
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                  {selectedArray.slice(0, 2).map((neighborhood) => (
-                    <Chip key={neighborhood} label={neighborhood} size="small" />
-                  ))}
-                  <Chip label={`+${selectedArray.length - 2}`} size="small" />
+                <Box 
+                  sx={{ display: 'flex', alignItems: 'center', gap: 0.5, width: '100%', position: 'relative' }}
+                  onMouseDown={(e) => {
+                    // Prevenir que o select abra quando clicar no botão de limpar
+                    const target = e.target as HTMLElement;
+                    if (target.closest('button')) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }
+                  }}
+                >
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, flex: 1, minWidth: 0 }}>
+                    {selectedArray.length <= 2 ? (
+                      selectedArray.map((neighborhood) => (
+                        <Chip key={neighborhood} label={neighborhood} size="small" />
+                      ))
+                    ) : (
+                      <>
+                        {selectedArray.slice(0, 2).map((neighborhood) => (
+                          <Chip key={neighborhood} label={neighborhood} size="small" />
+                        ))}
+                        <Chip label={`+${selectedArray.length - 2}`} size="small" />
+                      </>
+                    )}
+                  </Box>
+                  {showClearButton && (
+                    <IconButton
+                      size="small"
+                      onClick={handleClearNeighborhoods}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
+                      sx={{
+                        flexShrink: 0,
+                        p: 0.25,
+                        color: theme.palette.text.secondary,
+                        pointerEvents: 'auto',
+                        '&:hover': {
+                          color: theme.palette.error.main,
+                          backgroundColor: theme.palette.error.light,
+                        },
+                      }}
+                    >
+                      <Close fontSize="small" />
+                    </IconButton>
+                  )}
                 </Box>
               );
             }}
