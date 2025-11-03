@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router";
 import {
   Box,
@@ -39,6 +39,10 @@ import { PropertyDetails } from "../../../modules/search/property-details/proper
 import { MapComponent } from "../../../modules/search/map/map";
 import { filterPropertiesByOverlay } from "../../../modules/search/map/map-utils";
 import { CustomPagination } from "../../../library/components/custom-pagination";
+import {
+  useGetPurchases,
+  type IGetPurchasesResponseSuccess,
+} from "../../../../services/get-purchases.service";
 
 // Interface para os dados das propriedades
 interface PropertyData {
@@ -563,6 +567,68 @@ export function SearchComponent() {
     noSsr: true,
   });
 
+  // Obter compras para extrair cidades disponíveis
+  const { data: purchasesData } = useGetPurchases();
+
+  // Função para converter cityStateCode (ex: "flores_da_cunha_rs") para formato de exibição (ex: "FLORES DA CUNHA")
+  const formatCityNameFromCode = useCallback(
+    (cityStateCode: string): string => {
+      const cityParts = cityStateCode.split("_");
+      const cityName = cityParts
+        .slice(0, -1)
+        .join(" ")
+        .toUpperCase();
+      return cityName;
+    },
+    []
+  );
+
+  // Extrair cidades disponíveis das compras e criar mapeamento cidade -> cityStateCode
+  const { availableCities, cityToCodeMap } = useMemo(() => {
+    if (!purchasesData || purchasesData.length === 0) {
+      return {
+        availableCities: ["CURITIBA"],
+        cityToCodeMap: {} as Record<string, string>,
+      };
+    }
+
+    const citiesSet = new Set<string>();
+    const cityToCode: Record<string, string> = {};
+
+    purchasesData.forEach((purchase: IGetPurchasesResponseSuccess) => {
+      // Adicionar cidade padrão
+      if (purchase.defaultCityStateCode) {
+        const cityName = formatCityNameFromCode(purchase.defaultCityStateCode);
+        citiesSet.add(cityName);
+        cityToCode[cityName] = purchase.defaultCityStateCode;
+      }
+
+      // Adicionar cidades escolhidas
+      if (purchase.chosenCityCodes && purchase.chosenCityCodes.length > 0) {
+        purchase.chosenCityCodes.forEach((cityCode) => {
+          const cityName = formatCityNameFromCode(cityCode);
+          citiesSet.add(cityName);
+          cityToCode[cityName] = cityCode;
+        });
+      }
+    });
+
+    // Converter para array e ordenar
+    const citiesArray = Array.from(citiesSet).sort((a, b) =>
+      a.localeCompare(b, "pt-BR")
+    );
+
+    return {
+      availableCities: citiesArray,
+      cityToCodeMap: cityToCode,
+    };
+  }, [purchasesData, formatCityNameFromCode]);
+
+  // Cidade padrão (primeira cidade disponível ou fallback)
+  const defaultCity = useMemo(() => {
+    return availableCities.length > 0 ? availableCities[0] : "CURITIBA";
+  }, [availableCities]);
+
   // Detectar quando há um propertyId na URL
   useEffect(() => {
     if (propertyId) {
@@ -586,15 +652,6 @@ export function SearchComponent() {
     };
   }, []);
 
-  // Função para carregar bairros (mockada)
-  const loadNeighborhoods = useCallback(
-    async (city: string): Promise<string[]> => {
-      // Simula delay de API
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      return mockNeighborhoods[city] || [];
-    },
-    []
-  );
 
   // Função para ordenar propriedades
   const sortProperties = useCallback(
@@ -974,9 +1031,9 @@ export function SearchComponent() {
           >
             <FilterBar
               onFiltersChange={applyFilters}
-              defaultCity="CURITIBA"
-              availableCities={["CURITIBA", "SÃO PAULO", "RIO DE JANEIRO"]}
-              onNeighborhoodsLoad={loadNeighborhoods}
+              defaultCity={defaultCity}
+              availableCities={availableCities}
+              cityToCodeMap={cityToCodeMap}
             />
           </Box>
 
@@ -1210,9 +1267,9 @@ export function SearchComponent() {
               <Box sx={{ mb: 3 }}>
                 <FilterBar
                   onFiltersChange={applyFilters}
-                  defaultCity="CURITIBA"
-                  availableCities={["CURITIBA", "SÃO PAULO", "RIO DE JANEIRO"]}
-                  onNeighborhoodsLoad={loadNeighborhoods}
+                  defaultCity={defaultCity}
+                  availableCities={availableCities}
+                  cityToCodeMap={cityToCodeMap}
                 />
               </Box>
 

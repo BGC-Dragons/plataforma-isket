@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import {
   Box,
   TextField,
@@ -9,9 +9,15 @@ import {
   MenuItem,
   InputAdornment,
   Chip,
+  CircularProgress,
 } from "@mui/material";
 import { Search, FilterList } from "@mui/icons-material";
 import { FilterModal } from "./filter-modal";
+import { useAuth } from "../../access-manager/auth.hook";
+import {
+  postNeighborhoodsFindManyByCities,
+  type INeighborhood,
+} from "../../../../services/post-locations-neighborhoods-find-many-by-cities.service";
 
 interface FilterState {
   search: string;
@@ -83,16 +89,17 @@ interface FilterBarProps {
   onFiltersChange: (filters: FilterState) => void;
   defaultCity?: string;
   availableCities?: string[];
-  onNeighborhoodsLoad?: (city: string) => Promise<string[]>;
+  cityToCodeMap?: Record<string, string>;
 }
 
 export function FilterBar({
   onFiltersChange,
   defaultCity = "CURITIBA",
   availableCities = ["CURITIBA", "SÃO PAULO", "RIO DE JANEIRO"],
-  onNeighborhoodsLoad,
+  cityToCodeMap = {},
 }: FilterBarProps) {
   const theme = useTheme();
+  const { store } = useAuth();
 
   // Estados dos filtros
   const [tempFilters, setTempFilters] = useState<FilterState>({
@@ -166,18 +173,67 @@ export function FilterBar({
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [neighborhoods, setNeighborhoods] = useState<string[]>([]);
   const [selectedNeighborhood, setSelectedNeighborhood] = useState<string>("");
-
-  // Carregar bairros quando a cidade mudar
-  useEffect(() => {
-    if (onNeighborhoodsLoad && tempFilters.cities.length > 0) {
-      onNeighborhoodsLoad(tempFilters.cities[0]).then(setNeighborhoods);
-    }
-  }, [tempFilters.cities, onNeighborhoodsLoad]);
+  const [isLoadingNeighborhoods, setIsLoadingNeighborhoods] = useState(false);
+  const [neighborhoodsLoaded, setNeighborhoodsLoaded] = useState(false);
 
   // Função para atualizar filtros
   const handleFilterChange = useCallback((updates: Partial<FilterState>) => {
     setTempFilters((prev) => ({ ...prev, ...updates }));
   }, []);
+
+  // Resetar bairros quando a cidade mudar
+  const handleCityChange = useCallback((city: string) => {
+    handleFilterChange({ cities: [city] });
+    setNeighborhoods([]);
+    setSelectedNeighborhood("");
+    setNeighborhoodsLoaded(false);
+  }, [handleFilterChange]);
+
+  // Função para buscar bairros da API
+  const loadNeighborhoods = useCallback(async () => {
+    if (!store.token || tempFilters.cities.length === 0) {
+      return;
+    }
+
+    const selectedCity = tempFilters.cities[0];
+    const cityStateCode = cityToCodeMap[selectedCity];
+
+    if (!cityStateCode) {
+      setNeighborhoods([]);
+      return;
+    }
+
+    setIsLoadingNeighborhoods(true);
+    try {
+      const response = await postNeighborhoodsFindManyByCities(
+        { cityStateCodes: [cityStateCode] },
+        store.token
+      );
+
+      // Extrair nomes dos bairros da resposta
+      const neighborhoodNames = response.data.map((neighborhood: INeighborhood) => neighborhood.name);
+      
+      // Remover duplicatas e ordenar
+      const uniqueNeighborhoods = Array.from(new Set(neighborhoodNames)).sort((a, b) =>
+        a.localeCompare(b, "pt-BR")
+      );
+
+      setNeighborhoods(uniqueNeighborhoods);
+      setNeighborhoodsLoaded(true);
+    } catch (error) {
+      console.error("Erro ao carregar bairros:", error);
+      setNeighborhoods([]);
+    } finally {
+      setIsLoadingNeighborhoods(false);
+    }
+  }, [store.token, tempFilters.cities, cityToCodeMap]);
+
+  // Função para lidar com abertura do select de bairros
+  const handleNeighborhoodSelectOpen = useCallback(() => {
+    if (!neighborhoodsLoaded && !isLoadingNeighborhoods) {
+      loadNeighborhoods();
+    }
+  }, [neighborhoodsLoaded, isLoadingNeighborhoods, loadNeighborhoods]);
 
   // Função para aplicar filtros do modal
   const handleApplyFilters = useCallback(
@@ -440,7 +496,7 @@ export function FilterBar({
         >
           <Select
             value={tempFilters.cities[0] || ""}
-            onChange={(e) => handleFilterChange({ cities: [e.target.value] })}
+            onChange={(e) => handleCityChange(e.target.value)}
             displayEmpty
             size="small"
             sx={{
@@ -473,9 +529,10 @@ export function FilterBar({
           <Select
             value={selectedNeighborhood}
             onChange={(e) => handleNeighborhoodChange(e.target.value)}
+            onOpen={handleNeighborhoodSelectOpen}
             displayEmpty
             size="small"
-            disabled={neighborhoods.length === 0}
+            disabled={tempFilters.cities.length === 0 || isLoadingNeighborhoods}
             sx={{
               minWidth: 100,
               borderRadius: 2,
@@ -498,11 +555,18 @@ export function FilterBar({
             <MenuItem value="">
               <em>Todos os bairros</em>
             </MenuItem>
-            {neighborhoods.map((neighborhood) => (
-              <MenuItem key={neighborhood} value={neighborhood}>
-                {neighborhood}
+            {isLoadingNeighborhoods ? (
+              <MenuItem disabled>
+                <CircularProgress size={16} sx={{ mr: 1 }} />
+                Carregando...
               </MenuItem>
-            ))}
+            ) : (
+              neighborhoods.map((neighborhood) => (
+                <MenuItem key={neighborhood} value={neighborhood}>
+                  {neighborhood}
+                </MenuItem>
+              ))
+            )}
           </Select>
         </Box>
 

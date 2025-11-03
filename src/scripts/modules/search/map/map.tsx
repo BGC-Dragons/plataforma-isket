@@ -22,7 +22,6 @@ import {
   DirectionsCar,
   SquareFoot,
   Edit,
-  CropSquare,
   RadioButtonUnchecked,
   Stop,
   Delete,
@@ -120,8 +119,12 @@ export function MapComponent({
   const [freehandActive, setFreehandActive] = useState<boolean>(false);
   const isMouseDownRef = useRef<boolean>(false);
   const freehandPolylineRef = useRef<google.maps.Polyline | null>(null);
-  const mouseMoveListenerRef = useRef<google.maps.MapsEventListener | null>(null);
-  const mouseDownListenerRef = useRef<google.maps.MapsEventListener | null>(null);
+  const mouseMoveListenerRef = useRef<google.maps.MapsEventListener | null>(
+    null
+  );
+  const mouseDownListenerRef = useRef<google.maps.MapsEventListener | null>(
+    null
+  );
   const mouseUpListenerRef = useRef<google.maps.MapsEventListener | null>(null);
   // Carrega o script do Google Maps
   const { isLoaded, loadError } = useLoadScript({
@@ -199,29 +202,35 @@ export function MapComponent({
     map.setOptions({ draggable: false });
     map.setOptions({ draggableCursor: "crosshair" });
 
-    mouseDownListenerRef.current = map.addListener("mousedown", (e: google.maps.MapMouseEvent) => {
-      isMouseDownRef.current = true;
-      // Inicia um novo traço
-      if (freehandPolylineRef.current) {
-        freehandPolylineRef.current.setMap(null);
-        freehandPolylineRef.current = null;
+    mouseDownListenerRef.current = map.addListener(
+      "mousedown",
+      (e: google.maps.MapMouseEvent) => {
+        isMouseDownRef.current = true;
+        // Inicia um novo traço
+        if (freehandPolylineRef.current) {
+          freehandPolylineRef.current.setMap(null);
+          freehandPolylineRef.current = null;
+        }
+        freehandPolylineRef.current = new google.maps.Polyline({
+          map,
+          clickable: false,
+          strokeColor: "#4285F4",
+          strokeOpacity: 0.8,
+          strokeWeight: 2,
+        });
+        const path = freehandPolylineRef.current.getPath();
+        if (e.latLng) path.push(e.latLng);
       }
-      freehandPolylineRef.current = new google.maps.Polyline({
-        map,
-        clickable: false,
-        strokeColor: "#4285F4",
-        strokeOpacity: 0.8,
-        strokeWeight: 2,
-      });
-      const path = freehandPolylineRef.current.getPath();
-      if (e.latLng) path.push(e.latLng);
-    });
+    );
 
-    mouseMoveListenerRef.current = map.addListener("mousemove", (e: google.maps.MapMouseEvent) => {
-      if (!isMouseDownRef.current || !freehandPolylineRef.current) return;
-      const path = freehandPolylineRef.current.getPath();
-      if (e.latLng) path.push(e.latLng);
-    });
+    mouseMoveListenerRef.current = map.addListener(
+      "mousemove",
+      (e: google.maps.MapMouseEvent) => {
+        if (!isMouseDownRef.current || !freehandPolylineRef.current) return;
+        const path = freehandPolylineRef.current.getPath();
+        if (e.latLng) path.push(e.latLng);
+      }
+    );
 
     mouseUpListenerRef.current = map.addListener("mouseup", () => {
       if (!freehandPolylineRef.current) return;
