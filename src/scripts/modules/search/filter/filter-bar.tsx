@@ -83,6 +83,9 @@ interface FilterState {
   proprietario_direto: boolean;
   imobiliaria: boolean;
   portal: boolean;
+  // Opcionais
+  lancamento: boolean;
+  palavras_chave: string;
 }
 
 interface FilterBarProps {
@@ -166,6 +169,9 @@ export function FilterBar({
     proprietario_direto: false,
     imobiliaria: false,
     portal: false,
+    // Opcionais
+    lancamento: false,
+    palavras_chave: "",
   });
 
   const [appliedFilters, setAppliedFilters] =
@@ -238,10 +244,22 @@ export function FilterBar({
   // Função para aplicar filtros do modal
   const handleApplyFilters = useCallback(
     (filters: FilterState) => {
-      setAppliedFilters(filters);
-      onFiltersChange(filters);
+      // Preservar a cidade atual se não estiver nos filtros aplicados
+      const currentCity = tempFilters.cities.length > 0 
+        ? tempFilters.cities 
+        : appliedFilters.cities.length > 0 
+        ? appliedFilters.cities 
+        : [defaultCity];
+      
+      const filtersWithCity = {
+        ...filters,
+        cities: filters.cities.length > 0 ? filters.cities : currentCity,
+      };
+      setAppliedFilters(filtersWithCity);
+      setTempFilters(filtersWithCity);
+      onFiltersChange(filtersWithCity);
     },
-    [onFiltersChange]
+    [onFiltersChange, tempFilters.cities, appliedFilters.cities, defaultCity]
   );
 
   // Função para toggle de checkboxes
@@ -278,9 +296,12 @@ export function FilterBar({
   // Função para limpar todos os filtros
   const clearAllFilters = useCallback(() => {
     setSelectedNeighborhood("");
+    // Preservar a cidade atual (não resetar para defaultCity)
+    const currentCity = tempFilters.cities.length > 0 ? tempFilters.cities : appliedFilters.cities.length > 0 ? appliedFilters.cities : [defaultCity];
+    
     const clearedFilters: FilterState = {
       search: "",
-      cities: [defaultCity],
+      cities: currentCity,
       neighborhoods: [],
       // Negócio
       venda: false,
@@ -342,6 +363,9 @@ export function FilterBar({
       proprietario_direto: false,
       imobiliaria: false,
       portal: false,
+      // Opcionais
+      lancamento: false,
+      palavras_chave: "",
     };
     setTempFilters(clearedFilters);
     setAppliedFilters(clearedFilters);
@@ -428,6 +452,10 @@ export function FilterBar({
     )
       count++;
 
+    // Opcionais
+    if (appliedFilters.lancamento) count++;
+    if (appliedFilters.palavras_chave) count++;
+
     return count;
   };
 
@@ -495,7 +523,7 @@ export function FilterBar({
           }}
         >
           <Select
-            value={tempFilters.cities[0] || ""}
+            value={tempFilters.cities.length > 0 ? tempFilters.cities[0] : (appliedFilters.cities.length > 0 ? appliedFilters.cities[0] : defaultCity)}
             onChange={(e) => handleCityChange(e.target.value)}
             displayEmpty
             size="small"
@@ -686,104 +714,6 @@ export function FilterBar({
             {getActiveFiltersCount() > 0 && `(${getActiveFiltersCount()})`}
           </Button>
         </Box>
-
-        {/* Chips dos Filtros Ativos */}
-        {getActiveFiltersCount() > 0 && (
-          <Box
-            sx={{
-              display: "flex",
-              gap: 1,
-              flexWrap: "wrap",
-              mt: 1,
-              width: "100%",
-            }}
-          >
-            {appliedFilters.venda && (
-              <Chip
-                label="Venda"
-                onDelete={() => handleCheckboxChange("venda")}
-                size="small"
-                sx={{ borderRadius: 2 }}
-              />
-            )}
-            {appliedFilters.aluguel && (
-              <Chip
-                label="Aluguel"
-                onDelete={() => handleCheckboxChange("aluguel")}
-                size="small"
-                sx={{ borderRadius: 2 }}
-              />
-            )}
-            {appliedFilters.residencial && (
-              <Chip
-                label="Residencial"
-                onDelete={() => handleCheckboxChange("residencial")}
-                size="small"
-                sx={{ borderRadius: 2 }}
-              />
-            )}
-            {appliedFilters.comercial && (
-              <Chip
-                label="Comercial"
-                onDelete={() => handleCheckboxChange("comercial")}
-                size="small"
-                sx={{ borderRadius: 2 }}
-              />
-            )}
-            {appliedFilters.industrial && (
-              <Chip
-                label="Industrial"
-                onDelete={() => handleCheckboxChange("industrial")}
-                size="small"
-                sx={{ borderRadius: 2 }}
-              />
-            )}
-            {appliedFilters.agricultura && (
-              <Chip
-                label="Agricultura"
-                onDelete={() => handleCheckboxChange("agricultura")}
-                size="small"
-                sx={{ borderRadius: 2 }}
-              />
-            )}
-            {appliedFilters.proprietario_direto && (
-              <Chip
-                label="Proprietário Direto"
-                onDelete={() => handleCheckboxChange("proprietario_direto")}
-                size="small"
-                sx={{ borderRadius: 2 }}
-              />
-            )}
-            {appliedFilters.imobiliaria && (
-              <Chip
-                label="Imobiliária"
-                onDelete={() => handleCheckboxChange("imobiliaria")}
-                size="small"
-                sx={{ borderRadius: 2 }}
-              />
-            )}
-            {appliedFilters.portal && (
-              <Chip
-                label="Portal"
-                onDelete={() => handleCheckboxChange("portal")}
-                size="small"
-                sx={{ borderRadius: 2 }}
-              />
-            )}
-            {appliedFilters.neighborhoods.map((neighborhood) => (
-              <Chip
-                key={neighborhood}
-                label={neighborhood}
-                onDelete={() => {
-                  setSelectedNeighborhood("");
-                  handleNeighborhoodChange("");
-                }}
-                size="small"
-                sx={{ borderRadius: 2 }}
-              />
-            ))}
-          </Box>
-        )}
       </Paper>
 
       <FilterModal
@@ -791,6 +721,7 @@ export function FilterBar({
         onClose={() => setIsFilterModalOpen(false)}
         onApplyFilters={handleApplyFilters}
         onClearFilters={clearAllFilters}
+        initialFilters={appliedFilters}
       />
     </>
   );

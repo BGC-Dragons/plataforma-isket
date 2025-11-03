@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -26,6 +26,7 @@ interface FilterModalProps {
   onClose: () => void;
   onApplyFilters: (filters: FilterState) => void;
   onClearFilters?: () => void;
+  initialFilters?: FilterState;
 }
 
 interface FilterState {
@@ -102,11 +103,12 @@ export const FilterModal: React.FC<FilterModalProps> = ({
   onClose,
   onApplyFilters,
   onClearFilters,
+  initialFilters,
 }) => {
   const [areaRange, setAreaRange] = useState<number[]>([0, 1000000]);
   const [precoRange, setPrecoRange] = useState<number[]>([0, 100000000]);
 
-  const [filters, setFilters] = useState<FilterState>({
+  const getDefaultFilters = (): FilterState => ({
     search: "",
     cities: [],
     neighborhoods: [],
@@ -175,6 +177,21 @@ export const FilterModal: React.FC<FilterModalProps> = ({
     palavras_chave: "",
   });
 
+  const [filters, setFilters] = useState<FilterState>(getDefaultFilters());
+  const prevIsOpenRef = useRef(false);
+
+  // Sincronizar filtros quando o modal abre
+  useEffect(() => {
+    // Sincronizar apenas quando o modal muda de fechado para aberto
+    if (isOpen && !prevIsOpenRef.current && initialFilters) {
+      // Sincronizar com os filtros aplicados quando o modal abre
+      setFilters(initialFilters);
+      setAreaRange([initialFilters.area_min, initialFilters.area_max]);
+      setPrecoRange([initialFilters.preco_min, initialFilters.preco_max]);
+    }
+    prevIsOpenRef.current = isOpen;
+  }, [isOpen, initialFilters]);
+
   const handleCheckboxChange = (filterType: keyof FilterState) => {
     setFilters((prev) => ({
       ...prev,
@@ -214,84 +231,106 @@ export const FilterModal: React.FC<FilterModalProps> = ({
   };
 
   const handleApplyFilters = () => {
-    onApplyFilters(filters);
+    // Preservar a cidade se não estiver nos filtros
+    const filtersWithCity = {
+      ...filters,
+      cities:
+        filters.cities.length > 0
+          ? filters.cities
+          : initialFilters?.cities && initialFilters.cities.length > 0
+          ? initialFilters.cities
+          : [],
+    };
+    onApplyFilters(filtersWithCity);
     onClose();
   };
 
   const handleClearFilters = () => {
+    // Preservar a cidade atual dos filtros iniciais
+    const preservedCity =
+      initialFilters?.cities && initialFilters.cities.length > 0
+        ? initialFilters.cities
+        : [];
+
+    setAreaRange([0, 1000000]);
+    setPrecoRange([0, 100000000]);
+
+    const clearedFilters: FilterState = {
+      search: "",
+      cities: preservedCity,
+      neighborhoods: [],
+      // Negócio
+      venda: false,
+      aluguel: false,
+      // Finalidade
+      residencial: false,
+      comercial: false,
+      industrial: false,
+      agricultura: false,
+      // Apartamentos
+      apartamento_padrao: false,
+      apartamento_flat: false,
+      apartamento_loft: false,
+      apartamento_studio: false,
+      apartamento_duplex: false,
+      apartamento_triplex: false,
+      apartamento_cobertura: false,
+      // Comerciais
+      comercial_sala: false,
+      comercial_casa: false,
+      comercial_ponto: false,
+      comercial_galpao: false,
+      comercial_loja: false,
+      comercial_predio: false,
+      comercial_clinica: false,
+      comercial_coworking: false,
+      comercial_sobreloja: false,
+      // Casas e Sítios
+      casa_casa: false,
+      casa_sobrado: false,
+      casa_sitio: false,
+      casa_chale: false,
+      casa_chacara: false,
+      casa_edicula: false,
+      // Terrenos
+      terreno_terreno: false,
+      terreno_fazenda: false,
+      // Outros
+      outros_garagem: false,
+      outros_quarto: false,
+      outros_resort: false,
+      outros_republica: false,
+      outros_box: false,
+      outros_tombado: false,
+      outros_granja: false,
+      outros_haras: false,
+      outros_outros: false,
+      // Cômodos
+      quartos: null,
+      banheiros: null,
+      suites: null,
+      garagem: null,
+      // Sliders
+      area_min: 0,
+      area_max: 1000000,
+      preco_min: 0,
+      preco_max: 100000000,
+      // Tipo de Anunciante
+      proprietario_direto: false,
+      imobiliaria: false,
+      portal: false,
+      // Opcionais
+      lancamento: false,
+      palavras_chave: "",
+    };
+
+    // Apenas limpar o estado interno do modal
+    setFilters(clearedFilters);
+
+    // Se existe onClearFilters, chama ele (que vai aplicar os filtros limpos)
+    // O onClearFilters do FilterBar já aplica os filtros, então não precisa aplicar aqui
     if (onClearFilters) {
       onClearFilters();
-    } else {
-      setAreaRange([0, 1000000]);
-      setPrecoRange([0, 100000000]);
-      setFilters({
-        search: "",
-        cities: [],
-        neighborhoods: [],
-        // Negócio
-        venda: false,
-        aluguel: false,
-        // Finalidade
-        residencial: false,
-        comercial: false,
-        industrial: false,
-        agricultura: false,
-        // Apartamentos
-        apartamento_padrao: false,
-        apartamento_flat: false,
-        apartamento_loft: false,
-        apartamento_studio: false,
-        apartamento_duplex: false,
-        apartamento_triplex: false,
-        apartamento_cobertura: false,
-        // Comerciais
-        comercial_sala: false,
-        comercial_casa: false,
-        comercial_ponto: false,
-        comercial_galpao: false,
-        comercial_loja: false,
-        comercial_predio: false,
-        comercial_clinica: false,
-        comercial_coworking: false,
-        comercial_sobreloja: false,
-        // Casas e Sítios
-        casa_casa: false,
-        casa_sobrado: false,
-        casa_sitio: false,
-        casa_chale: false,
-        casa_chacara: false,
-        casa_edicula: false,
-        // Terrenos
-        terreno_terreno: false,
-        terreno_fazenda: false,
-        // Outros
-        outros_garagem: false,
-        outros_quarto: false,
-        outros_resort: false,
-        outros_republica: false,
-        outros_box: false,
-        outros_tombado: false,
-        outros_granja: false,
-        outros_haras: false,
-        outros_outros: false,
-        // Cômodos
-        quartos: null,
-        banheiros: null,
-        suites: null,
-        garagem: null,
-        // Sliders
-        area_min: 0,
-        area_max: 1000000,
-        preco_min: 0,
-        preco_max: 100000000,
-        // Tipo de Anunciante
-        proprietario_direto: false,
-        imobiliaria: false,
-        portal: false,
-        // Opcionais
-        lancamento: false,
-        palavras_chave: "",
-      });
     }
   };
 
