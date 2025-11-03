@@ -154,16 +154,6 @@ export function MapComponent({
   // Callbacks para o DrawingManager
   const onDrawingCompleteCallback = useCallback(
     (overlay: google.maps.drawing.OverlayCompleteEvent) => {
-      console.log("🎨 Desenho completo:", overlay);
-      console.log("🎨 Tipo do desenho:", overlay.type);
-      console.log("🎨 Overlay:", overlay.overlay);
-
-      // Garantir que o overlay seja adicionado ao mapa
-      if (overlay.overlay) {
-        console.log("🎨 Adicionando overlay ao mapa");
-        console.log("🎨 Overlay já no mapa:", overlay.overlay.getMap());
-      }
-
       setDrawnOverlays((prev) => [...prev, overlay]);
       if (onDrawingComplete) {
         onDrawingComplete(overlay);
@@ -275,7 +265,6 @@ export function MapComponent({
 
   // Função para parar de desenhar
   const stopDrawing = () => {
-    console.log("Parando de desenhar");
     setDrawingMode(null);
     if (drawingManager) {
       drawingManager.setDrawingMode(null);
@@ -287,7 +276,6 @@ export function MapComponent({
 
   // Função para limpar todos os desenhos
   const clearAllDrawings = () => {
-    console.log("Limpando todos os desenhos");
     drawnOverlays.forEach((overlay) => {
       if (overlay.overlay) {
         overlay.overlay.setMap(null);
@@ -304,7 +292,6 @@ export function MapComponent({
 
     // Limpar filtros para mostrar todas as propriedades
     if (onClearFilters) {
-      console.log("Limpando filtros para mostrar todas as propriedades");
       onClearFilters();
     }
   };
@@ -313,8 +300,6 @@ export function MapComponent({
   const setDrawingModeHandler = (
     mode: google.maps.drawing.OverlayType | null
   ) => {
-    console.log("🎨 Mudando modo de desenho para:", mode);
-    console.log("🎨 DrawingManager disponível:", !!drawingManager);
     if (freehandActive) {
       stopFreehand();
     }
@@ -323,7 +308,6 @@ export function MapComponent({
     // Aguardar um pouco para garantir que o drawingManager foi carregado
     setTimeout(() => {
       if (drawingManager) {
-        console.log("🎨 Definindo modo no DrawingManager:", mode);
         drawingManager.setDrawingMode(mode);
       } else {
         console.log("🎨 DrawingManager ainda não carregado");
@@ -387,7 +371,6 @@ export function MapComponent({
 
   // Se houver erro ao carregar o mapa
   if (loadError) {
-    console.error("Erro ao carregar Google Maps:", loadError);
     return (
       <Box
         sx={{
@@ -464,8 +447,6 @@ export function MapComponent({
           onOverlayComplete={onDrawingCompleteCallback}
           onLoad={(manager) => {
             setDrawingManager(manager);
-            console.log("🎨 DrawingManager carregado:", manager);
-            console.log("🎨 DrawingManager disponível:", !!manager);
           }}
           options={{
             drawingControl: false, // Desabilitar controles padrão

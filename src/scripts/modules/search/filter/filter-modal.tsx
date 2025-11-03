@@ -179,16 +179,94 @@ export const FilterModal: React.FC<FilterModalProps> = ({
 
   const [filters, setFilters] = useState<FilterState>(getDefaultFilters());
   const prevIsOpenRef = useRef(false);
+  const prevInitialFiltersRef = useRef<string>("");
 
-  // Sincronizar filtros quando o modal abre
+  // Função para criar uma string de comparação dos filtros
+  const getFiltersKey = (filters: FilterState | undefined): string => {
+    if (!filters) return "";
+    return JSON.stringify({
+      venda: filters.venda,
+      aluguel: filters.aluguel,
+      residencial: filters.residencial,
+      comercial: filters.comercial,
+      industrial: filters.industrial,
+      agricultura: filters.agricultura,
+      apartamento_padrao: filters.apartamento_padrao,
+      apartamento_flat: filters.apartamento_flat,
+      apartamento_loft: filters.apartamento_loft,
+      apartamento_studio: filters.apartamento_studio,
+      apartamento_duplex: filters.apartamento_duplex,
+      apartamento_triplex: filters.apartamento_triplex,
+      apartamento_cobertura: filters.apartamento_cobertura,
+      comercial_sala: filters.comercial_sala,
+      comercial_casa: filters.comercial_casa,
+      comercial_ponto: filters.comercial_ponto,
+      comercial_galpao: filters.comercial_galpao,
+      comercial_loja: filters.comercial_loja,
+      comercial_predio: filters.comercial_predio,
+      comercial_clinica: filters.comercial_clinica,
+      comercial_coworking: filters.comercial_coworking,
+      comercial_sobreloja: filters.comercial_sobreloja,
+      casa_casa: filters.casa_casa,
+      casa_sobrado: filters.casa_sobrado,
+      casa_sitio: filters.casa_sitio,
+      casa_chale: filters.casa_chale,
+      casa_chacara: filters.casa_chacara,
+      casa_edicula: filters.casa_edicula,
+      terreno_terreno: filters.terreno_terreno,
+      terreno_fazenda: filters.terreno_fazenda,
+      outros_garagem: filters.outros_garagem,
+      outros_quarto: filters.outros_quarto,
+      outros_resort: filters.outros_resort,
+      outros_republica: filters.outros_republica,
+      outros_box: filters.outros_box,
+      outros_tombado: filters.outros_tombado,
+      outros_granja: filters.outros_granja,
+      outros_haras: filters.outros_haras,
+      outros_outros: filters.outros_outros,
+      quartos: filters.quartos,
+      banheiros: filters.banheiros,
+      suites: filters.suites,
+      garagem: filters.garagem,
+      area_min: filters.area_min,
+      area_max: filters.area_max,
+      preco_min: filters.preco_min,
+      preco_max: filters.preco_max,
+      proprietario_direto: filters.proprietario_direto,
+      imobiliaria: filters.imobiliaria,
+      portal: filters.portal,
+      lancamento: filters.lancamento,
+      palavras_chave: filters.palavras_chave,
+    });
+  };
+
+  // Sincronizar filtros quando o modal abre ou quando initialFilters muda
   useEffect(() => {
-    // Sincronizar apenas quando o modal muda de fechado para aberto
-    if (isOpen && !prevIsOpenRef.current && initialFilters) {
-      // Sincronizar com os filtros aplicados quando o modal abre
+    if (!initialFilters) return;
+
+    const currentFiltersKey = getFiltersKey(initialFilters);
+    const prevFiltersKey = prevInitialFiltersRef.current;
+
+    // Sincronizar quando o modal muda de fechado para aberto
+    if (isOpen && !prevIsOpenRef.current) {
       setFilters(initialFilters);
       setAreaRange([initialFilters.area_min, initialFilters.area_max]);
       setPrecoRange([initialFilters.preco_min, initialFilters.preco_max]);
+      prevInitialFiltersRef.current = currentFiltersKey;
     }
+    // Sincronizar quando initialFilters muda enquanto o modal está aberto
+    // (por exemplo, quando limpa os filtros)
+    else if (
+      isOpen &&
+      prevIsOpenRef.current &&
+      currentFiltersKey !== prevFiltersKey
+    ) {
+      setFilters(initialFilters);
+      setAreaRange([initialFilters.area_min, initialFilters.area_max]);
+      setPrecoRange([initialFilters.preco_min, initialFilters.preco_max]);
+      prevInitialFiltersRef.current = currentFiltersKey;
+    }
+
     prevIsOpenRef.current = isOpen;
   }, [isOpen, initialFilters]);
 

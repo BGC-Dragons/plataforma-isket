@@ -126,6 +126,9 @@ interface FilterState {
   proprietario_direto: boolean;
   imobiliaria: boolean;
   portal: boolean;
+  // Opcionais
+  lancamento: boolean;
+  palavras_chave: string;
 }
 
 // Dados mockados das propriedades
@@ -540,6 +543,7 @@ export function SearchComponent() {
   const [loading, setLoading] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>("relevance");
   const [viewMode, setViewMode] = useState<"cards" | "list">("cards");
+  const [currentFilters, setCurrentFilters] = useState<FilterState | undefined>(undefined);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedProperty, setSelectedProperty] = useState<string | null>(null);
   const [propertyDetailsOpen, setPropertyDetailsOpen] = useState(false);
@@ -685,6 +689,7 @@ export function SearchComponent() {
   // Função para aplicar filtros
   const applyFilters = useCallback(
     (filters: FilterState) => {
+      setCurrentFilters(filters); // Atualizar filtros atuais para sincronizar com FilterBar
       setLoading(true);
       setCurrentPage(1); // Reset para primeira página ao aplicar filtros
 
@@ -906,6 +911,79 @@ export function SearchComponent() {
     setCurrentPage(1); // Reset para primeira página
   };
 
+  // Função para limpar TODOS os filtros (campo de busca, cidades, bairros e filtros do modal)
+  const handleClearAllFilters = useCallback(() => {
+    const clearedFilters: FilterState = {
+      search: "",
+      cities: [],
+      neighborhoods: [],
+      // Negócio
+      venda: false,
+      aluguel: false,
+      // Finalidade
+      residencial: false,
+      comercial: false,
+      industrial: false,
+      agricultura: false,
+      // Apartamentos
+      apartamento_padrao: false,
+      apartamento_flat: false,
+      apartamento_loft: false,
+      apartamento_studio: false,
+      apartamento_duplex: false,
+      apartamento_triplex: false,
+      apartamento_cobertura: false,
+      // Comerciais
+      comercial_sala: false,
+      comercial_casa: false,
+      comercial_ponto: false,
+      comercial_galpao: false,
+      comercial_loja: false,
+      comercial_predio: false,
+      comercial_clinica: false,
+      comercial_coworking: false,
+      comercial_sobreloja: false,
+      // Casas e Sítios
+      casa_casa: false,
+      casa_sobrado: false,
+      casa_sitio: false,
+      casa_chale: false,
+      casa_chacara: false,
+      casa_edicula: false,
+      // Terrenos
+      terreno_terreno: false,
+      terreno_fazenda: false,
+      // Outros
+      outros_garagem: false,
+      outros_quarto: false,
+      outros_resort: false,
+      outros_republica: false,
+      outros_box: false,
+      outros_tombado: false,
+      outros_granja: false,
+      outros_haras: false,
+      outros_outros: false,
+      // Cômodos
+      quartos: null,
+      banheiros: null,
+      suites: null,
+      garagem: null,
+      // Sliders
+      area_min: 0,
+      area_max: 1000000,
+      preco_min: 0,
+      preco_max: 100000000,
+      // Tipo de Anunciante
+      proprietario_direto: false,
+      imobiliaria: false,
+      portal: false,
+      // Opcionais
+      lancamento: false,
+      palavras_chave: "",
+    };
+    applyFilters(clearedFilters);
+  }, [applyFilters]);
+
   // Handlers para o bottom sheet deslizante (mobile)
   const handleBottomSheetTouchStart = (e: React.TouchEvent) => {
     setIsDragging(true);
@@ -1034,6 +1112,7 @@ export function SearchComponent() {
               defaultCity={defaultCity}
               availableCities={availableCities}
               cityToCodeMap={cityToCodeMap}
+              externalFilters={currentFilters}
             />
           </Box>
 
@@ -1270,6 +1349,7 @@ export function SearchComponent() {
                   defaultCity={defaultCity}
                   availableCities={availableCities}
                   cityToCodeMap={cityToCodeMap}
+                  externalFilters={currentFilters}
                 />
               </Box>
 
@@ -1800,73 +1880,7 @@ export function SearchComponent() {
                       </Typography>
                       <Button
                         variant="outlined"
-                        onClick={() =>
-                          applyFilters({
-                            search: "",
-                            cities: ["CURITIBA"],
-                            neighborhoods: [],
-                            // Negócio
-                            venda: false,
-                            aluguel: false,
-                            // Finalidade
-                            residencial: false,
-                            comercial: false,
-                            industrial: false,
-                            agricultura: false,
-                            // Apartamentos
-                            apartamento_padrao: false,
-                            apartamento_flat: false,
-                            apartamento_loft: false,
-                            apartamento_studio: false,
-                            apartamento_duplex: false,
-                            apartamento_triplex: false,
-                            apartamento_cobertura: false,
-                            // Comerciais
-                            comercial_sala: false,
-                            comercial_casa: false,
-                            comercial_ponto: false,
-                            comercial_galpao: false,
-                            comercial_loja: false,
-                            comercial_predio: false,
-                            comercial_clinica: false,
-                            comercial_coworking: false,
-                            comercial_sobreloja: false,
-                            // Casas e Sítios
-                            casa_casa: false,
-                            casa_sobrado: false,
-                            casa_sitio: false,
-                            casa_chale: false,
-                            casa_chacara: false,
-                            casa_edicula: false,
-                            // Terrenos
-                            terreno_terreno: false,
-                            terreno_fazenda: false,
-                            // Outros
-                            outros_garagem: false,
-                            outros_quarto: false,
-                            outros_resort: false,
-                            outros_republica: false,
-                            outros_box: false,
-                            outros_tombado: false,
-                            outros_granja: false,
-                            outros_haras: false,
-                            outros_outros: false,
-                            // Cômodos
-                            quartos: null,
-                            banheiros: null,
-                            suites: null,
-                            garagem: null,
-                            // Sliders
-                            area_min: 0,
-                            area_max: 1000000,
-                            preco_min: 0,
-                            preco_max: 100000000,
-                            // Tipo de Anunciante
-                            proprietario_direto: false,
-                            imobiliaria: false,
-                            portal: false,
-                          })
-                        }
+                        onClick={handleClearAllFilters}
                         sx={{
                           borderRadius: 2,
                           px: 4,

@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   Box,
   TextField,
@@ -11,6 +11,8 @@ import {
   Chip,
   CircularProgress,
   IconButton,
+  Autocomplete,
+  Typography,
 } from "@mui/material";
 import { Search, FilterList, Close } from "@mui/icons-material";
 import { FilterModal } from "./filter-modal";
@@ -94,6 +96,7 @@ interface FilterBarProps {
   defaultCity?: string;
   availableCities?: string[];
   cityToCodeMap?: Record<string, string>;
+  externalFilters?: FilterState; // Para sincronizar filtros aplicados externamente
 }
 
 export function FilterBar({
@@ -101,6 +104,7 @@ export function FilterBar({
   defaultCity = "CURITIBA",
   availableCities = ["CURITIBA", "SÃO PAULO", "RIO DE JANEIRO"],
   cityToCodeMap = {},
+  externalFilters,
 }: FilterBarProps) {
   const theme = useTheme();
   const { store } = useAuth();
@@ -181,6 +185,14 @@ export function FilterBar({
   const [neighborhoods, setNeighborhoods] = useState<string[]>([]);
   const [isLoadingNeighborhoods, setIsLoadingNeighborhoods] = useState(false);
   const [neighborhoodsLoaded, setNeighborhoodsLoaded] = useState(false);
+  
+  // Google Places Autocomplete
+  const [isGoogleLoaded, setIsGoogleLoaded] = useState(false);
+  const [autocompleteOptions, setAutocompleteOptions] = useState<google.maps.places.AutocompletePrediction[]>([]);
+  const [searchInputValue, setSearchInputValue] = useState("");
+  const autocompleteService = useRef<google.maps.places.AutocompleteService | null>(null);
+  const placesService = useRef<google.maps.places.PlacesService | null>(null);
+  const autocompleteInputRef = useRef<HTMLInputElement | null>(null);
 
   // Função para atualizar filtros
   const handleFilterChange = useCallback((updates: Partial<FilterState>) => {
@@ -308,6 +320,359 @@ export function FilterBar({
     e.stopPropagation();
     handleNeighborhoodChange([]);
   }, [handleNeighborhoodChange]);
+
+  // Carregar Google Maps API para autocomplete de endereços
+  // NOTA: Não carregamos o Places aqui porque já é carregado pelo MapComponent
+  // via useLoadScript. Apenas aguardamos que ele esteja disponível.
+  useEffect(() => {
+    // Função para inicializar os serviços do Places de forma segura
+    const initializePlacesServices = () => {
+      try {
+        if (typeof window === "undefined") return false;
+
+        // Verificar se google está disponível
+        if (!window.google) return false;
+        if (!window.google.maps) return false;
+        if (!window.google.maps.places) return false;
+
+        // Verificar se os construtores estão disponíveis e são funções
+        const AutocompleteService = window.google.maps.places.AutocompleteService;
+        const PlacesService = window.google.maps.places.PlacesService;
+
+        if (
+          typeof AutocompleteService !== "undefined" &&
+          typeof PlacesService !== "undefined" &&
+          typeof AutocompleteService === "function" &&
+          typeof PlacesService === "function"
+        ) {
+          // Só criar se ainda não foram criados
+          if (!autocompleteService.current) {
+            autocompleteService.current = new AutocompleteService();
+          }
+          if (!placesService.current) {
+            placesService.current = new PlacesService(
+              document.createElement("div")
+            );
+          }
+          setIsGoogleLoaded(true);
+          return true;
+        }
+      } catch (error) {
+        console.error("Erro ao inicializar Places Services:", error);
+        // Não definir como carregado se houver erro
+        return false;
+      }
+      return false;
+    };
+
+    // Verificar se já está carregado
+    if (initializePlacesServices()) {
+      return;
+    }
+
+    // Verificar se já existe um script do Google Maps (carregado pelo useLoadScript)
+    // Se existir, apenas aguardar que Places esteja pronto
+    const existingScript = document.querySelector(
+      'script[src*="maps.googleapis.com"]'
+    );
+
+    if (existingScript) {
+      // Script já existe (carregado pelo MapComponent), aguardar que Places esteja pronto
+      let intervalId: NodeJS.Timeout | null = null;
+      let timeoutId: NodeJS.Timeout | null = null;
+      let attempts = 0;
+      const maxAttempts = 100; // 10 segundos (100 * 100ms)
+
+      intervalId = setInterval(() => {
+        attempts++;
+        if (initializePlacesServices()) {
+          if (intervalId) clearInterval(intervalId);
+          if (timeoutId) clearTimeout(timeoutId);
+        } else if (attempts >= maxAttempts) {
+          // Parar após max tentativas
+          if (intervalId) clearInterval(intervalId);
+          if (timeoutId) clearTimeout(timeoutId);
+          console.warn("Timeout ao aguardar Google Maps Places API");
+        }
+      }, 100);
+
+      // Timeout de segurança
+      timeoutId = setTimeout(() => {
+        if (intervalId) clearInterval(intervalId);
+      }, 12000);
+
+      return () => {
+        if (intervalId) clearInterval(intervalId);
+        if (timeoutId) clearTimeout(timeoutId);
+      };
+    } else {
+      // Se não existe script, aguardar um pouco e tentar novamente
+      // (pode ser que o script ainda não tenha sido adicionado ao DOM)
+      const checkInterval = setInterval(() => {
+        const script = document.querySelector('script[src*="maps.googleapis.com"]');
+        if (script) {
+          clearInterval(checkInterval);
+          // Recursivamente chamar o useEffect aguardando o script
+          // Mas isso pode causar loops, então vamos usar polling direto
+          let attempts = 0;
+          const maxAttempts = 100;
+          const pollInterval = setInterval(() => {
+            attempts++;
+            if (initializePlacesServices()) {
+              clearInterval(pollInterval);
+            } else if (attempts >= maxAttempts) {
+              clearInterval(pollInterval);
+              console.warn("Timeout ao aguardar Google Maps Places API");
+            }
+          }, 100);
+        }
+      }, 200);
+
+      // Timeout para parar de verificar
+      setTimeout(() => {
+        clearInterval(checkInterval);
+      }, 5000);
+
+      return () => {
+        clearInterval(checkInterval);
+      };
+    }
+  }, []);
+
+  // Buscar endereços quando o usuário digita
+  const searchAddresses = useCallback((query: string) => {
+    if (!isGoogleLoaded || !autocompleteService.current || query.length < 3) {
+      setAutocompleteOptions([]);
+      return;
+    }
+
+    try {
+      const request: google.maps.places.AutocompletionRequest = {
+        input: query,
+        types: ["address"],
+        componentRestrictions: { country: "br" },
+        language: "pt-BR",
+      };
+
+      autocompleteService.current.getPlacePredictions(
+        request,
+        (
+          predictions: google.maps.places.AutocompletePrediction[] | null,
+          status: google.maps.places.PlacesServiceStatus
+        ) => {
+          if (
+            status === google.maps.places.PlacesServiceStatus.OK &&
+            predictions
+          ) {
+            setAutocompleteOptions(predictions);
+          } else {
+            setAutocompleteOptions([]);
+          }
+        }
+      );
+    } catch (error) {
+      console.error("Erro ao buscar endereços:", error);
+      setAutocompleteOptions([]);
+    }
+  }, [isGoogleLoaded]);
+
+  // Debounce para busca de endereços
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchInputValue.length >= 3 && isGoogleLoaded) {
+        searchAddresses(searchInputValue);
+      } else {
+        setAutocompleteOptions([]);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchInputValue, isGoogleLoaded, searchAddresses]);
+
+  // Estado para armazenar o bairro extraído do autocomplete enquanto carrega
+  const pendingNeighborhoodRef = useRef<string | null>(null);
+
+  // Função para extrair cidade e bairro do resultado do Places API
+  const extractCityAndNeighborhood = useCallback(
+    (placeId: string) => {
+      if (!isGoogleLoaded || !placesService.current) {
+        console.warn("Places Service não está disponível");
+        return;
+      }
+
+      try {
+        const request: google.maps.places.PlaceDetailsRequest = {
+          placeId,
+          fields: ["address_components", "formatted_address"],
+        };
+
+        placesService.current.getDetails(request, (place, status) => {
+          try {
+            if (
+              status === google.maps.places.PlacesServiceStatus.OK &&
+              place &&
+              place.address_components
+            ) {
+              let cityName = "";
+              let neighborhoodName = "";
+
+              // Extrair cidade e bairro dos address_components
+              place.address_components.forEach((component) => {
+                const types = component.types;
+
+                // Cidade (locality ou administrative_area_level_2)
+                if (
+                  !cityName &&
+                  (types.includes("locality") ||
+                    types.includes("administrative_area_level_2"))
+                ) {
+                  cityName = component.long_name.toUpperCase();
+                }
+
+                // Bairro (sublocality, sublocality_level_1 ou neighborhood)
+                if (
+                  !neighborhoodName &&
+                  (types.includes("sublocality") ||
+                    types.includes("sublocality_level_1") ||
+                    types.includes("neighborhood"))
+                ) {
+                  neighborhoodName = component.long_name;
+                }
+              });
+
+              // Se encontrou cidade, verificar se está nas cidades disponíveis
+              if (cityName && availableCities.includes(cityName)) {
+                // Armazenar bairro pendente
+                pendingNeighborhoodRef.current = neighborhoodName || null;
+
+                // Atualizar cidade primeiro
+                handleCityChange([cityName]);
+
+                // Aguardar um pouco e então carregar bairros
+                setTimeout(async () => {
+                  await loadNeighborhoods();
+                }, 300);
+              } else if (cityName) {
+                // Cidade não encontrada nas disponíveis, apenas atualizar o campo de busca
+                console.warn(
+                  `Cidade "${cityName}" não está nas cidades disponíveis`
+                );
+                pendingNeighborhoodRef.current = null;
+              }
+            }
+          } catch (error) {
+            console.error("Erro ao processar detalhes do lugar:", error);
+          }
+        });
+      } catch (error) {
+        console.error("Erro ao buscar detalhes do lugar:", error);
+      }
+    },
+    [isGoogleLoaded, availableCities, handleCityChange, loadNeighborhoods]
+  );
+
+  // Quando os bairros forem carregados, tentar selecionar o bairro pendente
+  useEffect(() => {
+    if (
+      neighborhoodsLoaded &&
+      neighborhoods.length > 0 &&
+      pendingNeighborhoodRef.current
+    ) {
+      const pendingNeighborhood = pendingNeighborhoodRef.current;
+      pendingNeighborhoodRef.current = null;
+
+      // Normalizar o bairro pendente para busca
+      const normalizedPending = pendingNeighborhood
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+
+      // Procurar o bairro na lista
+      const foundNeighborhood = neighborhoods.find((n) => {
+        const normalized = n
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "");
+        return normalized === normalizedPending;
+      });
+
+      // Atualizar filtros com cidade e bairro (se encontrado)
+      setTempFilters((prev) => ({
+        ...prev,
+        neighborhoods: foundNeighborhood ? [foundNeighborhood] : [],
+      }));
+    }
+  }, [neighborhoodsLoaded, neighborhoods]);
+
+  // Função para lidar com seleção de endereço no autocomplete
+  const handleAddressSelect = useCallback(
+    (
+      _: React.SyntheticEvent,
+      value: google.maps.places.AutocompletePrediction | string | null
+    ) => {
+      if (value && typeof value !== "string" && value.place_id) {
+        setSearchInputValue(value.description);
+        handleFilterChange({ search: value.description });
+        extractCityAndNeighborhood(value.place_id);
+      } else if (typeof value === "string") {
+        setSearchInputValue(value);
+        handleFilterChange({ search: value });
+      }
+    },
+    [handleFilterChange, extractCityAndNeighborhood]
+  );
+
+  // Sincronizar searchInputValue com tempFilters.search quando mudar externamente (apenas se não for mudança manual)
+  useEffect(() => {
+    // Só atualizar se o usuário não estiver digitando
+    if (tempFilters.search !== searchInputValue && !autocompleteInputRef.current?.matches(':focus')) {
+      setSearchInputValue(tempFilters.search);
+    }
+  }, [tempFilters.search, searchInputValue]);
+
+  // Ref para rastrear última sincronização e evitar loops
+  const lastSyncRef = useRef<string>("");
+
+  // Sincronizar filtros quando externalFilters mudar (ex: quando limpa todos os filtros)
+  useEffect(() => {
+    if (!externalFilters) return;
+    
+    // Criar uma chave única baseada nos filtros externos
+    const externalKey = JSON.stringify({
+      search: externalFilters.search,
+      cities: [...externalFilters.cities].sort().join(","),
+      neighborhoods: [...externalFilters.neighborhoods].sort().join(","),
+      venda: externalFilters.venda,
+      aluguel: externalFilters.aluguel,
+      residencial: externalFilters.residencial,
+      comercial: externalFilters.comercial,
+      industrial: externalFilters.industrial,
+      agricultura: externalFilters.agricultura,
+      quartos: externalFilters.quartos,
+      banheiros: externalFilters.banheiros,
+      suites: externalFilters.suites,
+      garagem: externalFilters.garagem,
+      area_min: externalFilters.area_min,
+      area_max: externalFilters.area_max,
+      preco_min: externalFilters.preco_min,
+      preco_max: externalFilters.preco_max,
+      lancamento: externalFilters.lancamento,
+      palavras_chave: externalFilters.palavras_chave,
+    });
+
+    // Só sincronizar se realmente mudou
+    if (lastSyncRef.current !== externalKey) {
+      lastSyncRef.current = externalKey;
+      setTempFilters(externalFilters);
+      setAppliedFilters(externalFilters);
+      setSearchInputValue(externalFilters.search);
+      // Limpar bairros se não houver cidades
+      if (externalFilters.cities.length === 0) {
+        setNeighborhoods([]);
+        setNeighborhoodsLoaded(false);
+      }
+    }
+  }, [externalFilters]);
 
   // Função para limpar todos os filtros
   const clearAllFilters = useCallback(() => {
@@ -491,35 +856,83 @@ export function FilterBar({
           },
         }}
       >
-        {/* Campo de Busca */}
-        <TextField
-          placeholder="Buscar por endereço"
+        {/* Campo de Busca com Autocomplete do Google Places */}
+        <Autocomplete
+          freeSolo
+          options={autocompleteOptions}
           value={tempFilters.search}
-          onChange={(e) => handleFilterChange({ search: e.target.value })}
-          onKeyPress={(e) => {
-            if (e.key === "Enter") {
-              handleSearch();
+          inputValue={searchInputValue}
+          onInputChange={(_, newValue) => {
+            setSearchInputValue(newValue);
+            handleFilterChange({ search: newValue });
+          }}
+          onChange={handleAddressSelect}
+          getOptionLabel={(option) => {
+            if (typeof option === "string") return option;
+            return option.description;
+          }}
+          isOptionEqualToValue={(option, value) => {
+            if (typeof value === "string") {
+              return option.description === value;
             }
+            return option.place_id === value.place_id;
           }}
-          size="small"
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <Search sx={{ color: theme.palette.text.secondary }} />
-              </InputAdornment>
-            ),
-          }}
+          filterOptions={(x) => x}
+          disabled={!isGoogleLoaded}
+          loading={!isGoogleLoaded}
           sx={{
             flexGrow: 1,
             maxWidth: { xs: "100%", sm: 300, md: 350 },
             "@media (max-width: 750px)": {
               maxWidth: "100%",
-              "& .MuiInputBase-root": {
-                height: 36,
-                fontSize: "0.875rem",
-              },
             },
           }}
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              placeholder="Buscar por endereço"
+              size="small"
+              inputRef={autocompleteInputRef}
+              InputProps={{
+                ...params.InputProps,
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Search sx={{ color: theme.palette.text.secondary }} />
+                  </InputAdornment>
+                ),
+              }}
+              onKeyPress={(e) => {
+                if (e.key === "Enter") {
+                  handleSearch();
+                }
+              }}
+              sx={{
+                "@media (max-width: 750px)": {
+                  "& .MuiInputBase-root": {
+                    height: 36,
+                    fontSize: "0.875rem",
+                  },
+                },
+              }}
+            />
+          )}
+          renderOption={(props, option) => (
+            <li {...props} key={option.place_id}>
+              <Box sx={{ display: "flex", flexDirection: "column", width: "100%" }}>
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                  {option.structured_formatting.main_text}
+                </Typography>
+                {option.structured_formatting.secondary_text && (
+                  <Typography
+                    variant="caption"
+                    sx={{ color: theme.palette.text.secondary }}
+                  >
+                    {option.structured_formatting.secondary_text}
+                  </Typography>
+                )}
+              </Box>
+            </li>
+          )}
         />
 
         {/* Seletor de Cidade */}
