@@ -92,6 +92,9 @@ interface FilterState {
   proprietario_direto: boolean;
   imobiliaria: boolean;
   portal: boolean;
+  // Opcionais
+  lancamento: boolean;
+  palavras_chave: string;
 }
 
 export const FilterModal: React.FC<FilterModalProps> = ({
@@ -167,6 +170,9 @@ export const FilterModal: React.FC<FilterModalProps> = ({
     proprietario_direto: false,
     imobiliaria: false,
     portal: false,
+    // Opcionais
+    lancamento: false,
+    palavras_chave: "",
   });
 
   const handleCheckboxChange = (filterType: keyof FilterState) => {
@@ -282,6 +288,9 @@ export const FilterModal: React.FC<FilterModalProps> = ({
         proprietario_direto: false,
         imobiliaria: false,
         portal: false,
+        // Opcionais
+        lancamento: false,
+        palavras_chave: "",
       });
     }
   };
@@ -1093,6 +1102,38 @@ export const FilterModal: React.FC<FilterModalProps> = ({
               label="Portal"
             />
           </FormGroup>
+        </FormControl>
+
+        {/* Seção Opcionais */}
+        <FormControl component="fieldset" sx={{ mb: 4, width: "100%" }}>
+          <FormLabel component="legend" sx={{ mb: 2, fontWeight: 600 }}>
+            Opcionais
+          </FormLabel>
+          <FormGroup sx={{ mb: 2 }}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={filters.lancamento}
+                  onChange={() => handleCheckboxChange("lancamento")}
+                />
+              }
+              label="Lançamento"
+            />
+          </FormGroup>
+          <TextField
+            label="Palavras-chave"
+            placeholder="Digite palavras-chave para buscar"
+            value={filters.palavras_chave}
+            onChange={(e) =>
+              setFilters((prev) => ({
+                ...prev,
+                palavras_chave: e.target.value,
+              }))
+            }
+            fullWidth
+            size="small"
+            sx={{ mt: 1 }}
+          />
         </FormControl>
 
         <Divider sx={{ my: 2 }} />
