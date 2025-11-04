@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useParams } from "react-router";
 import {
   Box,
@@ -31,6 +31,8 @@ import {
   ViewList,
   Map,
   Close,
+  ErrorOutline,
+  Refresh,
 } from "@mui/icons-material";
 import { Popper } from "@mui/material";
 import { PropertiesCard } from "../../../modules/search/properties-card";
@@ -43,6 +45,10 @@ import {
   useGetPurchases,
   type IGetPurchasesResponseSuccess,
 } from "../../../../services/get-purchases.service";
+import { postPropertyAdSearch, type SortBy, type SortOrder } from "../../../../services/post-property-ad-search.service";
+import { mapFiltersToApi } from "../../../../services/helpers/map-filters-to-api.helper";
+import { mapApiToPropertyDataArray } from "../../../../services/helpers/map-api-to-property-data.helper";
+import { useAuth } from "../../../modules/access-manager/auth.hook";
 
 // Interface para os dados das propriedades
 interface PropertyData {
@@ -51,6 +57,7 @@ interface PropertyData {
   price: number;
   pricePerSquareMeter: number;
   address: string;
+  neighborhood?: string;
   city: string;
   state: string;
   propertyType: "COMERCIAL" | "RESIDENCIAL" | "TERRENO";
@@ -131,399 +138,6 @@ interface FilterState {
   palavras_chave: string;
 }
 
-// Dados mockados das propriedades
-const mockProperties: PropertyData[] = [
-  {
-    id: "1",
-    title: "Sala Comercial Centro",
-    price: 145000,
-    pricePerSquareMeter: 5370.37,
-    address: "Rua Marechal Deodoro, 235, Centro",
-    city: "CURITIBA",
-    state: "PR",
-    propertyType: "COMERCIAL",
-    bedrooms: 1,
-    bathrooms: 1,
-    area: 24,
-    images: [
-      "https://images.unsplash.com/photo-1497366216548-37526070297c?w=400",
-      "https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=400",
-      "https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=400",
-    ],
-    isFavorite: false,
-  },
-  {
-    id: "2",
-    title: "Apartamento Residencial",
-    price: 320000,
-    pricePerSquareMeter: 8500.0,
-    address: "Rua das Flores, 123, Batel",
-    city: "CURITIBA",
-    state: "PR",
-    propertyType: "RESIDENCIAL",
-    bedrooms: 3,
-    bathrooms: 2,
-    area: 85,
-    images: [
-      "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400",
-      "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400",
-    ],
-    isFavorite: true,
-  },
-  {
-    id: "3",
-    title: "Casa Residencial",
-    price: 450000,
-    pricePerSquareMeter: 3200.0,
-    address: "Rua das Palmeiras, 456, Bigorrilho",
-    city: "CURITIBA",
-    state: "PR",
-    propertyType: "RESIDENCIAL",
-    bedrooms: 4,
-    bathrooms: 3,
-    area: 140,
-    images: [
-      "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400",
-      "https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=400",
-      "https://images.unsplash.com/photo-1560448204-603b3fc33ddc?w=400",
-    ],
-    isFavorite: false,
-  },
-  {
-    id: "4",
-    title: "Terreno Comercial",
-    price: 180000,
-    pricePerSquareMeter: 1200.0,
-    address: "Rua Comercial, 789, Centro",
-    city: "CURITIBA",
-    state: "PR",
-    propertyType: "TERRENO",
-    bedrooms: 0,
-    bathrooms: 0,
-    area: 150,
-    images: ["https://images.unsplash.com/photo-1560448204-603b3fc33ddc?w=400"],
-    isFavorite: false,
-  },
-  {
-    id: "5",
-    title: "Loja Comercial",
-    price: 280000,
-    pricePerSquareMeter: 7000.0,
-    address: "Rua do Comércio, 321, Batel",
-    city: "CURITIBA",
-    state: "PR",
-    propertyType: "COMERCIAL",
-    bedrooms: 0,
-    bathrooms: 1,
-    area: 40,
-    images: [
-      "https://images.unsplash.com/photo-1497366216548-37526070297c?w=400",
-      "https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=400",
-    ],
-    isFavorite: true,
-  },
-  {
-    id: "6",
-    title: "Apartamento Luxo",
-    price: 650000,
-    pricePerSquareMeter: 12000.0,
-    address: "Rua das Acácias, 654, Batel",
-    city: "CURITIBA",
-    state: "PR",
-    propertyType: "RESIDENCIAL",
-    bedrooms: 3,
-    bathrooms: 3,
-    area: 120,
-    images: [
-      "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400",
-      "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400",
-      "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400",
-    ],
-    isFavorite: false,
-  },
-  // Adicionando mais propriedades para testar paginação
-  {
-    id: "7",
-    title: "Casa com Piscina",
-    price: 750000,
-    pricePerSquareMeter: 4500.0,
-    address: "Rua das Orquídeas, 789, Santa Felicidade",
-    city: "CURITIBA",
-    state: "PR",
-    propertyType: "RESIDENCIAL",
-    bedrooms: 5,
-    bathrooms: 4,
-    area: 200,
-    images: [
-      "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400",
-      "https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=400",
-    ],
-    isFavorite: false,
-  },
-  {
-    id: "8",
-    title: "Sala Executiva",
-    price: 220000,
-    pricePerSquareMeter: 8000.0,
-    address: "Rua Comercial, 456, Centro",
-    city: "CURITIBA",
-    state: "PR",
-    propertyType: "COMERCIAL",
-    bedrooms: 0,
-    bathrooms: 1,
-    area: 28,
-    images: [
-      "https://images.unsplash.com/photo-1497366216548-37526070297c?w=400",
-    ],
-    isFavorite: true,
-  },
-  {
-    id: "9",
-    title: "Apartamento Compacto",
-    price: 180000,
-    pricePerSquareMeter: 6000.0,
-    address: "Rua das Margaridas, 321, Mercês",
-    city: "CURITIBA",
-    state: "PR",
-    propertyType: "RESIDENCIAL",
-    bedrooms: 2,
-    bathrooms: 1,
-    area: 45,
-    images: [
-      "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400",
-      "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400",
-    ],
-    isFavorite: false,
-  },
-  {
-    id: "10",
-    title: "Terreno Residencial",
-    price: 120000,
-    pricePerSquareMeter: 800.0,
-    address: "Rua das Violetas, 654, Portão",
-    city: "CURITIBA",
-    state: "PR",
-    propertyType: "TERRENO",
-    bedrooms: 0,
-    bathrooms: 0,
-    area: 300,
-    images: ["https://images.unsplash.com/photo-1560448204-603b3fc33ddc?w=400"],
-    isFavorite: false,
-  },
-  {
-    id: "11",
-    title: "Loja de Rua",
-    price: 350000,
-    pricePerSquareMeter: 5000.0,
-    address: "Rua do Comércio, 987, Batel",
-    city: "CURITIBA",
-    state: "PR",
-    propertyType: "COMERCIAL",
-    bedrooms: 0,
-    bathrooms: 1,
-    area: 70,
-    images: [
-      "https://images.unsplash.com/photo-1497366216548-37526070297c?w=400",
-      "https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=400",
-    ],
-    isFavorite: true,
-  },
-  {
-    id: "12",
-    title: "Casa Geminada",
-    price: 380000,
-    pricePerSquareMeter: 2800.0,
-    address: "Rua das Azaleias, 147, Cristo Rei",
-    city: "CURITIBA",
-    state: "PR",
-    propertyType: "RESIDENCIAL",
-    bedrooms: 3,
-    bathrooms: 2,
-    area: 120,
-    images: [
-      "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400",
-      "https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=400",
-    ],
-    isFavorite: false,
-  },
-  {
-    id: "13",
-    title: "Escritório Moderno",
-    price: 195000,
-    pricePerSquareMeter: 6500.0,
-    address: "Rua Empresarial, 258, Centro",
-    city: "CURITIBA",
-    state: "PR",
-    propertyType: "COMERCIAL",
-    bedrooms: 0,
-    bathrooms: 1,
-    area: 30,
-    images: [
-      "https://images.unsplash.com/photo-1497366216548-37526070297c?w=400",
-    ],
-    isFavorite: false,
-  },
-  {
-    id: "14",
-    title: "Apartamento Alto Padrão",
-    price: 520000,
-    pricePerSquareMeter: 9500.0,
-    address: "Rua das Magnólias, 369, Batel",
-    city: "CURITIBA",
-    state: "PR",
-    propertyType: "RESIDENCIAL",
-    bedrooms: 3,
-    bathrooms: 3,
-    area: 110,
-    images: [
-      "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400",
-      "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400",
-      "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400",
-    ],
-    isFavorite: true,
-  },
-  {
-    id: "15",
-    title: "Terreno Industrial",
-    price: 280000,
-    pricePerSquareMeter: 400.0,
-    address: "Rua Industrial, 741, Campo Comprido",
-    city: "CURITIBA",
-    state: "PR",
-    propertyType: "TERRENO",
-    bedrooms: 0,
-    bathrooms: 0,
-    area: 700,
-    images: ["https://images.unsplash.com/photo-1560448204-603b3fc33ddc?w=400"],
-    isFavorite: false,
-  },
-  {
-    id: "16",
-    title: "Casa Colonial",
-    price: 420000,
-    pricePerSquareMeter: 3000.0,
-    address: "Rua Histórica, 852, Alto da XV",
-    city: "CURITIBA",
-    state: "PR",
-    propertyType: "RESIDENCIAL",
-    bedrooms: 4,
-    bathrooms: 3,
-    area: 180,
-    images: [
-      "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400",
-      "https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=400",
-    ],
-    isFavorite: false,
-  },
-  {
-    id: "17",
-    title: "Galpão Comercial",
-    price: 450000,
-    pricePerSquareMeter: 1500.0,
-    address: "Rua Logística, 963, Campo Comprido",
-    city: "CURITIBA",
-    state: "PR",
-    propertyType: "COMERCIAL",
-    bedrooms: 0,
-    bathrooms: 2,
-    area: 300,
-    images: [
-      "https://images.unsplash.com/photo-1497366216548-37526070297c?w=400",
-      "https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=400",
-    ],
-    isFavorite: true,
-  },
-  {
-    id: "18",
-    title: "Apartamento Studio",
-    price: 150000,
-    pricePerSquareMeter: 7500.0,
-    address: "Rua das Begônias, 159, Mercês",
-    city: "CURITIBA",
-    state: "PR",
-    propertyType: "RESIDENCIAL",
-    bedrooms: 1,
-    bathrooms: 1,
-    area: 20,
-    images: [
-      "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400",
-    ],
-    isFavorite: false,
-  },
-  {
-    id: "19",
-    title: "Casa de Campo",
-    price: 680000,
-    pricePerSquareMeter: 2000.0,
-    address: "Rua Rural, 753, Santa Felicidade",
-    city: "CURITIBA",
-    state: "PR",
-    propertyType: "RESIDENCIAL",
-    bedrooms: 5,
-    bathrooms: 4,
-    area: 400,
-    images: [
-      "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400",
-      "https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=400",
-      "https://images.unsplash.com/photo-1560448204-603b3fc33ddc?w=400",
-    ],
-    isFavorite: true,
-  },
-  {
-    id: "20",
-    title: "Sala de Reuniões",
-    price: 165000,
-    pricePerSquareMeter: 5500.0,
-    address: "Rua Corporativa, 357, Centro",
-    city: "CURITIBA",
-    state: "PR",
-    propertyType: "COMERCIAL",
-    bedrooms: 0,
-    bathrooms: 1,
-    area: 30,
-    images: [
-      "https://images.unsplash.com/photo-1497366216548-37526070297c?w=400",
-    ],
-    isFavorite: false,
-  },
-];
-
-// Dados mockados de bairros por cidade
-const mockNeighborhoods: Record<string, string[]> = {
-  CURITIBA: [
-    "Centro",
-    "Batel",
-    "Bigorrilho",
-    "Mercês",
-    "Alto da XV",
-    "Cristo Rei",
-    "Bom Retiro",
-    "Santa Felicidade",
-    "Portão",
-    "Campo Comprido",
-  ],
-  "SÃO PAULO": [
-    "Vila Madalena",
-    "Pinheiros",
-    "Itaim Bibi",
-    "Jardins",
-    "Vila Olímpia",
-    "Moema",
-    "Brooklin",
-    "Vila Nova Conceição",
-  ],
-  "RIO DE JANEIRO": [
-    "Copacabana",
-    "Ipanema",
-    "Leblon",
-    "Botafogo",
-    "Flamengo",
-    "Laranjeiras",
-    "Catete",
-    "Glória",
-  ],
-};
-
 type SortOption =
   | "relevance"
   | "price-per-m2-asc"
@@ -537,10 +151,10 @@ export function SearchComponent() {
   const theme = useTheme();
   const navigate = useNavigate();
   const { propertyId } = useParams<{ propertyId?: string }>();
-  const [properties] = useState<PropertyData[]>(mockProperties);
-  const [filteredProperties, setFilteredProperties] =
-    useState<PropertyData[]>(mockProperties);
+  const auth = useAuth();
+  const [filteredProperties, setFilteredProperties] = useState<PropertyData[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>("relevance");
   const [viewMode, setViewMode] = useState<"cards" | "list">("cards");
   const [currentFilters, setCurrentFilters] = useState<FilterState | undefined>(undefined);
@@ -548,6 +162,7 @@ export function SearchComponent() {
   const [selectedProperty, setSelectedProperty] = useState<string | null>(null);
   const [propertyDetailsOpen, setPropertyDetailsOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const itemsPerPage = 18;
   const [helpPopupAnchor, setHelpPopupAnchor] = useState<HTMLElement | null>(
     null
@@ -657,142 +272,265 @@ export function SearchComponent() {
   }, []);
 
 
-  // Função para ordenar propriedades
-  const sortProperties = useCallback(
-    (properties: PropertyData[], sortBy: SortOption) => {
-      const sorted = [...properties];
+  // Função para mapear SortOption local para SortBy/SortOrder da API
+  const mapSortOptionToApi = (sortOption: SortOption): { sortBy?: SortBy; sortOrder?: SortOrder } => {
+    switch (sortOption) {
+      case "price-per-m2-asc":
+        return { sortBy: "pricePerSquareMeter", sortOrder: "asc" };
+      case "price-per-m2-desc":
+        return { sortBy: "pricePerSquareMeter", sortOrder: "desc" };
+      case "price-asc":
+        return { sortBy: "price", sortOrder: "asc" };
+      case "price-desc":
+        return { sortBy: "price", sortOrder: "desc" };
+      case "area-asc":
+        return { sortBy: "area", sortOrder: "asc" };
+      case "area-desc":
+        return { sortBy: "area", sortOrder: "desc" };
+      default:
+        return {};
+    }
+  };
 
-      switch (sortBy) {
-        case "price-per-m2-asc":
-          return sorted.sort(
-            (a, b) => a.pricePerSquareMeter - b.pricePerSquareMeter
-          );
-        case "price-per-m2-desc":
-          return sorted.sort(
-            (a, b) => b.pricePerSquareMeter - a.pricePerSquareMeter
-          );
-        case "price-asc":
-          return sorted.sort((a, b) => a.price - b.price);
-        case "price-desc":
-          return sorted.sort((a, b) => b.price - a.price);
-        case "area-asc":
-          return sorted.sort((a, b) => a.area - b.area);
-        case "area-desc":
-          return sorted.sort((a, b) => b.area - a.area);
-        default:
-          return sorted;
+  // Função para extrair mensagem de erro
+  const getErrorMessage = (error: unknown): string => {
+    if (error && typeof error === "object" && "response" in error) {
+      const axiosError = error as { response?: { status?: number; data?: { message?: string } } };
+      if (axiosError.response?.status === 503 || axiosError.response?.status === 500) {
+        return "Serviço temporariamente indisponível. Tente novamente em alguns instantes.";
+      }
+      if (axiosError.response?.status === 404) {
+        return "Serviço não encontrado. Verifique sua conexão.";
+      }
+      if (axiosError.response?.data?.message) {
+        return axiosError.response.data.message;
+      }
+      return "Erro ao conectar com o servidor. Verifique sua conexão e tente novamente.";
+    }
+    if (error instanceof Error) {
+      if (error.message.includes("Network Error") || error.message.includes("Failed to fetch")) {
+        return "Erro de conexão. Verifique sua internet e tente novamente.";
+      }
+      return error.message;
+    }
+    return "Erro inesperado ao buscar propriedades. Tente novamente.";
+  };
+
+  // Função para aplicar filtros e buscar da API
+  const applyFilters = useCallback(
+    async (filters: FilterState) => {
+      setCurrentFilters(filters);
+      setLoading(true);
+      setCurrentPage(1);
+      setError(null); // Limpar erro anterior
+
+      try {
+        const sortConfig = mapSortOptionToApi(sortBy);
+        const apiRequest = mapFiltersToApi(
+          filters,
+          cityToCodeMap,
+          1,
+          itemsPerPage,
+          sortConfig.sortBy,
+          sortConfig.sortOrder
+        );
+
+        const response = await postPropertyAdSearch(
+          apiRequest,
+          auth.store.token as string | undefined
+        );
+
+        const propertyData = mapApiToPropertyDataArray(response.data.data);
+        setFilteredProperties(propertyData);
+        setTotalPages(response.data.meta.lastPage);
+        setError(null); // Garantir que não há erro após sucesso
+      } catch (error) {
+        console.error("Erro ao buscar propriedades:", error);
+        const errorMessage = getErrorMessage(error);
+        setError(errorMessage);
+        setFilteredProperties([]);
+        setTotalPages(1);
+      } finally {
+        setLoading(false);
       }
     },
-    []
+    [sortBy, cityToCodeMap, itemsPerPage, auth.store.token]
   );
 
-  // Função para aplicar filtros
-  const applyFilters = useCallback(
-    (filters: FilterState) => {
-      setCurrentFilters(filters); // Atualizar filtros atuais para sincronizar com FilterBar
+  // Função para buscar propriedades quando a página muda
+  const fetchProperties = useCallback(
+    async (filters: FilterState, page: number) => {
+      if (!filters) return;
+
       setLoading(true);
-      setCurrentPage(1); // Reset para primeira página ao aplicar filtros
+      setError(null); // Limpar erro anterior
+      try {
+        const sortConfig = mapSortOptionToApi(sortBy);
+        const apiRequest = mapFiltersToApi(
+          filters,
+          cityToCodeMap,
+          page,
+          itemsPerPage,
+          sortConfig.sortBy,
+          sortConfig.sortOrder
+        );
 
-      // Simula delay de processamento
-      setTimeout(() => {
-        let filtered = [...properties];
+        const response = await postPropertyAdSearch(
+          apiRequest,
+          auth.store.token as string | undefined
+        );
 
-        // Filtro por busca
-        if (filters.search) {
-          const searchLower = filters.search.toLowerCase();
-          filtered = filtered.filter(
-            (property) =>
-              property.title?.toLowerCase().includes(searchLower) ||
-              property.address.toLowerCase().includes(searchLower) ||
-              property.city.toLowerCase().includes(searchLower)
-          );
-        }
-
-        // Filtro por cidade
-        if (filters.cities.length > 0) {
-          filtered = filtered.filter((property) =>
-            filters.cities.includes(property.city)
-          );
-        }
-
-        // Filtro por negócio
-        if (filters.venda || filters.aluguel) {
-          // Para demonstração, assumimos que todas as propriedades são para venda
-          // Em uma implementação real, isso viria dos dados
-          if (filters.venda) {
-            // Mantém todas as propriedades (todas são para venda)
-          }
-          if (filters.aluguel) {
-            // Remove todas (nenhuma é para aluguel neste mock)
-            filtered = [];
-          }
-        }
-
-        // Filtro por finalidade
-        if (
-          filters.residencial ||
-          filters.comercial ||
-          filters.industrial ||
-          filters.agricultura
-        ) {
-          filtered = filtered.filter((property) => {
-            const type = property.propertyType.toLowerCase();
-            return (
-              (filters.residencial && type === "residencial") ||
-              (filters.comercial && type === "comercial") ||
-              (filters.industrial && type === "industrial") ||
-              (filters.agricultura && type === "agricultura")
-            );
-          });
-        }
-
-        // Filtro por área
-        if (filters.area_min > 0 || filters.area_max < 1000000) {
-          filtered = filtered.filter(
-            (property) =>
-              property.area >= filters.area_min &&
-              property.area <= filters.area_max
-          );
-        }
-
-        // Filtro por preço
-        if (filters.preco_min > 0 || filters.preco_max < 100000000) {
-          filtered = filtered.filter(
-            (property) =>
-              property.price >= filters.preco_min &&
-              property.price <= filters.preco_max
-          );
-        }
-
-        // Filtro por quartos
-        if (filters.quartos !== null) {
-          filtered = filtered.filter(
-            (property) => (property.bedrooms || 0) >= filters.quartos!
-          );
-        }
-
-        // Filtro por banheiros
-        if (filters.banheiros !== null) {
-          filtered = filtered.filter(
-            (property) => (property.bathrooms || 0) >= filters.banheiros!
-          );
-        }
-
-        // Aplicar ordenação
-        const sorted = sortProperties(filtered, sortBy);
-
-        setFilteredProperties(sorted);
+        const propertyData = mapApiToPropertyDataArray(response.data.data);
+        setFilteredProperties(propertyData);
+        setTotalPages(response.data.meta.lastPage);
+        setError(null); // Garantir que não há erro após sucesso
+      } catch (error) {
+        console.error("Erro ao buscar propriedades:", error);
+        const errorMessage = getErrorMessage(error);
+        setError(errorMessage);
+        setFilteredProperties([]);
+      } finally {
         setLoading(false);
-      }, 500);
+      }
     },
-    [properties, sortBy, sortProperties]
+    [sortBy, cityToCodeMap, itemsPerPage, auth.store.token]
   );
+
+  // Flag para evitar busca dupla na página 1 durante o mount inicial
+  const isInitialMount = useRef(true);
+  const previousPage = useRef(1);
+  const isFetchingInitial = useRef(false); // Flag para indicar que está fazendo busca inicial
+
+  // Buscar propriedades quando a página muda
+  useEffect(() => {
+    // Não fazer nada se está fazendo busca inicial (para evitar interferência)
+    if (isFetchingInitial.current) {
+      return;
+    }
+
+    // Pular a busca na página 1 apenas durante o mount inicial (já é tratado pelo useEffect de busca inicial)
+    // Mas permitir busca se voltou para página 1 de outra página
+    if (isInitialMount.current && currentPage === 1 && !currentFilters) {
+      isInitialMount.current = false;
+      previousPage.current = currentPage;
+      return;
+    }
+
+    // Marcar que o mount inicial já passou
+    isInitialMount.current = false;
+
+    // Se a página mudou, fazer a busca
+    if (previousPage.current !== currentPage) {
+      if (currentFilters) {
+        // Se há filtros, buscar com os filtros aplicados
+        fetchProperties(currentFilters, currentPage);
+      } else {
+        // Se não há filtros, buscar busca inicial com a página correta
+        const fetchInitialPage = async () => {
+          setLoading(true);
+          setError(null);
+
+          try {
+            const apiRequest = {
+              page: currentPage,
+              size: itemsPerPage,
+              requireAreaInfo: false,
+            };
+
+            const response = await postPropertyAdSearch(
+              apiRequest,
+              auth.store.token as string | undefined
+            );
+
+            const propertyData = mapApiToPropertyDataArray(response.data.data);
+            setFilteredProperties(propertyData);
+            setTotalPages(response.data.meta.lastPage);
+            setError(null);
+          } catch (error) {
+            console.error("Erro ao buscar propriedades:", error);
+            const errorMessage = getErrorMessage(error);
+            setError(errorMessage);
+            setFilteredProperties([]);
+            setTotalPages(1);
+          } finally {
+            setLoading(false);
+          }
+        };
+
+        fetchInitialPage();
+      }
+    }
+
+    // Atualizar página anterior
+    previousPage.current = currentPage;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage]);
+
+  // Função para buscar propriedades iniciais (sem filtros)
+  const fetchInitialProperties = useCallback(async () => {
+    // Marcar que está fazendo busca inicial para evitar interferência do useEffect
+    isFetchingInitial.current = true;
+    
+    // Limpar filtros ANTES de fazer a busca para evitar que o useEffect interfira
+    setCurrentFilters(undefined);
+    setCurrentPage(1);
+    setError(null);
+    setLoading(true);
+
+    // Pequeno delay para garantir que os estados foram atualizados
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    try {
+      // Criar payload mínimo - apenas o essencial
+      // IMPORTANTE: Não usar mapFiltersToApi aqui, criar o payload diretamente
+      const apiRequest: {
+        page: number;
+        size: number;
+        requireAreaInfo: boolean;
+      } = {
+        page: 1,
+        size: itemsPerPage,
+        requireAreaInfo: false,
+      };
+
+      const response = await postPropertyAdSearch(
+        apiRequest,
+        auth.store.token as string | undefined
+      );
+
+      const propertyData = mapApiToPropertyDataArray(response.data.data);
+      setFilteredProperties(propertyData);
+      setTotalPages(response.data.meta.lastPage);
+      setError(null);
+    } catch (error) {
+      console.error("Erro ao buscar propriedades iniciais:", error);
+      const errorMessage = getErrorMessage(error);
+      setError(errorMessage);
+      setFilteredProperties([]);
+      setTotalPages(1);
+    } finally {
+      setLoading(false);
+      // Liberar a flag após um pequeno delay para garantir que o useEffect não interfira
+      setTimeout(() => {
+        isFetchingInitial.current = false;
+      }, 100);
+    }
+  }, [itemsPerPage, auth.store.token]);
+
+  // Buscar propriedades iniciais quando o componente monta (sem filtros)
+  useEffect(() => {
+    if (availableCities.length > 0 && Object.keys(cityToCodeMap).length > 0 && !currentFilters) {
+      fetchInitialProperties();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availableCities.length, Object.keys(cityToCodeMap).length]);
 
   // Função para lidar com mudança de ordenação
   const handleSortChange = (newSortBy: SortOption) => {
     setSortBy(newSortBy);
-    const sorted = sortProperties(filteredProperties, newSortBy);
-    setFilteredProperties(sorted);
+    if (currentFilters) {
+      applyFilters(currentFilters);
+    }
   };
 
   // Função para alternar favorito
@@ -806,11 +544,8 @@ export function SearchComponent() {
     );
   };
 
-  // Calcular propriedades paginadas
-  const totalPages = Math.ceil(filteredProperties.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedProperties = filteredProperties.slice(startIndex, endIndex);
+  // Propriedades já vêm paginadas da API
+  const paginatedProperties = filteredProperties;
 
   // Função para compartilhar
   const handleShare = (propertyId: string) => {
@@ -895,20 +630,22 @@ export function SearchComponent() {
   const handleDrawingComplete = (
     overlay: google.maps.drawing.OverlayCompleteEvent
   ) => {
-    // Filtrar propriedades baseado na área desenhada
+    // Filtrar propriedades baseado na área desenhada (filtro local após receber da API)
     const filteredByOverlay = filterPropertiesByOverlay(
       filteredProperties,
       overlay
     );
     setFilteredProperties(filteredByOverlay);
-    setCurrentPage(1); // Reset para primeira página
+    setCurrentPage(1);
   };
 
   // Função para limpar filtros (chamada pela lixeira)
   const handleClearFilters = () => {
-    console.log("Resetando filtros para mostrar todas as propriedades");
-    setFilteredProperties(properties); // Volta para todas as propriedades originais
-    setCurrentPage(1); // Reset para primeira página
+    if (currentFilters) {
+      // Aplicar filtros sem o desenho do mapa
+      applyFilters(currentFilters);
+      setCurrentPage(1);
+    }
   };
 
   // Função para limpar TODOS os filtros (campo de busca, cidades, bairros e filtros do modal)
@@ -1254,7 +991,58 @@ export function SearchComponent() {
               {/* Lista de Propriedades */}
               {!loading && (
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                  {paginatedProperties.length > 0 ? (
+                  {error ? (
+                    <Box
+                      sx={{
+                        textAlign: "center",
+                        py: 6,
+                        px: 2,
+                      }}
+                    >
+                      <ErrorOutline
+                        sx={{
+                          fontSize: 64,
+                          color: theme.palette.error.main,
+                          mb: 2,
+                        }}
+                      />
+                      <Typography
+                        variant="h6"
+                        sx={{
+                          fontWeight: 600,
+                          color: theme.palette.error.main,
+                          mb: 1,
+                        }}
+                      >
+                        Erro ao buscar propriedades
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: theme.palette.text.secondary,
+                          mb: 3,
+                          maxWidth: 400,
+                          mx: "auto",
+                        }}
+                      >
+                        {error}
+                      </Typography>
+                      <Button
+                        variant="contained"
+                        startIcon={<Refresh />}
+                        onClick={fetchInitialProperties}
+                        sx={{
+                          borderRadius: 2,
+                          px: 4,
+                          py: 1.5,
+                          textTransform: "none",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Tentar Novamente
+                      </Button>
+                    </Box>
+                  ) : paginatedProperties.length > 0 ? (
                     paginatedProperties.map((property) => (
                       <PropertiesCard
                         key={property.id}
@@ -1263,6 +1051,7 @@ export function SearchComponent() {
                         price={property.price}
                         pricePerSquareMeter={property.pricePerSquareMeter}
                         address={property.address}
+                        neighborhood={property.neighborhood}
                         city={property.city}
                         state={property.state}
                         propertyType={property.propertyType}
@@ -1568,7 +1357,58 @@ export function SearchComponent() {
                     pr: 1, // Padding para scrollbar
                   }}
                 >
-                  {filteredProperties.length > 0 ? (
+                  {error ? (
+                    <Box
+                      sx={{
+                        textAlign: "center",
+                        py: 8,
+                        px: 3,
+                      }}
+                    >
+                      <ErrorOutline
+                        sx={{
+                          fontSize: 64,
+                          color: theme.palette.error.main,
+                          mb: 2,
+                        }}
+                      />
+                      <Typography
+                        variant="h5"
+                        sx={{
+                          fontWeight: 600,
+                          color: theme.palette.error.main,
+                          mb: 2,
+                        }}
+                      >
+                        Erro ao buscar propriedades
+                      </Typography>
+                      <Typography
+                        variant="body1"
+                        sx={{
+                          color: theme.palette.text.secondary,
+                          mb: 3,
+                          maxWidth: 400,
+                          mx: "auto",
+                        }}
+                      >
+                        {error}
+                      </Typography>
+                      <Button
+                        variant="contained"
+                        startIcon={<Refresh />}
+                        onClick={fetchInitialProperties}
+                        sx={{
+                          borderRadius: 2,
+                          px: 4,
+                          py: 1.5,
+                          textTransform: "none",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Tentar Novamente
+                      </Button>
+                    </Box>
+                  ) : filteredProperties.length > 0 ? (
                     viewMode === "cards" ? (
                       <Box
                         sx={{
@@ -1590,6 +1430,7 @@ export function SearchComponent() {
                             price={property.price}
                             pricePerSquareMeter={property.pricePerSquareMeter}
                             address={property.address}
+                            neighborhood={property.neighborhood}
                             city={property.city}
                             state={property.state}
                             propertyType={property.propertyType}
@@ -1729,8 +1570,11 @@ export function SearchComponent() {
                                   whiteSpace: "nowrap",
                                 }}
                               >
-                                {property.address}, {property.city} -{" "}
-                                {property.state}
+                                {property.address}
+                                <br />
+                                {property.neighborhood && property.city
+                                  ? `${property.neighborhood}, ${property.city}`
+                                  : property.city || property.neighborhood}
                               </Typography>
                             </Box>
 

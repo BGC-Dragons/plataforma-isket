@@ -36,6 +36,7 @@ interface PropertyData {
   price: number;
   pricePerSquareMeter: number;
   address: string;
+  neighborhood?: string;
   city: string;
   state: string;
   propertyType: "COMERCIAL" | "RESIDENCIAL" | "TERRENO";
@@ -603,8 +604,11 @@ export function MapComponent({
                   fontSize: "0.8rem",
                 }}
               >
-                {selectedProperty.address}, {selectedProperty.city} -{" "}
-                {selectedProperty.state}
+                {selectedProperty.address}
+                <br />
+                {selectedProperty.neighborhood && selectedProperty.city
+                  ? `${selectedProperty.neighborhood}, ${selectedProperty.city}`
+                  : selectedProperty.city || selectedProperty.neighborhood}
               </Typography>
 
               {/* Detalhes específicos */}

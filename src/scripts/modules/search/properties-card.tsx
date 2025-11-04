@@ -25,6 +25,7 @@ interface PropertyCardProps {
   price: number;
   pricePerSquareMeter: number;
   address: string;
+  neighborhood?: string;
   city: string;
   state: string;
   propertyType: "COMERCIAL" | "RESIDENCIAL" | "TERRENO";
@@ -44,6 +45,7 @@ export function PropertiesCard({
   price,
   pricePerSquareMeter,
   address,
+  neighborhood,
   city,
   state,
   propertyType,
@@ -337,26 +339,28 @@ export function PropertiesCard({
         </Typography>
 
         {/* Preço por m² */}
-        <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-          <Typography
-            variant="body2"
-            sx={{
-              color: theme.palette.text.secondary,
-              fontSize: "0.875rem",
-              display: "flex",
-              alignItems: "center",
-              gap: 0.5,
-            }}
-          >
-            <SquareFoot
+        {pricePerSquareMeter > 0 && (
+          <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+            <Typography
+              variant="body2"
               sx={{
-                fontSize: "1rem",
-                color: getIconColor(propertyType),
+                color: theme.palette.text.secondary,
+                fontSize: "0.875rem",
+                display: "flex",
+                alignItems: "center",
+                gap: 0.5,
               }}
-            />
-            {formatPricePerSquareMeter(pricePerSquareMeter)} m²
-          </Typography>
-        </Box>
+            >
+              <SquareFoot
+                sx={{
+                  fontSize: "1rem",
+                  color: getIconColor(propertyType),
+                }}
+              />
+              {formatPricePerSquareMeter(pricePerSquareMeter)}/m²
+            </Typography>
+          </Box>
+        )}
 
         {/* Endereço */}
         <Box sx={{ display: "flex", alignItems: "flex-start", mb: 2 }}>
@@ -388,7 +392,7 @@ export function PropertiesCard({
                 lineHeight: 1.3,
               }}
             >
-              {city} - {state}
+              {neighborhood && city ? `${neighborhood}, ${city}` : city || neighborhood}
             </Typography>
           </Box>
         </Box>

@@ -6,6 +6,7 @@ export interface PropertyData {
   price: number;
   pricePerSquareMeter: number;
   address: string;
+  neighborhood?: string;
   city: string;
   state: string;
   propertyType: "COMERCIAL" | "RESIDENCIAL" | "TERRENO";
