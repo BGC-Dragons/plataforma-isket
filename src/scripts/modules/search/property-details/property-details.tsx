@@ -13,110 +13,15 @@ import { ArrowBack, PhotoLibrary, Share, Business } from "@mui/icons-material";
 import { PropertyGallery } from "./property-gallery";
 import { PropertyInformation } from "./property-information";
 import { PropertyLocalization } from "./property-localization";
+import { getPropertyAdView } from "../../../../services/get-property-ad-view.service";
+import {
+  mapApiToPropertyDetails,
+  type IPropertyDetailsData,
+} from "../../../../services/helpers/map-api-to-property-details.helper";
+import { useAuth } from "../../access-manager/auth.hook";
 
-// Interface para coordenadas
-interface Coordinates {
-  lat: number;
-  lng: number;
-}
-
-// Interface para os dados da propriedade
-interface PropertyDetailsData {
-  id: string;
-  title: string;
-  status: "VENDA" | "ALUGUEL";
-  price: number;
-  pricePerSquareMeter: number;
-  address: string;
-  city: string;
-  state: string;
-  propertyType: "COMERCIAL" | "RESIDENCIAL" | "TERRENO";
-  bedrooms?: number;
-  bathrooms?: number;
-  totalArea: number;
-  usableArea?: number;
-  images: string[];
-  characteristics?: string[];
-  description?: string;
-  realEstateName?: string;
-  coordinates?: Coordinates;
-}
-
-// Dados mockados (em uma implementação real, isso viria de uma API)
-const mockPropertyDetails: Record<string, PropertyDetailsData> = {
-  "1": {
-    id: "1",
-    title: "Estúdio - Comercial",
-    status: "VENDA",
-    price: 145000,
-    pricePerSquareMeter: 5370.37,
-    address: "Rua Marechal Deodoro, 235, Centro",
-    city: "CURITIBA",
-    state: "PR",
-    propertyType: "COMERCIAL",
-    bedrooms: 1,
-    bathrooms: 1,
-    totalArea: 180,
-    usableArea: 180,
-    images: [
-      "https://images.unsplash.com/photo-1497366216548-37526070297c?w=800",
-      "https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=800",
-      "https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=800",
-      "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800",
-      "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800",
-    ],
-    characteristics: [
-      "Ar condicionado",
-      "Internet fibra óptica",
-      "Estacionamento",
-      "Segurança 24h",
-      "Próximo ao metrô",
-      "Área comercial",
-    ],
-    description:
-      "Estúdio comercial localizado no centro da cidade, próximo ao metrô e com fácil acesso ao transporte público. Ideal para escritórios, consultórios ou pequenos comércios. O imóvel possui excelente localização e infraestrutura completa.",
-    realEstateName: "Rarítá Imóveis",
-    coordinates: {
-      lat: -25.4284,
-      lng: -49.2733,
-    },
-  },
-  "2": {
-    id: "2",
-    title: "Apartamento Residencial",
-    status: "VENDA",
-    price: 320000,
-    pricePerSquareMeter: 8500.0,
-    address: "Rua das Flores, 123, Batel",
-    city: "CURITIBA",
-    state: "PR",
-    propertyType: "RESIDENCIAL",
-    bedrooms: 3,
-    bathrooms: 2,
-    totalArea: 85,
-    usableArea: 75,
-    images: [
-      "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800",
-      "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800",
-      "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800",
-    ],
-    characteristics: [
-      "3 quartos",
-      "2 banheiros",
-      "Sala de estar",
-      "Cozinha americana",
-      "Varanda",
-      "Garagem",
-    ],
-    description:
-      "Apartamento residencial em excelente localização no bairro Batel. Imóvel com 3 quartos, sendo 1 suíte, 2 banheiros, sala de estar integrada com cozinha americana e varanda. Possui 1 vaga de garagem coberta.",
-    realEstateName: "Rarítá Imóveis",
-    coordinates: {
-      lat: -25.4354,
-      lng: -49.2803,
-    },
-  },
-};
+// Reexportar a interface do helper
+type PropertyDetailsData = IPropertyDetailsData;
 
 interface PropertyDetailsProps {
   open: boolean;
@@ -131,8 +36,10 @@ export function PropertyDetails({
 }: PropertyDetailsProps) {
   const theme = useTheme();
   const navigate = useNavigate();
+  const auth = useAuth();
   const [property, setProperty] = useState<PropertyDetailsData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [evaluationEmails, setEvaluationEmails] = useState<string[]>([]);
   const [evaluationCredits] = useState(3); // Mock - virá da API
 
@@ -146,16 +53,42 @@ export function PropertyDetails({
   useEffect(() => {
     if (propertyId && open) {
       setLoading(true);
-      // Simula delay de carregamento
-      setTimeout(() => {
-        const propertyData = mockPropertyDetails[propertyId];
-        if (propertyData) {
-          setProperty(propertyData);
+      setError(null);
+      setProperty(null);
+
+      const fetchPropertyDetails = async () => {
+        try {
+          // Preparar headers opcionais para log (se usuário estiver logado)
+          // Nota: accountId não está disponível diretamente no auth.store.user
+          // Se necessário, pode ser obtido via getAuthMe, mas por enquanto não é enviado
+          const headers = {
+            ref: window.location.href,
+            userId: auth.store.user?.id,
+            // accountId não está disponível no IAuthUser, deixar como undefined
+          };
+
+          // Buscar anúncio da API
+          const response = await getPropertyAdView(propertyId, headers);
+
+          // O primeiro elemento é o anúncio solicitado
+          if (response.data && response.data.length > 0) {
+            const propertyAd = response.data[0];
+            const propertyData = mapApiToPropertyDetails(propertyAd);
+            setProperty(propertyData);
+          } else {
+            setError("Propriedade não encontrada");
+          }
+        } catch (err) {
+          console.error("Erro ao buscar detalhes da propriedade:", err);
+          setError("Erro ao carregar propriedade. Tente novamente.");
+        } finally {
+          setLoading(false);
         }
-        setLoading(false);
-      }, 500);
+      };
+
+      fetchPropertyDetails();
     }
-  }, [propertyId, open]);
+  }, [propertyId, open, auth.store.user?.id]);
 
   // Função para voltar
   const handleBack = () => {
@@ -391,6 +324,37 @@ export function PropertyDetails({
               <Typography variant="h6" color="text.secondary">
                 Carregando propriedade...
               </Typography>
+            </Box>
+          ) : error ? (
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                height: "50vh",
+                textAlign: "center",
+              }}
+            >
+              <Typography variant="h5" color="error" sx={{ mb: 2 }}>
+                {error}
+              </Typography>
+              <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+                Não foi possível carregar os detalhes da propriedade.
+              </Typography>
+              <Button
+                variant="contained"
+                onClick={handleBack}
+                sx={{
+                  borderRadius: 2,
+                  px: 4,
+                  py: 1.5,
+                  textTransform: "none",
+                  fontWeight: 600,
+                }}
+              >
+                Voltar
+              </Button>
             </Box>
           ) : property ? (
             <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>

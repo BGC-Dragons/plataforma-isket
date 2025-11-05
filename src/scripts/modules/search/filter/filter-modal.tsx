@@ -1238,8 +1238,8 @@ export const FilterModal: React.FC<FilterModalProps> = ({
             />
           </FormGroup>
           <TextField
-            label="Palavras-chave"
-            placeholder="Digite palavras-chave para buscar"
+            label="Opcionais"
+            placeholder="Digite opcionais para buscar"
             value={filters.palavras_chave}
             onChange={(e) =>
               setFilters((prev) => ({
