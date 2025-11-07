@@ -79,13 +79,22 @@ export const mapApiToPropertyDetails = (propertyAd: IPropertyAd): IPropertyDetai
   }
 
   // Extrair coordenadas
-  const coordinates = propertyAd.address?.geo?.coordinates &&
-    propertyAd.address.geo.coordinates.length >= 2
-    ? {
-        lat: propertyAd.address.geo.coordinates[1],
-        lng: propertyAd.address.geo.coordinates[0],
-      }
-    : undefined;
+  // Priorizar point (formato mais direto), fallback para shape.coordinates
+  let coordinates: { lat: number; lng: number } | undefined;
+  if (propertyAd.address?.geo?.point) {
+    coordinates = {
+      lat: propertyAd.address.geo.point.lat,
+      lng: propertyAd.address.geo.point.lon,
+    };
+  } else if (
+    propertyAd.address?.geo?.shape?.coordinates &&
+    propertyAd.address.geo.shape.coordinates.length >= 2
+  ) {
+    coordinates = {
+      lat: propertyAd.address.geo.shape.coordinates[1],
+      lng: propertyAd.address.geo.shape.coordinates[0],
+    };
+  }
 
   // Endereço completo
   const address = propertyAd.formattedAddress ||

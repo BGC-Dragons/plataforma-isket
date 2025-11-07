@@ -147,12 +147,29 @@ export function MapComponent({
     id: "google-maps-script",
   });
 
-  // Adiciona coordenadas mockadas às propriedades
+  // Filtra propriedades com coordenadas válidas e valida as coordenadas
   const propertiesWithCoordinates = useMemo(() => {
-    return properties.map((property) => ({
-      ...property,
-      coordinates: property.coordinates || getMockCoordinates(),
-    }));
+    return properties
+      .filter((property) => {
+        // Apenas incluir propriedades com coordenadas válidas
+        if (!property.coordinates) return false;
+        const { lat, lng } = property.coordinates;
+        // Validar que as coordenadas são números válidos e estão em ranges válidos
+        return (
+          typeof lat === "number" &&
+          typeof lng === "number" &&
+          !isNaN(lat) &&
+          !isNaN(lng) &&
+          lat >= -90 &&
+          lat <= 90 &&
+          lng >= -180 &&
+          lng <= 180
+        );
+      })
+      .map((property) => ({
+        ...property,
+        coordinates: property.coordinates!, // Já validado acima
+      }));
   }, [properties]);
 
   // Refs para rastrear o centro e zoom anteriores

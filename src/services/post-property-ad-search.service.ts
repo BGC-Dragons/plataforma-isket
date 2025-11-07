@@ -141,8 +141,14 @@ export interface IPropertyPrice {
 }
 
 export interface IPropertyGeo {
-  type: "Point";
-  coordinates: [number, number]; // [longitude, latitude]
+  shape?: {
+    type: "Point";
+    coordinates: [number, number]; // [longitude, latitude]
+  };
+  point?: {
+    lat: number;
+    lon: number;
+  };
 }
 
 export interface IPropertyAddress {
