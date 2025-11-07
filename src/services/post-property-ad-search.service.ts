@@ -1,5 +1,6 @@
-import { type AxiosResponse, type AxiosInstance } from "axios";
-import axios from "axios";
+import { type AxiosResponse } from "axios";
+import { isketApiClient } from "./clients/isket-api.client";
+import { getHeader } from "./helpers/get-header-function";
 
 // Enums
 export type BusinessModel =
@@ -222,33 +223,16 @@ export interface IPostPropertyAdSearchResponse {
 // Constantes
 export const postPropertyAdSearchPATH = "/property-ad/search";
 
-// TEMPORÁRIO: Token para testes
-const TEMP_TEST_TOKEN =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY3Mzc3OTQwZmY2M2I5MWFiZGQ2OWJiYiIsImFjY291bnRJZCI6IjY3Mzc3OTQwZmY2M2I5MWFiZGQ2OWJhZSIsImlhdCI6MTc2MjI1NjgyNywiZXhwIjoxNzYyMjYwNDI3fQ.5CaJj15c39iEBU08yEqma3Ryuzs_sshUU-pmMDb-caM";
-// TEMPORÁRIO: Instância do axios sem interceptors para evitar conflito com interceptor global
-const testAxiosInstance: AxiosInstance = axios.create();
-
 // Função principal do service
 export const postPropertyAdSearch = (
   params: IPostPropertyAdSearchRequest,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _token?: string
+  token?: string
 ): Promise<AxiosResponse<IPostPropertyAdSearchResponse>> => {
-  // TEMPORÁRIO: Usar URL completa e token fixo para testes
-  const testUrl = "https://api.isket.com.br/property-ad/search";
-  const testToken = TEMP_TEST_TOKEN;
-
-  const config = {
-    headers: {
-      Authorization: `Bearer ${testToken}`,
-      "Content-Type": "application/json",
-    },
-  };
-
-  // TEMPORÁRIO: Usar instância separada do axios sem interceptors para garantir que o token fixo seja usado
-  return testAxiosInstance.post<IPostPropertyAdSearchResponse>(
-    testUrl,
+  return isketApiClient.post<IPostPropertyAdSearchResponse>(
+    postPropertyAdSearchPATH,
     params,
-    config
+    {
+      headers: getHeader(token ? { token } : {}),
+    }
   );
 };

@@ -1,10 +1,11 @@
-import { useCallback, useState, useMemo, useRef } from "react";
+import { useCallback, useState, useMemo, useRef, useEffect } from "react";
 import {
   GoogleMap,
   Marker,
   InfoWindow,
   useLoadScript,
   DrawingManager,
+  Polygon,
 } from "@react-google-maps/api";
 import {
   Box,
@@ -28,6 +29,7 @@ import {
   Gesture,
 } from "@mui/icons-material";
 import { GOOGLE_CONFIG } from "../../../config/google.constant";
+import type { INeighborhoodFull } from "../../../../services/get-locations-neighborhoods.service";
 
 // Interface para os dados das propriedades
 interface PropertyData {
@@ -65,6 +67,8 @@ interface MapProps {
     overlay: google.maps.drawing.OverlayCompleteEvent
   ) => void;
   onClearFilters?: () => void;
+  neighborhoods?: INeighborhoodFull[];
+  selectedNeighborhoodNames?: string[];
 }
 
 // Coordenadas mockadas para Curitiba e região
@@ -104,6 +108,8 @@ export function MapComponent({
   height = 500,
   onDrawingComplete,
   onClearFilters,
+  neighborhoods = [],
+  selectedNeighborhoodNames = [],
 }: MapProps) {
   const theme = useTheme();
   const [selectedProperty, setSelectedProperty] = useState<PropertyData | null>(
@@ -142,10 +148,97 @@ export function MapComponent({
     }));
   }, [properties]);
 
+  // Refs para rastrear o centro e zoom anteriores
+  const previousCenterRef = useRef<{ lat: number; lng: number } | undefined>(center);
+  const previousZoomRef = useRef<number | undefined>(zoom);
+
   // Callback quando o mapa é carregado
   const onMapLoad = useCallback((loadedMap: google.maps.Map) => {
     setMap(loadedMap);
-  }, []);
+    // Definir centro e zoom iniciais
+    previousCenterRef.current = center;
+    previousZoomRef.current = zoom;
+  }, [center, zoom]);
+
+  // Efeito para animar o mapa quando center ou zoom mudarem
+  useEffect(() => {
+    if (!map || !center || zoom === undefined) return;
+
+    // Verificar se o centro ou zoom realmente mudaram
+    const centerChanged =
+      !previousCenterRef.current ||
+      previousCenterRef.current.lat !== center.lat ||
+      previousCenterRef.current.lng !== center.lng;
+
+    const zoomChanged = previousZoomRef.current !== zoom;
+
+    // Se não houve mudança, não fazer nada
+    if (!centerChanged && !zoomChanged) return;
+
+    // Se há bairros selecionados, usar fitBounds para animação suave
+    const neighborhoodsToFit = neighborhoods.filter((neighborhood) =>
+      selectedNeighborhoodNames.length === 0 ||
+      selectedNeighborhoodNames.includes(neighborhood.name)
+    );
+
+    if (neighborhoodsToFit.length > 0) {
+      // Coletar todas as coordenadas dos bairros
+      const allCoordinates: google.maps.LatLng[] = [];
+
+      neighborhoodsToFit.forEach((neighborhood) => {
+        const coords = neighborhood.geo?.coordinates?.[0];
+        if (coords && coords.length > 0) {
+          coords.forEach((coord) => {
+            allCoordinates.push(
+              new google.maps.LatLng(coord[1], coord[0]) // lat, lng
+            );
+          });
+        }
+      });
+
+      if (allCoordinates.length > 0) {
+        // Criar bounds a partir das coordenadas
+        const bounds = new google.maps.LatLngBounds();
+        allCoordinates.forEach((coord) => {
+          bounds.extend(coord);
+        });
+
+        // Usar fitBounds com padding para uma melhor visualização
+        map.fitBounds(bounds, {
+          top: 50,
+          right: 50,
+          bottom: 50,
+          left: 50,
+        });
+
+        // Atualizar refs
+        previousCenterRef.current = center;
+        previousZoomRef.current = zoom;
+        return;
+      }
+    }
+
+    // Se não há bairros ou não foi possível criar bounds, usar panTo e setZoom
+    // panTo já tem animação suave por padrão
+    if (centerChanged && zoomChanged) {
+      // Se ambos mudaram, fazer panTo primeiro e depois zoom para animação mais suave
+      map.panTo(new google.maps.LatLng(center.lat, center.lng));
+      // Usar setTimeout para fazer zoom após o pan começar
+      setTimeout(() => {
+        if (map) {
+          map.setZoom(zoom);
+        }
+      }, 100);
+    } else if (centerChanged) {
+      map.panTo(new google.maps.LatLng(center.lat, center.lng));
+    } else if (zoomChanged) {
+      map.setZoom(zoom);
+    }
+
+    // Atualizar refs
+    previousCenterRef.current = center;
+    previousZoomRef.current = zoom;
+  }, [map, center, zoom, neighborhoods, selectedNeighborhoodNames]);
 
   // Callback quando o mapa é clicado
   const onMapClick = useCallback(() => {
@@ -475,6 +568,42 @@ export function MapComponent({
             // Retângulo foi substituído por desenho livre
           }}
         />
+
+        {/* Polígonos dos bairros selecionados */}
+        {neighborhoods
+          .filter((neighborhood) =>
+            selectedNeighborhoodNames.length === 0 ||
+            selectedNeighborhoodNames.includes(neighborhood.name)
+          )
+          .map((neighborhood) => {
+            // Converter coordenadas GeoJSON para formato do Google Maps
+            // GeoJSON usa [lon, lat], Google Maps usa {lat, lng}
+            const paths =
+              neighborhood.geo?.coordinates?.[0]?.map((coord) => ({
+                lat: coord[1], // latitude
+                lng: coord[0], // longitude
+              })) || [];
+
+            if (paths.length === 0) return null;
+
+            return (
+              <Polygon
+                key={neighborhood.id}
+                paths={paths}
+                options={{
+                  fillColor: theme.palette.primary.main,
+                  fillOpacity: 0.15,
+                  strokeColor: theme.palette.primary.main,
+                  strokeOpacity: 0.8,
+                  strokeWeight: 2,
+                  clickable: false,
+                  editable: false,
+                  draggable: false,
+                  zIndex: 1,
+                }}
+              />
+            );
+          })}
 
         {/* Marcadores das propriedades */}
         {propertiesWithCoordinates.map((property) => (

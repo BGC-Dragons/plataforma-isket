@@ -68,7 +68,11 @@ export function PropertyDetails({
           };
 
           // Buscar anúncio da API
-          const response = await getPropertyAdView(propertyId, headers);
+          const response = await getPropertyAdView(
+            propertyId,
+            auth.store.token as string | undefined,
+            headers
+          );
 
           // O primeiro elemento é o anúncio solicitado
           if (response.data && response.data.length > 0) {
