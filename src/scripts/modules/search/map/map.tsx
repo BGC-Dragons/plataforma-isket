@@ -30,6 +30,7 @@ import {
 } from "@mui/icons-material";
 import { GOOGLE_CONFIG } from "../../../config/google.constant";
 import type { INeighborhoodFull } from "../../../../services/get-locations-neighborhoods.service";
+import type { ICityFull } from "../../../../services/get-locations-cities.service";
 
 // Interface para os dados das propriedades
 interface PropertyData {
@@ -69,6 +70,9 @@ interface MapProps {
   onClearFilters?: () => void;
   neighborhoods?: INeighborhoodFull[];
   selectedNeighborhoodNames?: string[];
+  cities?: ICityFull[];
+  selectedCityCodes?: string[];
+  allNeighborhoodsForCityBounds?: INeighborhoodFull[]; // Todos os bairros para mostrar delimitação da cidade
 }
 
 // Coordenadas mockadas para Curitiba e região
@@ -110,6 +114,9 @@ export function MapComponent({
   onClearFilters,
   neighborhoods = [],
   selectedNeighborhoodNames = [],
+  cities = [],
+  selectedCityCodes = [],
+  allNeighborhoodsForCityBounds = [],
 }: MapProps) {
   const theme = useTheme();
   const [selectedProperty, setSelectedProperty] = useState<PropertyData | null>(
@@ -175,47 +182,73 @@ export function MapComponent({
     // Se não houve mudança, não fazer nada
     if (!centerChanged && !zoomChanged) return;
 
-    // Se há bairros selecionados, usar fitBounds para animação suave
+    // Coletar coordenadas de bairros e cidades para fitBounds
+    const allCoordinates: google.maps.LatLng[] = [];
+
+    // Adicionar coordenadas dos bairros selecionados
     const neighborhoodsToFit = neighborhoods.filter((neighborhood) =>
       selectedNeighborhoodNames.length === 0 ||
       selectedNeighborhoodNames.includes(neighborhood.name)
     );
 
-    if (neighborhoodsToFit.length > 0) {
-      // Coletar todas as coordenadas dos bairros
-      const allCoordinates: google.maps.LatLng[] = [];
+    neighborhoodsToFit.forEach((neighborhood) => {
+      const coords = neighborhood.geo?.coordinates?.[0];
+      if (coords && coords.length > 0) {
+        coords.forEach((coord) => {
+          allCoordinates.push(
+            new google.maps.LatLng(coord[1], coord[0]) // lat, lng
+          );
+        });
+      }
+    });
 
-      neighborhoodsToFit.forEach((neighborhood) => {
-        const coords = neighborhood.geo?.coordinates?.[0];
-        if (coords && coords.length > 0) {
-          coords.forEach((coord) => {
-            allCoordinates.push(
-              new google.maps.LatLng(coord[1], coord[0]) // lat, lng
-            );
-          });
-        }
+    // Adicionar coordenadas das cidades selecionadas
+    const citiesToFit = cities.filter((city) =>
+      selectedCityCodes.length === 0 ||
+      selectedCityCodes.includes(city.cityStateCode)
+    );
+
+    citiesToFit.forEach((city) => {
+      if (!city.geo?.geometry) return;
+      
+      const geometry = city.geo.geometry;
+      if (geometry.type === "Polygon") {
+        const coords = geometry.coordinates as number[][][];
+        coords[0]?.forEach((coord) => {
+          allCoordinates.push(
+            new google.maps.LatLng(coord[1], coord[0]) // lat, lng
+          );
+        });
+      } else if (geometry.type === "MultiPolygon") {
+        const coords = geometry.coordinates as number[][][][];
+        coords[0]?.[0]?.forEach((coord) => {
+          allCoordinates.push(
+            new google.maps.LatLng(coord[1], coord[0]) // lat, lng
+          );
+        });
+      }
+    });
+
+    // Se há coordenadas, usar fitBounds para animação suave
+    if (allCoordinates.length > 0) {
+      // Criar bounds a partir das coordenadas
+      const bounds = new google.maps.LatLngBounds();
+      allCoordinates.forEach((coord) => {
+        bounds.extend(coord);
       });
 
-      if (allCoordinates.length > 0) {
-        // Criar bounds a partir das coordenadas
-        const bounds = new google.maps.LatLngBounds();
-        allCoordinates.forEach((coord) => {
-          bounds.extend(coord);
-        });
+      // Usar fitBounds com padding para uma melhor visualização
+      map.fitBounds(bounds, {
+        top: 50,
+        right: 50,
+        bottom: 50,
+        left: 50,
+      });
 
-        // Usar fitBounds com padding para uma melhor visualização
-        map.fitBounds(bounds, {
-          top: 50,
-          right: 50,
-          bottom: 50,
-          left: 50,
-        });
-
-        // Atualizar refs
-        previousCenterRef.current = center;
-        previousZoomRef.current = zoom;
-        return;
-      }
+      // Atualizar refs
+      previousCenterRef.current = center;
+      previousZoomRef.current = zoom;
+      return;
     }
 
     // Se não há bairros ou não foi possível criar bounds, usar panTo e setZoom
@@ -238,7 +271,7 @@ export function MapComponent({
     // Atualizar refs
     previousCenterRef.current = center;
     previousZoomRef.current = zoom;
-  }, [map, center, zoom, neighborhoods, selectedNeighborhoodNames]);
+  }, [map, center, zoom, neighborhoods, selectedNeighborhoodNames, cities, selectedCityCodes]);
 
   // Callback quando o mapa é clicado
   const onMapClick = useCallback(() => {
@@ -569,8 +602,62 @@ export function MapComponent({
           }}
         />
 
-        {/* Polígonos dos bairros selecionados */}
-        {neighborhoods
+        {/* Polígonos das cidades selecionadas */}
+        {cities
+          .filter((city) =>
+            selectedCityCodes.length === 0 ||
+            selectedCityCodes.includes(city.cityStateCode)
+          )
+          .map((city) => {
+            // Converter coordenadas GeoJSON para formato do Google Maps
+            // GeoJSON usa [lon, lat], Google Maps usa {lat, lng}
+            // Suporta tanto Polygon quanto MultiPolygon
+            if (!city.geo?.geometry) return null;
+            
+            const geometry = city.geo.geometry;
+            let paths: { lat: number; lng: number }[] = [];
+            
+            if (geometry.type === "Polygon") {
+              // Polygon: coordinates é number[][][]
+              const coords = geometry.coordinates as number[][][];
+              paths = coords[0]?.map((coord) => ({
+                lat: coord[1], // latitude
+                lng: coord[0], // longitude
+              })) || [];
+            } else if (geometry.type === "MultiPolygon") {
+              // MultiPolygon: coordinates é number[][][][]
+              // Pegamos o primeiro polígono do MultiPolygon
+              const coords = geometry.coordinates as number[][][][];
+              paths = coords[0]?.[0]?.map((coord) => ({
+                lat: coord[1], // latitude
+                lng: coord[0], // longitude
+              })) || [];
+            }
+
+            if (paths.length === 0) return null;
+
+            return (
+              <Polygon
+                key={city.id}
+                paths={paths}
+                options={{
+                  fillColor: theme.palette.primary.main,
+                  fillOpacity: 0.15,
+                  strokeColor: theme.palette.primary.main,
+                  strokeOpacity: 0.8,
+                  strokeWeight: 2,
+                  clickable: false,
+                  editable: false,
+                  draggable: false,
+                  zIndex: 0, // Cidades ficam atrás dos bairros
+                }}
+              />
+            );
+          })}
+
+        {/* Polígonos dos bairros selecionados ou todos os bairros para delimitar cidade */}
+        {/* Se há bairros selecionados, mostrar apenas esses */}
+        {neighborhoods.length > 0 && neighborhoods
           .filter((neighborhood) =>
             selectedNeighborhoodNames.length === 0 ||
             selectedNeighborhoodNames.includes(neighborhood.name)
@@ -599,11 +686,12 @@ export function MapComponent({
                   clickable: false,
                   editable: false,
                   draggable: false,
-                  zIndex: 1,
+                  zIndex: 1, // Bairros ficam na frente das cidades
                 }}
               />
             );
           })}
+
 
         {/* Marcadores das propriedades */}
         {propertiesWithCoordinates.map((property) => (

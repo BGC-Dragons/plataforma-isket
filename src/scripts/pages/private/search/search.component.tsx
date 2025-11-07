@@ -51,6 +51,7 @@ import { mapApiToPropertyDataArray } from "../../../../services/helpers/map-api-
 import { useAuth } from "../../../modules/access-manager/auth.hook";
 import { getNeighborhoods } from "../../../../services/get-locations-neighborhoods.service";
 import type { INeighborhoodFull } from "../../../../services/get-locations-neighborhoods.service";
+import { getCityByCode } from "../../../../services/get-locations-city-by-code.service";
 
 // Interface para os dados das propriedades
 interface PropertyData {
@@ -175,6 +176,8 @@ export function SearchComponent() {
   const [dragStartY, setDragStartY] = useState(0);
   const [dragStartPosition, setDragStartPosition] = useState(0);
   const [neighborhoodsData, setNeighborhoodsData] = useState<INeighborhoodFull[]>([]);
+  const [allNeighborhoodsForBounds, setAllNeighborhoodsForBounds] = useState<INeighborhoodFull[]>([]); // Todos os bairros para cálculo de bounds quando não há seleção específica
+  const [citiesData, setCitiesData] = useState<ICityFull[]>([]);
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | undefined>(undefined);
   const [mapZoom, setMapZoom] = useState<number | undefined>(undefined);
 
@@ -321,19 +324,48 @@ export function SearchComponent() {
     return "Erro inesperado ao buscar propriedades. Tente novamente.";
   };
 
-  // Função para calcular o centro e bounds dos bairros
-  const calculateMapBounds = useCallback((neighborhoods: INeighborhoodFull[]) => {
-    if (neighborhoods.length === 0) {
+  // Função para calcular o centro e bounds de bairros e cidades
+  const calculateMapBounds = useCallback((
+    neighborhoods: INeighborhoodFull[],
+    cities: ICityFull[] = []
+  ) => {
+    if (neighborhoods.length === 0 && cities.length === 0) {
       return { center: undefined, zoom: undefined };
     }
 
-    // Coletar todas as coordenadas dos bairros
+    // Coletar todas as coordenadas dos bairros e cidades
     const allCoordinates: { lat: number; lng: number }[] = [];
 
+    // Adicionar coordenadas dos bairros
     neighborhoods.forEach((neighborhood) => {
       const coords = neighborhood.geo?.coordinates?.[0];
       if (coords && coords.length > 0) {
         coords.forEach((coord) => {
+          allCoordinates.push({
+            lat: coord[1], // latitude
+            lng: coord[0], // longitude
+          });
+        });
+      }
+    });
+
+    // Adicionar coordenadas das cidades
+    // Suporta tanto Polygon quanto MultiPolygon
+    cities.forEach((city) => {
+      if (!city.geo?.geometry) return;
+      
+      const geometry = city.geo.geometry;
+      if (geometry.type === "Polygon") {
+        const coords = geometry.coordinates as number[][][];
+        coords[0]?.forEach((coord) => {
+          allCoordinates.push({
+            lat: coord[1], // latitude
+            lng: coord[0], // longitude
+          });
+        });
+      } else if (geometry.type === "MultiPolygon") {
+        const coords = geometry.coordinates as number[][][][];
+        coords[0]?.[0]?.forEach((coord) => {
           allCoordinates.push({
             lat: coord[1], // latitude
             lng: coord[0], // longitude
@@ -367,31 +399,98 @@ export function SearchComponent() {
     const lngDiff = maxLng - minLng;
     const maxDiff = Math.max(latDiff, lngDiff);
 
+    // Se há muitos bairros (mais de 50), é uma cidade inteira - zoom mais próximo
     let zoom = 12; // zoom padrão
-    if (maxDiff > 0.5) {
-      zoom = 9; // área muito grande (estado)
-    } else if (maxDiff > 0.2) {
-      zoom = 10; // área grande (região)
-    } else if (maxDiff > 0.1) {
-      zoom = 11; // área média (cidade)
-    } else if (maxDiff > 0.05) {
-      zoom = 12; // área pequena (bairros)
-    } else if (maxDiff > 0.02) {
-      zoom = 13; // área muito pequena (bairro específico)
+    if (neighborhoods.length > 50) {
+      // Cidade inteira - zoom mais próximo para ver melhor
+      if (maxDiff > 0.3) {
+        zoom = 11; // cidade muito grande
+      } else if (maxDiff > 0.15) {
+        zoom = 12; // cidade grande
+      } else if (maxDiff > 0.08) {
+        zoom = 13; // cidade média
+      } else {
+        zoom = 14; // cidade pequena
+      }
     } else {
-      zoom = 14; // área mínima
+      // Seleção específica de bairros
+      if (maxDiff > 0.5) {
+        zoom = 9; // área muito grande (estado)
+      } else if (maxDiff > 0.2) {
+        zoom = 10; // área grande (região)
+      } else if (maxDiff > 0.1) {
+        zoom = 11; // área média (cidade)
+      } else if (maxDiff > 0.05) {
+        zoom = 12; // área pequena (bairros)
+      } else if (maxDiff > 0.02) {
+        zoom = 13; // área muito pequena (bairro específico)
+      } else {
+        zoom = 14; // área mínima
+      }
     }
 
     return { center, zoom };
   }, []);
 
+  // Função para buscar dados geoespaciais das cidades
+  // Quando apenas cidades são selecionadas (sem bairros), usa o endpoint individual que retorna geo completo
+  const fetchCitiesData = useCallback(
+    async (filters: FilterState) => {
+      if (filters.cities.length === 0) {
+        setCitiesData([]);
+        return;
+      }
+
+      try {
+        // Obter códigos das cidades selecionadas
+        const cityStateCodes = filters.cities
+          .map((city) => cityToCodeMap[city])
+          .filter((code): code is string => Boolean(code));
+
+        if (cityStateCodes.length === 0) {
+          setCitiesData([]);
+          return;
+        }
+
+        // Se não há bairros selecionados, buscar cada cidade individualmente pelo endpoint que retorna geo completo
+        // Isso garante que temos os dados geoespaciais da cidade
+        if (filters.neighborhoods.length === 0) {
+          const cityPromises = cityStateCodes.map((code) =>
+            getCityByCode(code, auth.store.token as string | undefined)
+          );
+          const cityResponses = await Promise.all(cityPromises);
+          const cities = cityResponses.map((response) => response.data);
+          setCitiesData(cities);
+        } else {
+          // Se há bairros selecionados, usar findMany (mais eficiente)
+          const response = await postCitiesFindMany(
+            { cityStateCodes },
+            auth.store.token as string | undefined
+          );
+          setCitiesData(response.data);
+        }
+      } catch (error) {
+        console.error("Erro ao buscar dados das cidades:", error);
+        setCitiesData([]);
+      }
+    },
+    [cityToCodeMap, auth.store.token]
+  );
+
   // Função para buscar dados geoespaciais dos bairros
+  // Se não há bairros específicos selecionados, não precisa buscar (usaremos dados da cidade)
   const fetchNeighborhoodsData = useCallback(
     async (filters: FilterState) => {
       if (filters.cities.length === 0) {
         setNeighborhoodsData([]);
-        setMapCenter(undefined);
-        setMapZoom(undefined);
+        setAllNeighborhoodsForBounds([]);
+        return;
+      }
+
+      // Se não há bairros selecionados, não precisa buscar bairros (usaremos dados da cidade)
+      if (filters.neighborhoods.length === 0) {
+        setNeighborhoodsData([]);
+        setAllNeighborhoodsForBounds([]);
         return;
       }
 
@@ -403,8 +502,6 @@ export function SearchComponent() {
 
         if (cityStateCodes.length === 0) {
           setNeighborhoodsData([]);
-          setMapCenter(undefined);
-          setMapZoom(undefined);
           return;
         }
 
@@ -414,37 +511,41 @@ export function SearchComponent() {
           auth.store.token as string | undefined
         );
 
-        // Se há bairros específicos selecionados, filtrar apenas esses
-        // Caso contrário, usar todos os bairros da cidade para calcular o centro
-        const selectedNeighborhoods = filters.neighborhoods.length > 0
-          ? response.data.filter((neighborhood) =>
-              filters.neighborhoods.includes(neighborhood.name)
-            )
-          : response.data; // Se não há bairros específicos, usar todos para calcular o centro
+        // Filtrar apenas os bairros selecionados
+        const selectedNeighborhoods = response.data.filter((neighborhood) =>
+          filters.neighborhoods.includes(neighborhood.name)
+        );
 
         // Armazenar apenas os bairros selecionados (para renderização)
-        const neighborhoodsToRender = filters.neighborhoods.length > 0
-          ? selectedNeighborhoods
-          : [];
-
-        setNeighborhoodsData(neighborhoodsToRender);
-
-        // Calcular e atualizar centro e zoom do mapa
-        // Usar todos os bairros da cidade se não há seleção específica
-        const bounds = calculateMapBounds(selectedNeighborhoods);
-        if (bounds.center) {
-          setMapCenter(bounds.center);
-          setMapZoom(bounds.zoom);
-        }
+        setNeighborhoodsData(selectedNeighborhoods);
+        setAllNeighborhoodsForBounds([]);
       } catch (error) {
         console.error("Erro ao buscar dados dos bairros:", error);
         setNeighborhoodsData([]);
-        setMapCenter(undefined);
-        setMapZoom(undefined);
       }
     },
-    [cityToCodeMap, auth.store.token, calculateMapBounds]
+    [cityToCodeMap, auth.store.token]
   );
+
+  // Efeito para calcular bounds quando cidades ou bairros mudarem
+  useEffect(() => {
+    // Se não há dados, limpar
+    if (citiesData.length === 0 && neighborhoodsData.length === 0) {
+      setMapCenter(undefined);
+      setMapZoom(undefined);
+      return;
+    }
+
+    // Calcular bounds usando cidades e bairros
+    // Quando apenas cidades são selecionadas, usamos os dados geoespaciais da cidade
+    // Quando há bairros selecionados, usamos os dados dos bairros
+    const bounds = calculateMapBounds(neighborhoodsData, citiesData);
+    
+    if (bounds.center) {
+      setMapCenter(bounds.center);
+      setMapZoom(bounds.zoom);
+    }
+  }, [citiesData, neighborhoodsData, calculateMapBounds]);
 
   // Função para aplicar filtros e buscar da API
   const applyFilters = useCallback(
@@ -475,7 +576,8 @@ export function SearchComponent() {
         setTotalPages(response.data.meta.lastPage);
         setError(null); // Garantir que não há erro após sucesso
 
-        // Buscar dados geoespaciais dos bairros selecionados
+        // Buscar dados geoespaciais das cidades e bairros selecionados
+        await fetchCitiesData(filters);
         await fetchNeighborhoodsData(filters);
       } catch (error) {
         console.error("Erro ao buscar propriedades:", error);
@@ -786,6 +888,8 @@ export function SearchComponent() {
     setMapCenter(undefined);
     setMapZoom(undefined);
     setNeighborhoodsData([]);
+    setAllNeighborhoodsForBounds([]);
+    setCitiesData([]);
     const clearedFilters: FilterState = {
       search: "",
       cities: [],
@@ -1007,6 +1111,9 @@ export function SearchComponent() {
               onClearFilters={handleClearFilters}
               neighborhoods={neighborhoodsData}
               selectedNeighborhoodNames={currentFilters?.neighborhoods || []}
+              cities={citiesData}
+              selectedCityCodes={currentFilters?.cities.map(city => cityToCodeMap[city]).filter((code): code is string => Boolean(code)) || []}
+              allNeighborhoodsForCityBounds={allNeighborhoodsForBounds}
             />
           </Box>
 
@@ -1920,6 +2027,8 @@ export function SearchComponent() {
                 onClearFilters={handleClearFilters}
                 neighborhoods={neighborhoodsData}
                 selectedNeighborhoodNames={currentFilters?.neighborhoods || []}
+                cities={citiesData}
+                selectedCityCodes={currentFilters?.cities.map(city => cityToCodeMap[city]).filter((code): code is string => Boolean(code)) || []}
               />
             </Box>
           </Box>
@@ -2060,6 +2169,8 @@ export function SearchComponent() {
                 onClearFilters={handleClearFilters}
                 neighborhoods={neighborhoodsData}
                 selectedNeighborhoodNames={currentFilters?.neighborhoods || []}
+                cities={citiesData}
+                selectedCityCodes={currentFilters?.cities.map(city => cityToCodeMap[city]).filter((code): code is string => Boolean(code)) || []}
               />
             </Box>
           </Box>
