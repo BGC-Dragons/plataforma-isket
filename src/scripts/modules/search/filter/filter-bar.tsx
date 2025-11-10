@@ -201,15 +201,19 @@ export function FilterBar({
 
   // Resetar bairros quando as cidades mudarem
   const handleCityChange = useCallback((cities: string[]) => {
-    setTempFilters((prev) => ({
-      ...prev,
+    const updatedFilters = {
+      ...tempFilters,
       cities,
       // Limpar bairros quando as cidades mudarem (serão recarregados)
       neighborhoods: [],
-    }));
+    };
+    setTempFilters(updatedFilters);
     setNeighborhoods([]);
     setNeighborhoodsLoaded(false);
-  }, []);
+    
+    // Notificar mudança imediatamente para centralizar o mapa
+    onFiltersChange(updatedFilters);
+  }, [tempFilters, onFiltersChange]);
 
   // Função para limpar todas as cidades selecionadas
   const handleClearCities = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {

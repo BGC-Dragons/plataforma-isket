@@ -16,6 +16,7 @@ import {
   useTheme,
   Button,
   Stack,
+  CircularProgress,
 } from "@mui/material";
 import {
   Close,
@@ -31,6 +32,9 @@ import {
 import { GOOGLE_CONFIG } from "../../../config/google.constant";
 import type { INeighborhoodFull } from "../../../../services/get-locations-neighborhoods.service";
 import type { ICityFull } from "../../../../services/get-locations-cities.service";
+import { postPropertyAdSearchMap, type IMapCluster, type IMapPoint } from "../../../../services/post-property-ad-search-map.service";
+import { mapFiltersToSearchMap } from "../../../../services/helpers/map-filters-to-search-map.helper";
+import type { ILocalFilterState } from "../../../../services/helpers/map-filters-to-api.helper";
 
 // Interface para os dados das propriedades
 interface PropertyData {
@@ -56,7 +60,7 @@ interface PropertyData {
 }
 
 interface MapProps {
-  properties: PropertyData[];
+  properties?: PropertyData[]; // Opcional - se não fornecido, usa busca do mapa
   onPropertyClick?: (propertyId: string) => void;
   center?: {
     lat: number;
@@ -73,6 +77,11 @@ interface MapProps {
   cities?: ICityFull[];
   selectedCityCodes?: string[];
   allNeighborhoodsForCityBounds?: INeighborhoodFull[]; // Todos os bairros para mostrar delimitação da cidade
+  // Novas props para busca de mapa
+  filters?: ILocalFilterState;
+  cityToCodeMap?: Record<string, string>;
+  token?: string;
+  useMapSearch?: boolean; // Se true, usa busca do mapa ao invés de properties
 }
 
 // Coordenadas mockadas para Curitiba e região
@@ -105,7 +114,7 @@ const defaultCenter = {
 const defaultZoom = 12;
 
 export function MapComponent({
-  properties,
+  properties = [],
   onPropertyClick,
   center = defaultCenter,
   zoom = defaultZoom,
@@ -117,11 +126,20 @@ export function MapComponent({
   cities = [],
   selectedCityCodes = [],
   allNeighborhoodsForCityBounds = [],
+  filters,
+  cityToCodeMap = {},
+  token: tokenProp,
+  useMapSearch = true, // Por padrão usa busca do mapa
 }: MapProps) {
+  // Fallback: pegar token do localStorage se não foi passado via props
+  const token = tokenProp || (typeof window !== "undefined" ? localStorage.getItem("auth_token") : null) || undefined;
   const theme = useTheme();
+  
+  
   const [selectedProperty, setSelectedProperty] = useState<PropertyData | null>(
     null
   );
+  const [selectedCluster, setSelectedCluster] = useState<IMapCluster | null>(null);
   const [drawingMode, setDrawingMode] =
     useState<google.maps.drawing.OverlayType | null>(null);
   const [drawingManager, setDrawingManager] =
@@ -140,6 +158,19 @@ export function MapComponent({
     null
   );
   const mouseUpListenerRef = useRef<google.maps.MapsEventListener | null>(null);
+  
+  // Estados para busca do mapa
+  const [mapClusters, setMapClusters] = useState<IMapCluster[]>([]);
+  const [mapPoints, setMapPoints] = useState<IMapPoint[]>([]);
+  const [mapLoading, setMapLoading] = useState(false);
+  const [currentBounds, setCurrentBounds] = useState<google.maps.LatLngBounds | null>(null);
+  const [currentZoom, setCurrentZoom] = useState<number>(zoom);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const tokenRef = useRef<string | undefined>(token);
+  const fetchMapDataRef = useRef<((bounds: google.maps.LatLngBounds, zoomLevel: number) => Promise<void>) | null>(null);
+  const lastSearchKeyRef = useRef<string | null>(null);
+  const isAnimatingRef = useRef<boolean>(false);
+  
   // Carrega o script do Google Maps
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: GOOGLE_CONFIG.MAPS_API_KEY,
@@ -176,13 +207,371 @@ export function MapComponent({
   const previousCenterRef = useRef<{ lat: number; lng: number } | undefined>(center);
   const previousZoomRef = useRef<number | undefined>(zoom);
 
+  // Função para calcular bounds da cidade selecionada
+  const getCityBounds = useCallback((): google.maps.LatLngBounds | null => {
+    if (!filters?.cities || filters.cities.length === 0) {
+      return null;
+    }
+
+    const allCoordinates: google.maps.LatLng[] = [];
+    
+    // Buscar coordenadas das cidades selecionadas
+    const selectedCities = cities.filter((city) =>
+      filters.cities.some((cityName) => {
+        const code = cityToCodeMap[cityName];
+        return code && city.cityStateCode === code;
+      })
+    );
+
+    selectedCities.forEach((city) => {
+      if (!city.geo?.geometry) return;
+      
+      const geometry = city.geo.geometry;
+      if (geometry.type === "Polygon") {
+        const coords = geometry.coordinates as number[][][];
+        if (coords && coords[0] && Array.isArray(coords[0])) {
+          coords[0].forEach((coord) => {
+            if (Array.isArray(coord) && coord.length >= 2 && 
+                typeof coord[0] === 'number' && typeof coord[1] === 'number') {
+              try {
+                allCoordinates.push(
+                  new google.maps.LatLng(coord[1], coord[0]) // lat, lng
+                );
+              } catch (error) {
+                // Ignorar coordenadas inválidas
+              }
+            }
+          });
+        }
+      } else if (geometry.type === "MultiPolygon") {
+        const coords = geometry.coordinates as number[][][][];
+        if (coords && coords[0] && coords[0][0] && Array.isArray(coords[0][0])) {
+          coords[0][0].forEach((coord) => {
+            if (Array.isArray(coord) && coord.length >= 2 && 
+                typeof coord[0] === 'number' && typeof coord[1] === 'number') {
+              try {
+                allCoordinates.push(
+                  new google.maps.LatLng(coord[1], coord[0]) // lat, lng
+                );
+              } catch (error) {
+                // Ignorar coordenadas inválidas
+              }
+            }
+          });
+        }
+      }
+    });
+
+    if (allCoordinates.length === 0) {
+      return null;
+    }
+
+    const cityBounds = new google.maps.LatLngBounds();
+    allCoordinates.forEach((coord) => {
+      cityBounds.extend(coord);
+    });
+
+    return cityBounds;
+  }, [filters?.cities, cities, cityToCodeMap]);
+
+  // Função para limitar bbox baseado no zoom e cidade selecionada
+  const calculateLimitedBbox = useCallback((
+    viewportBounds: google.maps.LatLngBounds,
+    zoomLevel: number
+  ): [number, number, number, number] => {
+    const ne = viewportBounds.getNorthEast();
+    const sw = viewportBounds.getSouthWest();
+    
+    // Obter bounds da cidade se houver cidade selecionada
+    const cityBounds = getCityBounds();
+    
+    // Se houver cidade selecionada, SEMPRE limitar aos bounds da cidade
+    if (cityBounds) {
+      const cityNE = cityBounds.getNorthEast();
+      const citySW = cityBounds.getSouthWest();
+      
+      // Zoom alto (> 14): usar apenas viewport, mas limitado aos bounds da cidade
+      if (zoomLevel > 14) {
+        return [
+          Math.max(sw.lng(), citySW.lng()),
+          Math.max(sw.lat(), citySW.lat()),
+          Math.min(ne.lng(), cityNE.lng()),
+          Math.min(ne.lat(), cityNE.lat()),
+        ];
+      }
+      
+      // Zoom médio (10-14): usar viewport expandido, mas limitado aos bounds da cidade
+      if (zoomLevel >= 10) {
+        const latDiff = ne.lat() - sw.lat();
+        const lngDiff = ne.lng() - sw.lng();
+        const expansion = 0.5; // 50% de expansão
+        const expandedSW = {
+          lng: sw.lng() - lngDiff * expansion,
+          lat: sw.lat() - latDiff * expansion,
+        };
+        const expandedNE = {
+          lng: ne.lng() + lngDiff * expansion,
+          lat: ne.lat() + latDiff * expansion,
+        };
+        
+        return [
+          Math.max(expandedSW.lng, citySW.lng()),
+          Math.max(expandedSW.lat, citySW.lat()),
+          Math.min(expandedNE.lng, cityNE.lng()),
+          Math.min(expandedNE.lat, cityNE.lat()),
+        ];
+      }
+      
+      // Zoom baixo (< 10): usar bounds completos da cidade (sempre limitado à cidade)
+      return [
+        citySW.lng(),
+        citySW.lat(),
+        cityNE.lng(),
+        cityNE.lat(),
+      ];
+    }
+
+    // Se não houver cidade selecionada, limitar baseado no zoom
+    // Zoom alto (> 14): usar apenas viewport (área pequena)
+    if (zoomLevel > 14) {
+      return [sw.lng(), sw.lat(), ne.lng(), ne.lat()];
+    }
+    // Zoom médio (10-14): expandir um pouco o viewport
+    if (zoomLevel >= 10) {
+      const latDiff = ne.lat() - sw.lat();
+      const lngDiff = ne.lng() - sw.lng();
+      const expansion = 0.3; // 30% de expansão
+      return [
+        sw.lng() - lngDiff * expansion,
+        sw.lat() - latDiff * expansion,
+        ne.lng() + lngDiff * expansion,
+        ne.lat() + latDiff * expansion,
+      ];
+    }
+    // Zoom baixo (< 10): limitar a uma área muito pequena (não o país inteiro)
+    const maxArea = 0.5; // ~0.5 graus de latitude/longitude (área bem limitada)
+    const centerLat = (ne.lat() + sw.lat()) / 2;
+    const centerLng = (ne.lng() + sw.lng()) / 2;
+    return [
+      centerLng - maxArea / 2,
+      centerLat - maxArea / 2,
+      centerLng + maxArea / 2,
+      centerLat + maxArea / 2,
+    ];
+  }, [getCityBounds]);
+
+  // Função para buscar propriedades no mapa
+  const fetchMapData = useCallback(
+    async (bounds: google.maps.LatLngBounds, zoomLevel: number) => {
+      const currentToken = tokenRef.current;
+      
+      if (!useMapSearch) {
+        return;
+      }
+      
+      // API requer autenticação - verificar se token está disponível
+      if (!currentToken) {
+        return;
+      }
+
+      // Limpar timeout anterior
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+
+      // Debounce de 500ms para evitar muitas requisições
+      searchTimeoutRef.current = setTimeout(async () => {
+        try {
+          // Calcular bbox limitado baseado no zoom e cidade selecionada
+          const bbox = calculateLimitedBbox(bounds, zoomLevel);
+
+          // Verificar se já fizemos uma busca com os mesmos bounds e zoom
+          const boundsKey = JSON.stringify(bbox);
+          const filtersKey = filters ? JSON.stringify({
+            cities: filters.cities?.sort(),
+            neighborhoods: filters.neighborhoods?.sort(),
+            venda: filters.venda,
+            aluguel: filters.aluguel,
+          }) : '';
+          const searchKey = `${boundsKey}-${zoomLevel}-${filtersKey}`;
+          
+          if (lastSearchKeyRef.current === searchKey) {
+            return;
+          }
+
+          setMapLoading(true);
+
+          // Atualizar ref para evitar buscas duplicadas
+          lastSearchKeyRef.current = searchKey;
+
+          // Mapear filtros para o formato da API
+          const request = mapFiltersToSearchMap(
+            filters,
+            cityToCodeMap,
+            bbox,
+            zoomLevel
+          );
+
+          const response = await postPropertyAdSearchMap(request, currentToken);
+          
+          setMapClusters(response.data.clusters || []);
+          setMapPoints(response.data.points || []);
+        } catch (error) {
+          setMapClusters([]);
+          setMapPoints([]);
+        } finally {
+          setMapLoading(false);
+        }
+      }, 300);
+    },
+    [useMapSearch, filters, cityToCodeMap, calculateLimitedBbox]
+  );
+  
+  // Atualizar ref da função fetchMapData
+  useEffect(() => {
+    fetchMapDataRef.current = fetchMapData;
+  }, [fetchMapData]);
+  
+  // Atualizar tokenRef quando token mudar
+  useEffect(() => {
+    const tokenValue = token || null;
+    tokenRef.current = tokenValue || undefined;
+  }, [token]);
+
   // Callback quando o mapa é carregado
-  const onMapLoad = useCallback((loadedMap: google.maps.Map) => {
-    setMap(loadedMap);
-    // Definir centro e zoom iniciais
-    previousCenterRef.current = center;
-    previousZoomRef.current = zoom;
-  }, [center, zoom]);
+  const onMapLoad = useCallback(
+    (loadedMap: google.maps.Map) => {
+      setMap(loadedMap);
+      // Definir centro e zoom iniciais
+      previousCenterRef.current = center;
+      previousZoomRef.current = zoom;
+      setCurrentZoom(zoom);
+
+      // Obter bounds iniciais - usar setTimeout para garantir que o mapa está totalmente renderizado
+      setTimeout(() => {
+        const bounds = loadedMap.getBounds();
+        if (bounds) {
+          setCurrentBounds(bounds);
+          // Não buscar dados iniciais aqui - deixar os listeners fazerem isso quando necessário
+        }
+      }, 100);
+    },
+    [center, zoom, useMapSearch, fetchMapData]
+  );
+
+  // Efeito para adicionar listeners quando o mapa é carregado
+  useEffect(() => {
+    if (!map || !useMapSearch) {
+      return;
+    }
+
+    let boundsChangedListener: google.maps.MapsEventListener | null = null;
+    let zoomChangedListener: google.maps.MapsEventListener | null = null;
+
+    // Listener para mudanças de bounds (pan) - só quando usuário interage
+    boundsChangedListener = map.addListener("bounds_changed", () => {
+      // Ignorar se estamos animando programaticamente
+      if (isAnimatingRef.current) {
+        const newBounds = map.getBounds();
+        if (newBounds) {
+          setCurrentBounds(newBounds);
+        }
+        return;
+      }
+      
+      const newBounds = map.getBounds();
+      if (!newBounds) return;
+      
+      const newZoom = map.getZoom() || zoom;
+      const currentToken = tokenRef.current;
+      
+      // Atualizar estado
+      setCurrentBounds(newBounds);
+      setCurrentZoom(newZoom);
+      
+      // Só chamar fetchMapData se tiver token e useMapSearch ativo
+      if (currentToken && useMapSearch && fetchMapDataRef.current) {
+        fetchMapDataRef.current(newBounds, newZoom);
+      }
+    });
+
+    // Listener para mudanças de zoom - só quando usuário interage
+    zoomChangedListener = map.addListener("zoom_changed", () => {
+      // Ignorar se estamos animando programaticamente
+      if (isAnimatingRef.current) {
+        const newZoom = map.getZoom() || zoom;
+        setCurrentZoom(newZoom);
+        return;
+      }
+      
+      const newZoom = map.getZoom() || zoom;
+      const newBounds = map.getBounds();
+      if (!newBounds) return;
+      
+      const currentToken = tokenRef.current;
+      
+      setCurrentZoom(newZoom);
+      
+      // Só chamar fetchMapData se tiver token e useMapSearch ativo
+      if (currentToken && useMapSearch && fetchMapDataRef.current) {
+        fetchMapDataRef.current(newBounds, newZoom);
+      }
+    });
+
+    // Cleanup listeners quando componente desmontar ou dependências mudarem
+    return () => {
+      if (boundsChangedListener) {
+        google.maps.event.removeListener(boundsChangedListener);
+      }
+      if (zoomChangedListener) {
+        google.maps.event.removeListener(zoomChangedListener);
+      }
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [map, useMapSearch]);
+
+  // Criar uma chave serializada dos filtros relevantes para comparação
+  const filtersKey = useMemo(() => {
+    if (!filters) return "";
+    // Serializar apenas os campos principais que afetam a busca
+    return JSON.stringify({
+      cities: filters.cities?.sort(), // Ordenar para comparação consistente
+      neighborhoods: filters.neighborhoods?.sort(),
+      search: filters.search,
+      venda: filters.venda,
+      aluguel: filters.aluguel,
+      residencial: filters.residencial,
+      comercial: filters.comercial,
+      industrial: filters.industrial,
+      agricultura: filters.agricultura,
+      quartos: filters.quartos,
+      banheiros: filters.banheiros,
+      suites: filters.suites,
+      garagem: filters.garagem,
+      area_min: filters.area_min,
+      area_max: filters.area_max,
+      preco_min: filters.preco_min,
+      preco_max: filters.preco_max,
+    });
+  }, [filters]);
+
+  // Efeito para buscar quando filtros mudarem (especialmente cidades)
+  useEffect(() => {
+    if (!map || !useMapSearch || !token || !fetchMapDataRef.current) return;
+
+    // Limpar ref para forçar nova busca mesmo com os mesmos bounds quando filtros mudarem
+    lastSearchKeyRef.current = null;
+
+    // Obter bounds atuais do mapa
+    const bounds = map.getBounds();
+    if (!bounds) return;
+
+    // Fazer busca única quando filtros mudarem
+    const newZoom = map.getZoom() || zoom;
+    fetchMapDataRef.current(bounds, newZoom);
+  }, [filtersKey, map, useMapSearch, token, zoom]);
 
   // Efeito para animar o mapa quando center ou zoom mudarem
   useEffect(() => {
@@ -199,6 +588,11 @@ export function MapComponent({
     // Se não houve mudança, não fazer nada
     if (!centerChanged && !zoomChanged) return;
 
+    // Se há cidades selecionadas, usar fitBounds com as coordenadas das cidades
+    // Caso contrário, usar panTo/setZoom diretamente
+    const hasSelectedCities = cities.length > 0 && selectedCityCodes.length > 0;
+    const hasSelectedNeighborhoods = neighborhoods.length > 0 && selectedNeighborhoodNames.length > 0;
+    
     // Coletar coordenadas de bairros e cidades para fitBounds
     const allCoordinates: google.maps.LatLng[] = [];
 
@@ -210,11 +604,18 @@ export function MapComponent({
 
     neighborhoodsToFit.forEach((neighborhood) => {
       const coords = neighborhood.geo?.coordinates?.[0];
-      if (coords && coords.length > 0) {
+      if (coords && Array.isArray(coords) && coords.length > 0) {
         coords.forEach((coord) => {
-          allCoordinates.push(
-            new google.maps.LatLng(coord[1], coord[0]) // lat, lng
-          );
+          if (Array.isArray(coord) && coord.length >= 2 && 
+              typeof coord[0] === 'number' && typeof coord[1] === 'number') {
+            try {
+              allCoordinates.push(
+                new google.maps.LatLng(coord[1], coord[0]) // lat, lng
+              );
+              } catch (error) {
+                // Ignorar coordenadas inválidas
+              }
+          }
         });
       }
     });
@@ -231,58 +632,96 @@ export function MapComponent({
       const geometry = city.geo.geometry;
       if (geometry.type === "Polygon") {
         const coords = geometry.coordinates as number[][][];
-        coords[0]?.forEach((coord) => {
-          allCoordinates.push(
-            new google.maps.LatLng(coord[1], coord[0]) // lat, lng
-          );
-        });
+        if (coords && coords[0] && Array.isArray(coords[0])) {
+          coords[0].forEach((coord) => {
+            if (Array.isArray(coord) && coord.length >= 2 && 
+                typeof coord[0] === 'number' && typeof coord[1] === 'number') {
+              try {
+                allCoordinates.push(
+                  new google.maps.LatLng(coord[1], coord[0]) // lat, lng
+                );
+              } catch (error) {
+                // Ignorar coordenadas inválidas
+              }
+            }
+          });
+        }
       } else if (geometry.type === "MultiPolygon") {
         const coords = geometry.coordinates as number[][][][];
-        coords[0]?.[0]?.forEach((coord) => {
-          allCoordinates.push(
-            new google.maps.LatLng(coord[1], coord[0]) // lat, lng
-          );
-        });
+        if (coords && coords[0] && coords[0][0] && Array.isArray(coords[0][0])) {
+          coords[0][0].forEach((coord) => {
+            if (Array.isArray(coord) && coord.length >= 2 && 
+                typeof coord[0] === 'number' && typeof coord[1] === 'number') {
+              try {
+                allCoordinates.push(
+                  new google.maps.LatLng(coord[1], coord[0]) // lat, lng
+                );
+              } catch (error) {
+                // Ignorar coordenadas inválidas
+              }
+            }
+          });
+        }
       }
     });
 
-    // Se há coordenadas, usar fitBounds para animação suave
+    // Se há coordenadas de cidades/bairros, usar fitBounds
     if (allCoordinates.length > 0) {
-      // Criar bounds a partir das coordenadas
-      const bounds = new google.maps.LatLngBounds();
-      allCoordinates.forEach((coord) => {
-        bounds.extend(coord);
-      });
+      try {
+        const bounds = new google.maps.LatLngBounds();
+        allCoordinates.forEach((coord) => {
+          if (coord && typeof coord.lat === 'number' && typeof coord.lng === 'number' && 
+              !isNaN(coord.lat) && !isNaN(coord.lng) &&
+              coord.lat >= -90 && coord.lat <= 90 &&
+              coord.lng >= -180 && coord.lng <= 180) {
+            bounds.extend(coord);
+          }
+        });
 
-      // Usar fitBounds com padding para uma melhor visualização
-      map.fitBounds(bounds, {
-        top: 50,
-        right: 50,
-        bottom: 50,
-        left: 50,
-      });
-
-      // Atualizar refs
-      previousCenterRef.current = center;
-      previousZoomRef.current = zoom;
-      return;
+        if (bounds && bounds.getNorthEast() && bounds.getSouthWest()) {
+          isAnimatingRef.current = true;
+          map.fitBounds(bounds, {
+            top: 50,
+            right: 50,
+            bottom: 50,
+            left: 50,
+          });
+          setTimeout(() => {
+            isAnimatingRef.current = false;
+          }, 500);
+          previousCenterRef.current = center;
+          previousZoomRef.current = zoom;
+          return;
+        }
+      } catch (error) {
+        // Fallback para panTo
+      }
     }
 
-    // Se não há bairros ou não foi possível criar bounds, usar panTo e setZoom
-    // panTo já tem animação suave por padrão
+    // Se não há coordenadas ou fitBounds falhou, usar panTo e setZoom diretamente
+    // SEMPRE garantir que o mapa se move quando center muda
+    isAnimatingRef.current = true;
+    
     if (centerChanged && zoomChanged) {
-      // Se ambos mudaram, fazer panTo primeiro e depois zoom para animação mais suave
       map.panTo(new google.maps.LatLng(center.lat, center.lng));
-      // Usar setTimeout para fazer zoom após o pan começar
       setTimeout(() => {
         if (map) {
           map.setZoom(zoom);
         }
+        setTimeout(() => {
+          isAnimatingRef.current = false;
+        }, 500);
       }, 100);
     } else if (centerChanged) {
       map.panTo(new google.maps.LatLng(center.lat, center.lng));
+      setTimeout(() => {
+        isAnimatingRef.current = false;
+      }, 500);
     } else if (zoomChanged) {
       map.setZoom(zoom);
+      setTimeout(() => {
+        isAnimatingRef.current = false;
+      }, 500);
     }
 
     // Atualizar refs
@@ -454,7 +893,6 @@ export function MapComponent({
       if (drawingManager) {
         drawingManager.setDrawingMode(mode);
       } else {
-        console.log("🎨 DrawingManager ainda não carregado");
       }
     }, 100);
   };
@@ -462,7 +900,68 @@ export function MapComponent({
   // Callback quando um marcador é clicado
   const onMarkerClick = useCallback((property: PropertyData) => {
     setSelectedProperty(property);
+    setSelectedCluster(null);
   }, []);
+
+  // Callback quando um cluster é clicado
+  const onClusterClick = useCallback((cluster: IMapCluster) => {
+    // Fechar o InfoWindow imediatamente
+    setSelectedCluster(null);
+    setSelectedProperty(null);
+    
+    // Fazer zoom no cluster e depois buscar novamente para expandir
+    if (map) {
+      isAnimatingRef.current = true;
+      const newZoom = Math.min(currentZoom + 2, 18);
+      
+      map.setCenter({
+        lat: cluster.coordinates[1],
+        lng: cluster.coordinates[0],
+      });
+      map.setZoom(newZoom);
+      
+      // Após a animação terminar, fazer nova busca para expandir o cluster
+      setTimeout(() => {
+        isAnimatingRef.current = false;
+        
+        // Limpar cache para forçar nova busca
+        lastSearchKeyRef.current = null;
+        
+        // Obter novos bounds após o zoom
+        const newBounds = map.getBounds();
+        if (newBounds && fetchMapDataRef.current) {
+          const finalZoom = map.getZoom() || newZoom;
+          fetchMapDataRef.current(newBounds, finalZoom);
+        }
+      }, 600); // Tempo suficiente para a animação terminar
+    }
+  }, [map, currentZoom]);
+
+  // Callback quando um point do mapa é clicado
+  const onMapPointClick = useCallback((point: IMapPoint) => {
+    setSelectedCluster(null);
+    // Converter point para PropertyData para InfoWindow
+    const propertyData: PropertyData = {
+      id: point.id,
+      title: undefined,
+      price: point.price || 0,
+      pricePerSquareMeter: point.price && point.areaTotal ? point.price / point.areaTotal : 0,
+      address: "",
+      city: "",
+      state: "",
+      propertyType: "RESIDENCIAL", // Default, pode ser melhorado
+      bedrooms: point.rooms || undefined,
+      bathrooms: point.bathrooms || undefined,
+      area: point.areaTotal || 0,
+      images: point.firstImageUrl ? [point.firstImageUrl] : [],
+      coordinates: {
+        lat: point.coordinates[1],
+        lng: point.coordinates[0],
+      },
+    };
+    setSelectedProperty(propertyData);
+    onPropertyClick?.(point.id);
+  }, [onPropertyClick]);
 
   // Callback para fechar o InfoWindow
   const onInfoWindowClose = useCallback(() => {
@@ -710,8 +1209,54 @@ export function MapComponent({
           })}
 
 
-        {/* Marcadores das propriedades */}
-        {propertiesWithCoordinates.map((property) => (
+        {/* Clusters do mapa */}
+        {useMapSearch && mapClusters.map((cluster) => (
+          <Marker
+            key={`cluster-${cluster.clusterId}`}
+            position={{
+              lat: cluster.coordinates[1],
+              lng: cluster.coordinates[0],
+            }}
+            onClick={() => onClusterClick(cluster)}
+            icon={{
+              url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+                <svg width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="25" cy="25" r="20" fill="${theme.palette.primary.main}" stroke="white" stroke-width="3"/>
+                  <text x="25" y="25" text-anchor="middle" dominant-baseline="central" font-family="Arial" font-size="14" font-weight="bold" fill="white">${cluster.count}</text>
+                </svg>
+              `)}`,
+              scaledSize: new google.maps.Size(50, 50),
+              anchor: new google.maps.Point(25, 25),
+            }}
+            zIndex={10}
+          />
+        ))}
+
+        {/* Points individuais do mapa */}
+        {useMapSearch && mapPoints.map((point) => (
+          <Marker
+            key={`point-${point.id}`}
+            position={{
+              lat: point.coordinates[1],
+              lng: point.coordinates[0],
+            }}
+            onClick={() => onMapPointClick(point)}
+            icon={{
+              url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+                <svg width="32" height="40" viewBox="0 0 32 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M16 0C7.163 0 0 7.163 0 16c0 16 16 24 16 24s16-8 16-24c0-8.837-7.163-16-16-16z" fill="${theme.palette.primary.main}"/>
+                  <circle cx="16" cy="16" r="8" fill="white"/>
+                </svg>
+              `)}`,
+              scaledSize: new google.maps.Size(32, 40),
+              anchor: new google.maps.Point(16, 40),
+            }}
+            zIndex={5}
+          />
+        ))}
+
+        {/* Marcadores das propriedades (modo legado - quando useMapSearch é false) */}
+        {!useMapSearch && propertiesWithCoordinates.map((property) => (
           <Marker
             key={property.id}
             position={property.coordinates!}
@@ -733,6 +1278,49 @@ export function MapComponent({
             }}
           />
         ))}
+
+        {/* InfoWindow para cluster selecionado */}
+        {selectedCluster && (
+          <InfoWindow
+            position={{
+              lat: selectedCluster.coordinates[1],
+              lng: selectedCluster.coordinates[0],
+            }}
+            onCloseClick={() => setSelectedCluster(null)}
+            options={{
+              pixelOffset: new google.maps.Size(0, -25),
+            }}
+          >
+            <Paper
+              sx={{
+                p: 2,
+                borderRadius: 2,
+                boxShadow: theme.shadows[4],
+              }}
+            >
+              <Typography
+                variant="h6"
+                sx={{
+                  fontWeight: 600,
+                  fontSize: "1rem",
+                  color: theme.palette.primary.main,
+                }}
+              >
+                {selectedCluster.count} {selectedCluster.count === 1 ? "imóvel" : "imóveis"}
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: theme.palette.text.secondary,
+                  mt: 0.5,
+                  fontSize: "0.8rem",
+                }}
+              >
+                Clique para ampliar
+              </Typography>
+            </Paper>
+          </InfoWindow>
+        )}
 
         {/* InfoWindow para propriedade selecionada */}
         {selectedProperty && (
@@ -973,6 +1561,31 @@ export function MapComponent({
           </InfoWindow>
         )}
       </GoogleMap>
+
+      {/* Indicador de Loading */}
+      {mapLoading && useMapSearch && (
+        <Box
+          sx={{
+            position: "absolute",
+            top: 10,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 1000,
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            backgroundColor: theme.palette.background.paper,
+            padding: 1,
+            borderRadius: 2,
+            boxShadow: theme.shadows[4],
+          }}
+        >
+          <CircularProgress size={20} />
+          <Typography variant="body2" sx={{ fontSize: "0.8rem" }}>
+            Carregando imóveis...
+          </Typography>
+        </Box>
+      )}
 
       {/* Controles Customizados de Desenho */}
       <Box

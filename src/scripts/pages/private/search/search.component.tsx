@@ -155,6 +155,7 @@ export function SearchComponent() {
   const navigate = useNavigate();
   const { propertyId } = useParams<{ propertyId?: string }>();
   const auth = useAuth();
+  
   const [filteredProperties, setFilteredProperties] = useState<PropertyData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -526,6 +527,29 @@ export function SearchComponent() {
     },
     [cityToCodeMap, auth.store.token]
   );
+
+  // Ref para rastrear cidades anteriores e evitar buscas duplicadas
+  const previousCitiesRef = useRef<string>('');
+
+  // Efeito para buscar dados das cidades imediatamente quando as cidades mudarem
+  // Isso permite centralizar o mapa sem precisar fazer a busca completa de propriedades
+  useEffect(() => {
+    if (!currentFilters || currentFilters.cities.length === 0) {
+      previousCitiesRef.current = '';
+      return;
+    }
+
+    // Criar uma chave única baseada nas cidades selecionadas
+    const citiesKey = [...currentFilters.cities].sort().join(',');
+    
+    // Só buscar se as cidades realmente mudaram
+    if (previousCitiesRef.current !== citiesKey) {
+      previousCitiesRef.current = citiesKey;
+      // Buscar dados das cidades imediatamente quando mudarem
+      // Não fazer busca de propriedades aqui, apenas buscar dados geoespaciais
+      fetchCitiesData(currentFilters);
+    }
+  }, [currentFilters, fetchCitiesData]);
 
   // Efeito para calcular bounds quando cidades ou bairros mudarem
   useEffect(() => {
@@ -1114,6 +1138,10 @@ export function SearchComponent() {
               cities={citiesData}
               selectedCityCodes={currentFilters?.cities.map(city => cityToCodeMap[city]).filter((code): code is string => Boolean(code)) || []}
               allNeighborhoodsForCityBounds={allNeighborhoodsForBounds}
+              filters={currentFilters}
+              cityToCodeMap={cityToCodeMap}
+              token={auth.store.token || localStorage.getItem("auth_token") || undefined}
+              useMapSearch={true}
             />
           </Box>
 
