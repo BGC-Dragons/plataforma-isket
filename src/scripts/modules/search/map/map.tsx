@@ -32,7 +32,11 @@ import {
 import { GOOGLE_CONFIG } from "../../../config/google.constant";
 import type { INeighborhoodFull } from "../../../../services/get-locations-neighborhoods.service";
 import type { ICityFull } from "../../../../services/get-locations-cities.service";
-import { postPropertyAdSearchMap, type IMapCluster, type IMapPoint } from "../../../../services/post-property-ad-search-map.service";
+import {
+  postPropertyAdSearchMap,
+  type IMapCluster,
+  type IMapPoint,
+} from "../../../../services/post-property-ad-search-map.service";
 import { mapFiltersToSearchMap } from "../../../../services/helpers/map-filters-to-search-map.helper";
 import type { ILocalFilterState } from "../../../../services/helpers/map-filters-to-api.helper";
 
@@ -82,23 +86,8 @@ interface MapProps {
   cityToCodeMap?: Record<string, string>;
   token?: string;
   useMapSearch?: boolean; // Se true, usa busca do mapa ao invés de properties
+  onNeighborhoodClick?: (neighborhood: INeighborhoodFull) => void; // Callback quando um bairro é clicado
 }
-
-// Coordenadas mockadas para Curitiba e região
-const getMockCoordinates = (): { lat: number; lng: number } => {
-  // Coordenadas base para Curitiba
-  const baseLat = -25.4284;
-  const baseLng = -49.2733;
-
-  // Gera coordenadas aleatórias próximas ao centro de Curitiba
-  const randomLat = baseLat + (Math.random() - 0.5) * 0.1;
-  const randomLng = baseLng + (Math.random() - 0.5) * 0.1;
-
-  return {
-    lat: randomLat,
-    lng: randomLng,
-  };
-};
 
 // Configurações do mapa
 const mapContainerStyle = {
@@ -130,16 +119,29 @@ export function MapComponent({
   cityToCodeMap = {},
   token: tokenProp,
   useMapSearch = true, // Por padrão usa busca do mapa
+  onNeighborhoodClick,
 }: MapProps) {
   // Fallback: pegar token do localStorage se não foi passado via props
-  const token = tokenProp || (typeof window !== "undefined" ? localStorage.getItem("auth_token") : null) || undefined;
+  const token =
+    tokenProp ||
+    (typeof window !== "undefined"
+      ? localStorage.getItem("auth_token")
+      : null) ||
+    undefined;
   const theme = useTheme();
-  
-  
+
   const [selectedProperty, setSelectedProperty] = useState<PropertyData | null>(
     null
   );
-  const [selectedCluster, setSelectedCluster] = useState<IMapCluster | null>(null);
+  const [selectedCluster, setSelectedCluster] = useState<IMapCluster | null>(
+    null
+  );
+  const [hoveredNeighborhood, setHoveredNeighborhood] =
+    useState<INeighborhoodFull | null>(null);
+  const [tooltipPosition, setTooltipPosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
   const [drawingMode, setDrawingMode] =
     useState<google.maps.drawing.OverlayType | null>(null);
   const [drawingManager, setDrawingManager] =
@@ -158,19 +160,21 @@ export function MapComponent({
     null
   );
   const mouseUpListenerRef = useRef<google.maps.MapsEventListener | null>(null);
-  
+
   // Estados para busca do mapa
   const [mapClusters, setMapClusters] = useState<IMapCluster[]>([]);
   const [mapPoints, setMapPoints] = useState<IMapPoint[]>([]);
   const [mapLoading, setMapLoading] = useState(false);
-  const [currentBounds, setCurrentBounds] = useState<google.maps.LatLngBounds | null>(null);
   const [currentZoom, setCurrentZoom] = useState<number>(zoom);
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tokenRef = useRef<string | undefined>(token);
-  const fetchMapDataRef = useRef<((bounds: google.maps.LatLngBounds, zoomLevel: number) => Promise<void>) | null>(null);
+  const fetchMapDataRef = useRef<
+    | ((bounds: google.maps.LatLngBounds, zoomLevel: number) => Promise<void>)
+    | null
+  >(null);
   const lastSearchKeyRef = useRef<string | null>(null);
   const isAnimatingRef = useRef<boolean>(false);
-  
+
   // Carrega o script do Google Maps
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: GOOGLE_CONFIG.MAPS_API_KEY,
@@ -204,54 +208,59 @@ export function MapComponent({
   }, [properties]);
 
   // Refs para rastrear o centro e zoom anteriores
-  const previousCenterRef = useRef<{ lat: number; lng: number } | undefined>(center);
+  const previousCenterRef = useRef<{ lat: number; lng: number } | undefined>(
+    center
+  );
   const previousZoomRef = useRef<number | undefined>(zoom);
 
   // Função para limitar bbox baseado no zoom
-  const calculateLimitedBbox = useCallback((
-    viewportBounds: google.maps.LatLngBounds,
-    zoomLevel: number
-  ): [number, number, number, number] => {
-    const ne = viewportBounds.getNorthEast();
-    const sw = viewportBounds.getSouthWest();
-    
-    // Zoom alto (> 14): usar apenas viewport (área pequena)
-    if (zoomLevel > 14) {
-      return [sw.lng(), sw.lat(), ne.lng(), ne.lat()];
-    }
-    // Zoom médio (10-14): expandir um pouco o viewport
-    if (zoomLevel >= 10) {
-      const latDiff = ne.lat() - sw.lat();
-      const lngDiff = ne.lng() - sw.lng();
-      const expansion = 0.3; // 30% de expansão
+  const calculateLimitedBbox = useCallback(
+    (
+      viewportBounds: google.maps.LatLngBounds,
+      zoomLevel: number
+    ): [number, number, number, number] => {
+      const ne = viewportBounds.getNorthEast();
+      const sw = viewportBounds.getSouthWest();
+
+      // Zoom alto (> 14): usar apenas viewport (área pequena)
+      if (zoomLevel > 14) {
+        return [sw.lng(), sw.lat(), ne.lng(), ne.lat()];
+      }
+      // Zoom médio (10-14): expandir um pouco o viewport
+      if (zoomLevel >= 10) {
+        const latDiff = ne.lat() - sw.lat();
+        const lngDiff = ne.lng() - sw.lng();
+        const expansion = 0.3; // 30% de expansão
+        return [
+          sw.lng() - lngDiff * expansion,
+          sw.lat() - latDiff * expansion,
+          ne.lng() + lngDiff * expansion,
+          ne.lat() + latDiff * expansion,
+        ];
+      }
+      // Zoom baixo (< 10): limitar a uma área muito pequena (não o país inteiro)
+      const maxArea = 0.5; // ~0.5 graus de latitude/longitude (área bem limitada)
+      const centerLat = (ne.lat() + sw.lat()) / 2;
+      const centerLng = (ne.lng() + sw.lng()) / 2;
       return [
-        sw.lng() - lngDiff * expansion,
-        sw.lat() - latDiff * expansion,
-        ne.lng() + lngDiff * expansion,
-        ne.lat() + latDiff * expansion,
+        centerLng - maxArea / 2,
+        centerLat - maxArea / 2,
+        centerLng + maxArea / 2,
+        centerLat + maxArea / 2,
       ];
-    }
-    // Zoom baixo (< 10): limitar a uma área muito pequena (não o país inteiro)
-    const maxArea = 0.5; // ~0.5 graus de latitude/longitude (área bem limitada)
-    const centerLat = (ne.lat() + sw.lat()) / 2;
-    const centerLng = (ne.lng() + sw.lng()) / 2;
-    return [
-      centerLng - maxArea / 2,
-      centerLat - maxArea / 2,
-      centerLng + maxArea / 2,
-      centerLat + maxArea / 2,
-    ];
-  }, []);
+    },
+    []
+  );
 
   // Função para buscar propriedades no mapa
   const fetchMapData = useCallback(
     async (bounds: google.maps.LatLngBounds, zoomLevel: number) => {
       const currentToken = tokenRef.current;
-      
+
       if (!useMapSearch) {
         return;
       }
-      
+
       // API requer autenticação - verificar se token está disponível
       if (!currentToken) {
         return;
@@ -270,14 +279,16 @@ export function MapComponent({
 
           // Verificar se já fizemos uma busca com os mesmos bounds e zoom
           const boundsKey = JSON.stringify(bbox);
-          const filtersKey = filters ? JSON.stringify({
-            cities: filters.cities?.sort(),
-            neighborhoods: filters.neighborhoods?.sort(),
-            venda: filters.venda,
-            aluguel: filters.aluguel,
-          }) : '';
+          const filtersKey = filters
+            ? JSON.stringify({
+                cities: filters.cities?.sort(),
+                neighborhoods: filters.neighborhoods?.sort(),
+                venda: filters.venda,
+                aluguel: filters.aluguel,
+              })
+            : "";
           const searchKey = `${boundsKey}-${zoomLevel}-${filtersKey}`;
-          
+
           if (lastSearchKeyRef.current === searchKey) {
             return;
           }
@@ -296,10 +307,10 @@ export function MapComponent({
           );
 
           const response = await postPropertyAdSearchMap(request, currentToken);
-          
+
           setMapClusters(response.data.clusters || []);
           setMapPoints(response.data.points || []);
-        } catch (error) {
+        } catch {
           setMapClusters([]);
           setMapPoints([]);
         } finally {
@@ -309,12 +320,12 @@ export function MapComponent({
     },
     [useMapSearch, filters, cityToCodeMap, calculateLimitedBbox]
   );
-  
+
   // Atualizar ref da função fetchMapData
   useEffect(() => {
     fetchMapDataRef.current = fetchMapData;
   }, [fetchMapData]);
-  
+
   // Atualizar tokenRef quando token mudar
   useEffect(() => {
     const tokenValue = token || null;
@@ -332,14 +343,10 @@ export function MapComponent({
 
       // Obter bounds iniciais - usar setTimeout para garantir que o mapa está totalmente renderizado
       setTimeout(() => {
-        const bounds = loadedMap.getBounds();
-        if (bounds) {
-          setCurrentBounds(bounds);
-          // Não buscar dados iniciais aqui - deixar os listeners fazerem isso quando necessário
-        }
+        // Não buscar dados iniciais aqui - deixar os listeners fazerem isso quando necessário
       }, 100);
     },
-    [center, zoom, useMapSearch, fetchMapData]
+    [center, zoom]
   );
 
   // Efeito para adicionar listeners quando o mapa é carregado
@@ -355,23 +362,18 @@ export function MapComponent({
     boundsChangedListener = map.addListener("bounds_changed", () => {
       // Ignorar se estamos animando programaticamente
       if (isAnimatingRef.current) {
-        const newBounds = map.getBounds();
-        if (newBounds) {
-          setCurrentBounds(newBounds);
-        }
         return;
       }
-      
+
       const newBounds = map.getBounds();
       if (!newBounds) return;
-      
+
       const newZoom = map.getZoom() || zoom;
       const currentToken = tokenRef.current;
-      
+
       // Atualizar estado
-      setCurrentBounds(newBounds);
       setCurrentZoom(newZoom);
-      
+
       // Só chamar fetchMapData se tiver token e useMapSearch ativo
       if (currentToken && useMapSearch && fetchMapDataRef.current) {
         fetchMapDataRef.current(newBounds, newZoom);
@@ -386,15 +388,15 @@ export function MapComponent({
         setCurrentZoom(newZoom);
         return;
       }
-      
+
       const newZoom = map.getZoom() || zoom;
       const newBounds = map.getBounds();
       if (!newBounds) return;
-      
+
       const currentToken = tokenRef.current;
-      
+
       setCurrentZoom(newZoom);
-      
+
       // Só chamar fetchMapData se tiver token e useMapSearch ativo
       if (currentToken && useMapSearch && fetchMapDataRef.current) {
         fetchMapDataRef.current(newBounds, newZoom);
@@ -413,7 +415,7 @@ export function MapComponent({
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [map, useMapSearch]);
+  }, [map, useMapSearch, zoom]);
 
   // Criar uma chave serializada dos filtros relevantes para comparação
   const filtersKey = useMemo(() => {
@@ -474,56 +476,67 @@ export function MapComponent({
     // Se há cidades selecionadas, usar fitBounds com as coordenadas das cidades
     // Caso contrário, usar panTo/setZoom diretamente
     const hasSelectedCities = cities.length > 0 && selectedCityCodes.length > 0;
-    const hasSelectedNeighborhoods = neighborhoods.length > 0 && selectedNeighborhoodNames.length > 0;
-    
+    const hasSelectedNeighborhoods =
+      neighborhoods.length > 0 && selectedNeighborhoodNames.length > 0;
+
     // Coletar coordenadas de bairros e cidades para fitBounds
     const allCoordinates: google.maps.LatLng[] = [];
 
     // Adicionar coordenadas dos bairros selecionados
-    const neighborhoodsToFit = neighborhoods.filter((neighborhood) =>
-      selectedNeighborhoodNames.length === 0 ||
-      selectedNeighborhoodNames.includes(neighborhood.name)
+    const neighborhoodsToFit = neighborhoods.filter(
+      (neighborhood) =>
+        selectedNeighborhoodNames.length === 0 ||
+        selectedNeighborhoodNames.includes(neighborhood.name)
     );
 
     neighborhoodsToFit.forEach((neighborhood) => {
       const coords = neighborhood.geo?.coordinates?.[0];
       if (coords && Array.isArray(coords) && coords.length > 0) {
         coords.forEach((coord) => {
-          if (Array.isArray(coord) && coord.length >= 2 && 
-              typeof coord[0] === 'number' && typeof coord[1] === 'number') {
+          if (
+            Array.isArray(coord) &&
+            coord.length >= 2 &&
+            typeof coord[0] === "number" &&
+            typeof coord[1] === "number"
+          ) {
             try {
               allCoordinates.push(
                 new google.maps.LatLng(coord[1], coord[0]) // lat, lng
               );
-              } catch (error) {
-                // Ignorar coordenadas inválidas
-              }
+            } catch {
+              // Ignorar coordenadas inválidas
+            }
           }
         });
       }
     });
 
     // Adicionar coordenadas das cidades selecionadas
-    const citiesToFit = cities.filter((city) =>
-      selectedCityCodes.length === 0 ||
-      selectedCityCodes.includes(city.cityStateCode)
+    const citiesToFit = cities.filter(
+      (city) =>
+        selectedCityCodes.length === 0 ||
+        selectedCityCodes.includes(city.cityStateCode)
     );
 
     citiesToFit.forEach((city) => {
       if (!city.geo?.geometry) return;
-      
+
       const geometry = city.geo.geometry;
       if (geometry.type === "Polygon") {
         const coords = geometry.coordinates as number[][][];
         if (coords && coords[0] && Array.isArray(coords[0])) {
           coords[0].forEach((coord) => {
-            if (Array.isArray(coord) && coord.length >= 2 && 
-                typeof coord[0] === 'number' && typeof coord[1] === 'number') {
+            if (
+              Array.isArray(coord) &&
+              coord.length >= 2 &&
+              typeof coord[0] === "number" &&
+              typeof coord[1] === "number"
+            ) {
               try {
                 allCoordinates.push(
                   new google.maps.LatLng(coord[1], coord[0]) // lat, lng
                 );
-              } catch (error) {
+              } catch {
                 // Ignorar coordenadas inválidas
               }
             }
@@ -531,15 +544,24 @@ export function MapComponent({
         }
       } else if (geometry.type === "MultiPolygon") {
         const coords = geometry.coordinates as number[][][][];
-        if (coords && coords[0] && coords[0][0] && Array.isArray(coords[0][0])) {
+        if (
+          coords &&
+          coords[0] &&
+          coords[0][0] &&
+          Array.isArray(coords[0][0])
+        ) {
           coords[0][0].forEach((coord) => {
-            if (Array.isArray(coord) && coord.length >= 2 && 
-                typeof coord[0] === 'number' && typeof coord[1] === 'number') {
+            if (
+              Array.isArray(coord) &&
+              coord.length >= 2 &&
+              typeof coord[0] === "number" &&
+              typeof coord[1] === "number"
+            ) {
               try {
                 allCoordinates.push(
                   new google.maps.LatLng(coord[1], coord[0]) // lat, lng
                 );
-              } catch (error) {
+              } catch {
                 // Ignorar coordenadas inválidas
               }
             }
@@ -551,17 +573,29 @@ export function MapComponent({
     // Se há coordenadas de cidades/bairros, usar fitBounds
     // EXCETO quando for busca apenas por cidade (sem bairros) - nesse caso usar zoom calculado
     const isCityOnlySearch = hasSelectedCities && !hasSelectedNeighborhoods;
-    
+
     if (allCoordinates.length > 0 && !isCityOnlySearch) {
       // Quando há bairros selecionados, usar fitBounds para mostrar todos os bairros
       try {
         const bounds = new google.maps.LatLngBounds();
         allCoordinates.forEach((coord) => {
-          if (coord && typeof coord.lat === 'number' && typeof coord.lng === 'number' && 
-              !isNaN(coord.lat) && !isNaN(coord.lng) &&
-              coord.lat >= -90 && coord.lat <= 90 &&
-              coord.lng >= -180 && coord.lng <= 180) {
-            bounds.extend(coord);
+          if (coord) {
+            const lat =
+              typeof coord.lat === "function" ? coord.lat() : coord.lat;
+            const lng =
+              typeof coord.lng === "function" ? coord.lng() : coord.lng;
+            if (
+              typeof lat === "number" &&
+              typeof lng === "number" &&
+              !isNaN(lat) &&
+              !isNaN(lng) &&
+              lat >= -90 &&
+              lat <= 90 &&
+              lng >= -180 &&
+              lng <= 180
+            ) {
+              bounds.extend(coord);
+            }
           }
         });
 
@@ -580,7 +614,7 @@ export function MapComponent({
           previousZoomRef.current = zoom;
           return;
         }
-      } catch (error) {
+      } catch {
         // Fallback para panTo
       }
     }
@@ -588,7 +622,7 @@ export function MapComponent({
     // Se não há coordenadas ou fitBounds falhou, usar panTo e setZoom diretamente
     // SEMPRE garantir que o mapa se move quando center muda
     isAnimatingRef.current = true;
-    
+
     if (centerChanged && zoomChanged) {
       map.panTo(new google.maps.LatLng(center.lat, center.lng));
       setTimeout(() => {
@@ -614,12 +648,181 @@ export function MapComponent({
     // Atualizar refs
     previousCenterRef.current = center;
     previousZoomRef.current = zoom;
-  }, [map, center, zoom, neighborhoods, selectedNeighborhoodNames, cities, selectedCityCodes]);
+  }, [
+    map,
+    center,
+    zoom,
+    neighborhoods,
+    selectedNeighborhoodNames,
+    cities,
+    selectedCityCodes,
+  ]);
 
   // Callback quando o mapa é clicado
   const onMapClick = useCallback(() => {
     setSelectedProperty(null);
   }, []);
+
+  // Função para calcular o centro e bounds de um bairro
+  const calculateNeighborhoodBounds = useCallback(
+    (neighborhood: INeighborhoodFull) => {
+      const coords = neighborhood.geo?.coordinates?.[0];
+      if (!coords || coords.length === 0) return null;
+
+      const paths = coords.map((coord) => ({
+        lat: coord[1],
+        lng: coord[0],
+      }));
+
+      const lats = paths.map((p) => p.lat);
+      const lngs = paths.map((p) => p.lng);
+
+      const minLat = Math.min(...lats);
+      const maxLat = Math.max(...lats);
+      const minLng = Math.min(...lngs);
+      const maxLng = Math.max(...lngs);
+
+      const center = {
+        lat: (minLat + maxLat) / 2,
+        lng: (minLng + maxLng) / 2,
+      };
+
+      return { paths, center, bounds: { minLat, maxLat, minLng, maxLng } };
+    },
+    []
+  );
+
+  // Ref para armazenar o overlay usado para calcular posição do tooltip
+  const tooltipOverlayRef = useRef<google.maps.OverlayView | null>(null);
+  const tooltipMouseMoveListenerRef =
+    useRef<google.maps.MapsEventListener | null>(null);
+
+  // Inicializar overlay para calcular posição do tooltip
+  useEffect(() => {
+    if (!map || tooltipOverlayRef.current) return;
+
+    const overlay = new google.maps.OverlayView();
+    overlay.draw = function () {};
+    overlay.setMap(map);
+    tooltipOverlayRef.current = overlay;
+
+    return () => {
+      if (tooltipOverlayRef.current) {
+        tooltipOverlayRef.current.setMap(null);
+        tooltipOverlayRef.current = null;
+      }
+    };
+  }, [map]);
+
+  // Handler para quando o mouse entra em um bairro
+  const handleNeighborhoodMouseOver = useCallback(
+    (neighborhood: INeighborhoodFull, event: google.maps.PolyMouseEvent) => {
+      if (!map || !event.latLng) return;
+
+      setHoveredNeighborhood(neighborhood);
+
+      const overlay = tooltipOverlayRef.current;
+      if (!overlay) return;
+
+      // Função para calcular e atualizar posição
+      const updateTooltipPosition = () => {
+        try {
+          const projection = overlay.getProjection();
+          if (!projection || !event.latLng) return;
+
+          const point = projection.fromLatLngToContainerPixel(event.latLng);
+          if (!point) return;
+
+          const mapDiv = map.getDiv();
+          const rect = mapDiv.getBoundingClientRect();
+
+          setTooltipPosition({
+            x: point.x + rect.left,
+            y: point.y + rect.top - 10, // Offset para aparecer acima do cursor
+          });
+        } catch {
+          // Se falhar, tentar novamente no próximo frame
+          setTimeout(updateTooltipPosition, 0);
+        }
+      };
+
+      // Adicionar listener de mousemove para atualizar posição do tooltip
+      if (tooltipMouseMoveListenerRef.current) {
+        google.maps.event.removeListener(tooltipMouseMoveListenerRef.current);
+      }
+
+      tooltipMouseMoveListenerRef.current = google.maps.event.addListener(
+        map,
+        "mousemove",
+        (e: google.maps.MapMouseEvent) => {
+          if (!overlay || !e.latLng) return;
+
+          try {
+            const projection = overlay.getProjection();
+            if (!projection) return;
+
+            const point = projection.fromLatLngToContainerPixel(e.latLng);
+            if (!point) return;
+
+            const mapDiv = map.getDiv();
+            const rect = mapDiv.getBoundingClientRect();
+
+            setTooltipPosition({
+              x: point.x + rect.left,
+              y: point.y + rect.top - 10,
+            });
+          } catch {
+            // Ignorar erros
+          }
+        }
+      );
+
+      // Calcular posição inicial
+      updateTooltipPosition();
+    },
+    [map]
+  );
+
+  // Handler para quando o mouse sai de um bairro
+  const handleNeighborhoodMouseOut = useCallback(() => {
+    setHoveredNeighborhood(null);
+    setTooltipPosition(null);
+
+    // Remover listener de mousemove
+    if (tooltipMouseMoveListenerRef.current) {
+      google.maps.event.removeListener(tooltipMouseMoveListenerRef.current);
+      tooltipMouseMoveListenerRef.current = null;
+    }
+  }, []);
+
+  // Handler para quando um bairro é clicado
+  const handleNeighborhoodClick = useCallback(
+    (neighborhood: INeighborhoodFull) => {
+      if (!map || !onNeighborhoodClick) return;
+
+      const boundsData = calculateNeighborhoodBounds(neighborhood);
+      if (!boundsData) return;
+
+      // Fazer zoom no bairro
+      const bounds = new google.maps.LatLngBounds();
+      boundsData.paths.forEach((path) => {
+        bounds.extend(new google.maps.LatLng(path.lat, path.lng));
+      });
+
+      if (bounds && bounds.getNorthEast() && bounds.getSouthWest()) {
+        map.fitBounds(bounds, {
+          top: 50,
+          right: 50,
+          bottom: 50,
+          left: 50,
+        });
+      }
+
+      // Chamar callback para atualizar filtros
+      onNeighborhoodClick(neighborhood);
+    },
+    [map, onNeighborhoodClick, calculateNeighborhoodBounds]
+  );
 
   // Callbacks para o DrawingManager
   const onDrawingCompleteCallback = useCallback(
@@ -779,7 +982,6 @@ export function MapComponent({
     setTimeout(() => {
       if (drawingManager) {
         drawingManager.setDrawingMode(mode);
-      } else {
       }
     }, 100);
   };
@@ -791,64 +993,71 @@ export function MapComponent({
   }, []);
 
   // Callback quando um cluster é clicado
-  const onClusterClick = useCallback((cluster: IMapCluster) => {
-    // Fechar o InfoWindow imediatamente
-    setSelectedCluster(null);
-    setSelectedProperty(null);
-    
-    // Fazer zoom no cluster e depois buscar novamente para expandir
-    if (map) {
-      isAnimatingRef.current = true;
-      const newZoom = Math.min(currentZoom + 2, 18);
-      
-      map.setCenter({
-        lat: cluster.coordinates[1],
-        lng: cluster.coordinates[0],
-      });
-      map.setZoom(newZoom);
-      
-      // Após a animação terminar, fazer nova busca para expandir o cluster
-      setTimeout(() => {
-        isAnimatingRef.current = false;
-        
-        // Limpar cache para forçar nova busca
-        lastSearchKeyRef.current = null;
-        
-        // Obter novos bounds após o zoom
-        const newBounds = map.getBounds();
-        if (newBounds && fetchMapDataRef.current) {
-          const finalZoom = map.getZoom() || newZoom;
-          fetchMapDataRef.current(newBounds, finalZoom);
-        }
-      }, 600); // Tempo suficiente para a animação terminar
-    }
-  }, [map, currentZoom]);
+  const onClusterClick = useCallback(
+    (cluster: IMapCluster) => {
+      // Fechar o InfoWindow imediatamente
+      setSelectedCluster(null);
+      setSelectedProperty(null);
+
+      // Fazer zoom no cluster e depois buscar novamente para expandir
+      if (map) {
+        isAnimatingRef.current = true;
+        const newZoom = Math.min(currentZoom + 2, 18);
+
+        map.setCenter({
+          lat: cluster.coordinates[1],
+          lng: cluster.coordinates[0],
+        });
+        map.setZoom(newZoom);
+
+        // Após a animação terminar, fazer nova busca para expandir o cluster
+        setTimeout(() => {
+          isAnimatingRef.current = false;
+
+          // Limpar cache para forçar nova busca
+          lastSearchKeyRef.current = null;
+
+          // Obter novos bounds após o zoom
+          const newBounds = map.getBounds();
+          if (newBounds && fetchMapDataRef.current) {
+            const finalZoom = map.getZoom() || newZoom;
+            fetchMapDataRef.current(newBounds, finalZoom);
+          }
+        }, 600); // Tempo suficiente para a animação terminar
+      }
+    },
+    [map, currentZoom]
+  );
 
   // Callback quando um point do mapa é clicado
-  const onMapPointClick = useCallback((point: IMapPoint) => {
-    setSelectedCluster(null);
-    // Converter point para PropertyData para InfoWindow
-    const propertyData: PropertyData = {
-      id: point.id,
-      title: undefined,
-      price: point.price || 0,
-      pricePerSquareMeter: point.price && point.areaTotal ? point.price / point.areaTotal : 0,
-      address: "",
-      city: "",
-      state: "",
-      propertyType: "RESIDENCIAL", // Default, pode ser melhorado
-      bedrooms: point.rooms || undefined,
-      bathrooms: point.bathrooms || undefined,
-      area: point.areaTotal || 0,
-      images: point.firstImageUrl ? [point.firstImageUrl] : [],
-      coordinates: {
-        lat: point.coordinates[1],
-        lng: point.coordinates[0],
-      },
-    };
-    setSelectedProperty(propertyData);
-    onPropertyClick?.(point.id);
-  }, [onPropertyClick]);
+  const onMapPointClick = useCallback(
+    (point: IMapPoint) => {
+      setSelectedCluster(null);
+      // Converter point para PropertyData para InfoWindow
+      const propertyData: PropertyData = {
+        id: point.id,
+        title: undefined,
+        price: point.price || 0,
+        pricePerSquareMeter:
+          point.price && point.areaTotal ? point.price / point.areaTotal : 0,
+        address: "",
+        city: "",
+        state: "",
+        propertyType: "RESIDENCIAL", // Default, pode ser melhorado
+        bedrooms: point.rooms || undefined,
+        bathrooms: point.bathrooms || undefined,
+        area: point.areaTotal || 0,
+        images: point.firstImageUrl ? [point.firstImageUrl] : [],
+        coordinates: {
+          lat: point.coordinates[1],
+          lng: point.coordinates[0],
+        },
+      };
+      setSelectedProperty(propertyData);
+      onPropertyClick?.(point.id);
+    },
+    [onPropertyClick]
+  );
 
   // Callback para fechar o InfoWindow
   const onInfoWindowClose = useCallback(() => {
@@ -1006,14 +1215,20 @@ export function MapComponent({
           }}
         />
 
-        {/* Polígonos dos bairros selecionados ou todos os bairros para delimitar cidade */}
-        {/* Se há bairros selecionados, mostrar apenas esses */}
-        {neighborhoods.length > 0 && neighborhoods
-          .filter((neighborhood) =>
-            selectedNeighborhoodNames.length === 0 ||
-            selectedNeighborhoodNames.includes(neighborhood.name)
-          )
-          .map((neighborhood) => {
+        {/* Polígonos dos bairros - mostrar todos os bairros disponíveis */}
+        {/* Usar allNeighborhoodsForCityBounds como fonte principal (sempre tem todos os bairros) */}
+        {/* Se não houver, usar neighborhoods como fallback */}
+        {(() => {
+          // Priorizar allNeighborhoodsForCityBounds (sempre tem todos os bairros)
+          // Se não houver, usar neighborhoods como fallback
+          const neighborhoodsToShow =
+            allNeighborhoodsForCityBounds.length > 0
+              ? allNeighborhoodsForCityBounds
+              : neighborhoods;
+
+          const allNeighborhoods = neighborhoodsToShow;
+
+          return allNeighborhoods.map((neighborhood) => {
             // Converter coordenadas GeoJSON para formato do Google Maps
             // GeoJSON usa [lon, lat], Google Maps usa {lat, lng}
             const paths =
@@ -1024,38 +1239,10 @@ export function MapComponent({
 
             if (paths.length === 0) return null;
 
-            return (
-              <Polygon
-                key={neighborhood.id}
-                paths={paths}
-                options={{
-                  fillColor: theme.palette.primary.main,
-                  fillOpacity: 0.15,
-                  strokeColor: theme.palette.primary.main,
-                  strokeOpacity: 0.8,
-                  strokeWeight: 2,
-                  clickable: false,
-                  editable: false,
-                  draggable: false,
-                  zIndex: 1, // Bairros ficam na frente das cidades
-                }}
-              />
+            // Verificar se o bairro está selecionado
+            const isSelected = selectedNeighborhoodNames.includes(
+              neighborhood.name
             );
-          })}
-
-        {/* Polígonos de todos os bairros da cidade quando não há bairros específicos selecionados */}
-        {/* Mostra a delimitação completa da cidade com todos os bairros */}
-        {allNeighborhoodsForCityBounds.length > 0 && selectedNeighborhoodNames.length === 0 && neighborhoods.length === 0 && allNeighborhoodsForCityBounds
-          .map((neighborhood) => {
-            // Converter coordenadas GeoJSON para formato do Google Maps
-            // GeoJSON usa [lon, lat], Google Maps usa {lat, lng}
-            const paths =
-              neighborhood.geo?.coordinates?.[0]?.map((coord) => ({
-                lat: coord[1], // latitude
-                lng: coord[0], // longitude
-              })) || [];
-
-            if (paths.length === 0) return null;
 
             return (
               <Polygon
@@ -1063,74 +1250,82 @@ export function MapComponent({
                 paths={paths}
                 options={{
                   fillColor: theme.palette.primary.main,
-                  fillOpacity: 0.15,
+                  fillOpacity: isSelected ? 0.3 : 0.15, // Mais opaco se selecionado
                   strokeColor: theme.palette.primary.main,
-                  strokeOpacity: 0.8,
-                  strokeWeight: 2,
-                  clickable: false,
+                  strokeOpacity: isSelected ? 1 : 0.8, // Mais visível se selecionado
+                  strokeWeight: isSelected ? 3 : 2, // Mais espesso se selecionado
+                  clickable: true,
                   editable: false,
                   draggable: false,
-                  zIndex: 1, // Bairros ficam na frente das cidades
+                  zIndex: isSelected ? 2 : 1, // Bairros selecionados ficam na frente
                 }}
+                onMouseOver={(e) =>
+                  handleNeighborhoodMouseOver(neighborhood, e)
+                }
+                onMouseOut={handleNeighborhoodMouseOut}
+                onClick={() => handleNeighborhoodClick(neighborhood)}
               />
             );
-          })}
-
+          });
+        })()}
 
         {/* Clusters do mapa */}
-        {useMapSearch && mapClusters.map((cluster) => (
-          <Marker
-            key={`cluster-${cluster.clusterId}`}
-            position={{
-              lat: cluster.coordinates[1],
-              lng: cluster.coordinates[0],
-            }}
-            onClick={() => onClusterClick(cluster)}
-            icon={{
-              url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+        {useMapSearch &&
+          mapClusters.map((cluster) => (
+            <Marker
+              key={`cluster-${cluster.clusterId}`}
+              position={{
+                lat: cluster.coordinates[1],
+                lng: cluster.coordinates[0],
+              }}
+              onClick={() => onClusterClick(cluster)}
+              icon={{
+                url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
                 <svg width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <circle cx="25" cy="25" r="20" fill="${theme.palette.primary.main}" stroke="white" stroke-width="3"/>
                   <text x="25" y="25" text-anchor="middle" dominant-baseline="central" font-family="Arial" font-size="14" font-weight="bold" fill="white">${cluster.count}</text>
                 </svg>
               `)}`,
-              scaledSize: new google.maps.Size(50, 50),
-              anchor: new google.maps.Point(25, 25),
-            }}
-            zIndex={10}
-          />
-        ))}
+                scaledSize: new google.maps.Size(50, 50),
+                anchor: new google.maps.Point(25, 25),
+              }}
+              zIndex={10}
+            />
+          ))}
 
         {/* Points individuais do mapa */}
-        {useMapSearch && mapPoints.map((point) => (
-          <Marker
-            key={`point-${point.id}`}
-            position={{
-              lat: point.coordinates[1],
-              lng: point.coordinates[0],
-            }}
-            onClick={() => onMapPointClick(point)}
-            icon={{
-              url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+        {useMapSearch &&
+          mapPoints.map((point) => (
+            <Marker
+              key={`point-${point.id}`}
+              position={{
+                lat: point.coordinates[1],
+                lng: point.coordinates[0],
+              }}
+              onClick={() => onMapPointClick(point)}
+              icon={{
+                url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
                 <svg width="32" height="40" viewBox="0 0 32 40" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M16 0C7.163 0 0 7.163 0 16c0 16 16 24 16 24s16-8 16-24c0-8.837-7.163-16-16-16z" fill="${theme.palette.primary.main}"/>
                   <circle cx="16" cy="16" r="8" fill="white"/>
                 </svg>
               `)}`,
-              scaledSize: new google.maps.Size(32, 40),
-              anchor: new google.maps.Point(16, 40),
-            }}
-            zIndex={5}
-          />
-        ))}
+                scaledSize: new google.maps.Size(32, 40),
+                anchor: new google.maps.Point(16, 40),
+              }}
+              zIndex={5}
+            />
+          ))}
 
         {/* Marcadores das propriedades (modo legado - quando useMapSearch é false) */}
-        {!useMapSearch && propertiesWithCoordinates.map((property) => (
-          <Marker
-            key={property.id}
-            position={property.coordinates!}
-            onClick={() => onMarkerClick(property)}
-            icon={{
-              url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+        {!useMapSearch &&
+          propertiesWithCoordinates.map((property) => (
+            <Marker
+              key={property.id}
+              position={property.coordinates!}
+              onClick={() => onMarkerClick(property)}
+              icon={{
+                url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
                 <svg width="32" height="40" viewBox="0 0 32 40" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M16 0C7.163 0 0 7.163 0 16c0 16 16 24 16 24s16-8 16-24c0-8.837-7.163-16-16-16z" fill="${getPropertyTypeColor(
                     property.propertyType
@@ -1141,11 +1336,11 @@ export function MapComponent({
                   )}">${property.propertyType.charAt(0)}</text>
                 </svg>
               `)}`,
-              scaledSize: new google.maps.Size(32, 40),
-              anchor: new google.maps.Point(16, 40),
-            }}
-          />
-        ))}
+                scaledSize: new google.maps.Size(32, 40),
+                anchor: new google.maps.Point(16, 40),
+              }}
+            />
+          ))}
 
         {/* InfoWindow para cluster selecionado */}
         {selectedCluster && (
@@ -1174,7 +1369,8 @@ export function MapComponent({
                   color: theme.palette.primary.main,
                 }}
               >
-                {selectedCluster.count} {selectedCluster.count === 1 ? "imóvel" : "imóveis"}
+                {selectedCluster.count}{" "}
+                {selectedCluster.count === 1 ? "imóvel" : "imóveis"}
               </Typography>
               <Typography
                 variant="body2"
@@ -1429,6 +1625,48 @@ export function MapComponent({
           </InfoWindow>
         )}
       </GoogleMap>
+
+      {/* Tooltip para bairros */}
+      {hoveredNeighborhood && tooltipPosition && (
+        <Box
+          sx={{
+            position: "fixed",
+            left: `${tooltipPosition.x}px`,
+            top: `${tooltipPosition.y}px`,
+            transform: "translate(-50%, -100%)",
+            zIndex: 2000,
+            pointerEvents: "none",
+            backgroundColor: "#4A375B",
+            color: "white",
+            padding: "8px 12px",
+            borderRadius: "8px",
+            boxShadow: "0 2px 8px rgba(0, 0, 0, 0.3)",
+            whiteSpace: "nowrap",
+            marginBottom: "8px",
+          }}
+        >
+          <Typography
+            sx={{
+              fontSize: "0.75rem",
+              color: "white",
+              lineHeight: 1.2,
+              marginBottom: "2px",
+            }}
+          >
+            Bairro:
+          </Typography>
+          <Typography
+            sx={{
+              fontSize: "0.95rem",
+              fontWeight: 600,
+              color: "white",
+              lineHeight: 1.2,
+            }}
+          >
+            {hoveredNeighborhood.name}
+          </Typography>
+        </Box>
+      )}
 
       {/* Indicador de Loading */}
       {mapLoading && useMapSearch && (
