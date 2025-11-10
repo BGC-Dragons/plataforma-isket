@@ -56,6 +56,8 @@ import { useAuth } from "../../../modules/access-manager/auth.hook";
 import { getNeighborhoods } from "../../../../services/get-locations-neighborhoods.service";
 import type { INeighborhoodFull } from "../../../../services/get-locations-neighborhoods.service";
 import { getCityByCode } from "../../../../services/get-locations-city-by-code.service";
+import type { ICityFull } from "../../../../services/get-locations-cities.service";
+import { postCitiesFindMany } from "../../../../services/post-locations-cities-find-many.service";
 
 // Interface para os dados das propriedades
 interface PropertyData {
@@ -716,6 +718,7 @@ export function SearchComponent() {
       itemsPerPage,
       auth.store.token,
       fetchNeighborhoodsData,
+      fetchCitiesData,
     ]
   );
 
@@ -1090,7 +1093,7 @@ export function SearchComponent() {
       palavras_chave: "",
     };
     applyFilters(clearedFilters);
-  }, [applyFilters, currentFilters, defaultCity]);
+  }, [applyFilters]);
 
   // Handler para quando um bairro é clicado no mapa
   const handleNeighborhoodClick = useCallback(
