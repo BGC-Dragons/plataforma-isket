@@ -123,6 +123,7 @@ export function PropertyLocalization({
           streetViewControl: true,
           mapTypeControl: true,
           fullscreenControl: true,
+          gestureHandling: "greedy", // Permite zoom com scroll sem precisar de Ctrl
         }}
       >
         {/* Marcador da propriedade */}

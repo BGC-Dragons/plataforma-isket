@@ -963,6 +963,7 @@ export function MapComponent({
           streetViewControl: false,
           mapTypeControl: true,
           fullscreenControl: true,
+          gestureHandling: "greedy", // Permite zoom com scroll sem precisar de Ctrl
           styles: [
             {
               featureType: "poi",
