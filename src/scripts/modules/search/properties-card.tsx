@@ -18,6 +18,7 @@ import {
   FavoriteBorder,
   Share,
 } from "@mui/icons-material";
+import { PropertyPlaceholderImage } from "../../../assets/property-placeholder-image";
 
 interface PropertyCardProps {
   id: string;
@@ -47,7 +48,6 @@ export function PropertiesCard({
   address,
   neighborhood,
   city,
-  state,
   propertyType,
   bedrooms = 0,
   bathrooms = 0,
@@ -115,6 +115,11 @@ export function PropertiesCard({
     }
   };
 
+  const hasValidImages =
+    images &&
+    images.length > 0 &&
+    images.some((img) => img && img.trim() !== "");
+
   return (
     <Card
       sx={{
@@ -138,17 +143,29 @@ export function PropertiesCard({
       {/* Seção da Imagem */}
       <Box sx={{ position: "relative", height: 240 }}>
         {/* Imagem Principal */}
-        <CardMedia
-          component="img"
-          height="240"
-          image={images[currentImageIndex] || "/placeholder-property.jpg"}
-          alt={title || "Propriedade"}
-          sx={{
-            objectFit: "cover",
-            transition: "transform 0.3s ease",
-            transform: isHovered ? "scale(1.05)" : "scale(1)",
-          }}
-        />
+        {hasValidImages ? (
+          <CardMedia
+            component="img"
+            height="240"
+            image={images[currentImageIndex]}
+            alt={title || "Propriedade"}
+            sx={{
+              objectFit: "cover",
+              transition: "transform 0.3s ease",
+              transform: isHovered ? "scale(1.05)" : "scale(1)",
+            }}
+          />
+        ) : (
+          <Box
+            sx={{
+              height: "100%",
+              transition: "transform 0.3s ease",
+              transform: isHovered ? "scale(1.05)" : "scale(1)",
+            }}
+          >
+            <PropertyPlaceholderImage />
+          </Box>
+        )}
 
         {/* Overlay com gradiente sutil */}
         <Box
@@ -183,7 +200,7 @@ export function PropertiesCard({
         />
 
         {/* Indicadores do Carousel */}
-        {images.length > 1 && (
+        {hasValidImages && images.length > 1 && (
           <Box
             sx={{
               position: "absolute",
@@ -213,7 +230,7 @@ export function PropertiesCard({
         )}
 
         {/* Botões de Navegação (apenas no hover) */}
-        {images.length > 1 && isHovered && (
+        {hasValidImages && images.length > 1 && isHovered && (
           <>
             <IconButton
               onClick={(e) => {
@@ -392,7 +409,9 @@ export function PropertiesCard({
                 lineHeight: 1.3,
               }}
             >
-              {neighborhood && city ? `${neighborhood}, ${city}` : city || neighborhood}
+              {neighborhood && city
+                ? `${neighborhood}, ${city}`
+                : city || neighborhood}
             </Typography>
           </Box>
         </Box>

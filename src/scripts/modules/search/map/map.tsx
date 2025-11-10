@@ -207,74 +207,7 @@ export function MapComponent({
   const previousCenterRef = useRef<{ lat: number; lng: number } | undefined>(center);
   const previousZoomRef = useRef<number | undefined>(zoom);
 
-  // Função para calcular bounds da cidade selecionada
-  const getCityBounds = useCallback((): google.maps.LatLngBounds | null => {
-    if (!filters?.cities || filters.cities.length === 0) {
-      return null;
-    }
-
-    const allCoordinates: google.maps.LatLng[] = [];
-    
-    // Buscar coordenadas das cidades selecionadas
-    const selectedCities = cities.filter((city) =>
-      filters.cities.some((cityName) => {
-        const code = cityToCodeMap[cityName];
-        return code && city.cityStateCode === code;
-      })
-    );
-
-    selectedCities.forEach((city) => {
-      if (!city.geo?.geometry) return;
-      
-      const geometry = city.geo.geometry;
-      if (geometry.type === "Polygon") {
-        const coords = geometry.coordinates as number[][][];
-        if (coords && coords[0] && Array.isArray(coords[0])) {
-          coords[0].forEach((coord) => {
-            if (Array.isArray(coord) && coord.length >= 2 && 
-                typeof coord[0] === 'number' && typeof coord[1] === 'number') {
-              try {
-                allCoordinates.push(
-                  new google.maps.LatLng(coord[1], coord[0]) // lat, lng
-                );
-              } catch (error) {
-                // Ignorar coordenadas inválidas
-              }
-            }
-          });
-        }
-      } else if (geometry.type === "MultiPolygon") {
-        const coords = geometry.coordinates as number[][][][];
-        if (coords && coords[0] && coords[0][0] && Array.isArray(coords[0][0])) {
-          coords[0][0].forEach((coord) => {
-            if (Array.isArray(coord) && coord.length >= 2 && 
-                typeof coord[0] === 'number' && typeof coord[1] === 'number') {
-              try {
-                allCoordinates.push(
-                  new google.maps.LatLng(coord[1], coord[0]) // lat, lng
-                );
-              } catch (error) {
-                // Ignorar coordenadas inválidas
-              }
-            }
-          });
-        }
-      }
-    });
-
-    if (allCoordinates.length === 0) {
-      return null;
-    }
-
-    const cityBounds = new google.maps.LatLngBounds();
-    allCoordinates.forEach((coord) => {
-      cityBounds.extend(coord);
-    });
-
-    return cityBounds;
-  }, [filters?.cities, cities, cityToCodeMap]);
-
-  // Função para limitar bbox baseado no zoom e cidade selecionada
+  // Função para limitar bbox baseado no zoom
   const calculateLimitedBbox = useCallback((
     viewportBounds: google.maps.LatLngBounds,
     zoomLevel: number
@@ -282,56 +215,6 @@ export function MapComponent({
     const ne = viewportBounds.getNorthEast();
     const sw = viewportBounds.getSouthWest();
     
-    // Obter bounds da cidade se houver cidade selecionada
-    const cityBounds = getCityBounds();
-    
-    // Se houver cidade selecionada, SEMPRE limitar aos bounds da cidade
-    if (cityBounds) {
-      const cityNE = cityBounds.getNorthEast();
-      const citySW = cityBounds.getSouthWest();
-      
-      // Zoom alto (> 14): usar apenas viewport, mas limitado aos bounds da cidade
-      if (zoomLevel > 14) {
-        return [
-          Math.max(sw.lng(), citySW.lng()),
-          Math.max(sw.lat(), citySW.lat()),
-          Math.min(ne.lng(), cityNE.lng()),
-          Math.min(ne.lat(), cityNE.lat()),
-        ];
-      }
-      
-      // Zoom médio (10-14): usar viewport expandido, mas limitado aos bounds da cidade
-      if (zoomLevel >= 10) {
-        const latDiff = ne.lat() - sw.lat();
-        const lngDiff = ne.lng() - sw.lng();
-        const expansion = 0.5; // 50% de expansão
-        const expandedSW = {
-          lng: sw.lng() - lngDiff * expansion,
-          lat: sw.lat() - latDiff * expansion,
-        };
-        const expandedNE = {
-          lng: ne.lng() + lngDiff * expansion,
-          lat: ne.lat() + latDiff * expansion,
-        };
-        
-        return [
-          Math.max(expandedSW.lng, citySW.lng()),
-          Math.max(expandedSW.lat, citySW.lat()),
-          Math.min(expandedNE.lng, cityNE.lng()),
-          Math.min(expandedNE.lat, cityNE.lat()),
-        ];
-      }
-      
-      // Zoom baixo (< 10): usar bounds completos da cidade (sempre limitado à cidade)
-      return [
-        citySW.lng(),
-        citySW.lat(),
-        cityNE.lng(),
-        cityNE.lat(),
-      ];
-    }
-
-    // Se não houver cidade selecionada, limitar baseado no zoom
     // Zoom alto (> 14): usar apenas viewport (área pequena)
     if (zoomLevel > 14) {
       return [sw.lng(), sw.lat(), ne.lng(), ne.lat()];
@@ -358,7 +241,7 @@ export function MapComponent({
       centerLng + maxArea / 2,
       centerLat + maxArea / 2,
     ];
-  }, [getCityBounds]);
+  }, []);
 
   // Função para buscar propriedades no mapa
   const fetchMapData = useCallback(
@@ -666,7 +549,11 @@ export function MapComponent({
     });
 
     // Se há coordenadas de cidades/bairros, usar fitBounds
-    if (allCoordinates.length > 0) {
+    // EXCETO quando for busca apenas por cidade (sem bairros) - nesse caso usar zoom calculado
+    const isCityOnlySearch = hasSelectedCities && !hasSelectedNeighborhoods;
+    
+    if (allCoordinates.length > 0 && !isCityOnlySearch) {
+      // Quando há bairros selecionados, usar fitBounds para mostrar todos os bairros
       try {
         const bounds = new google.maps.LatLngBounds();
         allCoordinates.forEach((coord) => {
@@ -1118,43 +1005,27 @@ export function MapComponent({
           }}
         />
 
-        {/* Polígonos das cidades selecionadas */}
-        {cities
-          .filter((city) =>
-            selectedCityCodes.length === 0 ||
-            selectedCityCodes.includes(city.cityStateCode)
+        {/* Polígonos dos bairros selecionados ou todos os bairros para delimitar cidade */}
+        {/* Se há bairros selecionados, mostrar apenas esses */}
+        {neighborhoods.length > 0 && neighborhoods
+          .filter((neighborhood) =>
+            selectedNeighborhoodNames.length === 0 ||
+            selectedNeighborhoodNames.includes(neighborhood.name)
           )
-          .map((city) => {
+          .map((neighborhood) => {
             // Converter coordenadas GeoJSON para formato do Google Maps
             // GeoJSON usa [lon, lat], Google Maps usa {lat, lng}
-            // Suporta tanto Polygon quanto MultiPolygon
-            if (!city.geo?.geometry) return null;
-            
-            const geometry = city.geo.geometry;
-            let paths: { lat: number; lng: number }[] = [];
-            
-            if (geometry.type === "Polygon") {
-              // Polygon: coordinates é number[][][]
-              const coords = geometry.coordinates as number[][][];
-              paths = coords[0]?.map((coord) => ({
+            const paths =
+              neighborhood.geo?.coordinates?.[0]?.map((coord) => ({
                 lat: coord[1], // latitude
                 lng: coord[0], // longitude
               })) || [];
-            } else if (geometry.type === "MultiPolygon") {
-              // MultiPolygon: coordinates é number[][][][]
-              // Pegamos o primeiro polígono do MultiPolygon
-              const coords = geometry.coordinates as number[][][][];
-              paths = coords[0]?.[0]?.map((coord) => ({
-                lat: coord[1], // latitude
-                lng: coord[0], // longitude
-              })) || [];
-            }
 
             if (paths.length === 0) return null;
 
             return (
               <Polygon
-                key={city.id}
+                key={neighborhood.id}
                 paths={paths}
                 options={{
                   fillColor: theme.palette.primary.main,
@@ -1165,19 +1036,15 @@ export function MapComponent({
                   clickable: false,
                   editable: false,
                   draggable: false,
-                  zIndex: 0, // Cidades ficam atrás dos bairros
+                  zIndex: 1, // Bairros ficam na frente das cidades
                 }}
               />
             );
           })}
 
-        {/* Polígonos dos bairros selecionados ou todos os bairros para delimitar cidade */}
-        {/* Se há bairros selecionados, mostrar apenas esses */}
-        {neighborhoods.length > 0 && neighborhoods
-          .filter((neighborhood) =>
-            selectedNeighborhoodNames.length === 0 ||
-            selectedNeighborhoodNames.includes(neighborhood.name)
-          )
+        {/* Polígonos de todos os bairros da cidade quando não há bairros específicos selecionados */}
+        {/* Mostra a delimitação completa da cidade com todos os bairros */}
+        {allNeighborhoodsForCityBounds.length > 0 && selectedNeighborhoodNames.length === 0 && neighborhoods.length === 0 && allNeighborhoodsForCityBounds
           .map((neighborhood) => {
             // Converter coordenadas GeoJSON para formato do Google Maps
             // GeoJSON usa [lon, lat], Google Maps usa {lat, lng}

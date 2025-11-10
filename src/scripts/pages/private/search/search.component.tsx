@@ -400,10 +400,28 @@ export function SearchComponent() {
     const lngDiff = maxLng - minLng;
     const maxDiff = Math.max(latDiff, lngDiff);
 
-    // Se há muitos bairros (mais de 50), é uma cidade inteira - zoom mais próximo
+    // Detectar se é busca apenas por cidade (sem bairros específicos)
+    const isCityOnlySearch = neighborhoods.length === 0 && cities.length > 0;
+    
     let zoom = 12; // zoom padrão
-    if (neighborhoods.length > 50) {
-      // Cidade inteira - zoom mais próximo para ver melhor
+    
+    if (isCityOnlySearch) {
+      // Quando apenas cidades são selecionadas, fazer zoom próximo para focar na cidade
+      if (maxDiff > 0.4) {
+        zoom = 10; // cidade muito grande (ex: São Paulo, Rio de Janeiro)
+      } else if (maxDiff > 0.25) {
+        zoom = 11; // cidade grande
+      } else if (maxDiff > 0.15) {
+        zoom = 12; // cidade média-grande
+      } else if (maxDiff > 0.08) {
+        zoom = 13; // cidade média
+      } else if (maxDiff > 0.04) {
+        zoom = 14; // cidade pequena
+      } else {
+        zoom = 15; // cidade muito pequena
+      }
+    } else if (neighborhoods.length > 50) {
+      // Se há muitos bairros (mais de 50), é uma cidade inteira - zoom mais próximo
       if (maxDiff > 0.3) {
         zoom = 11; // cidade muito grande
       } else if (maxDiff > 0.15) {
@@ -415,18 +433,32 @@ export function SearchComponent() {
       }
     } else {
       // Seleção específica de bairros
-      if (maxDiff > 0.5) {
-        zoom = 9; // área muito grande (estado)
-      } else if (maxDiff > 0.2) {
-        zoom = 10; // área grande (região)
-      } else if (maxDiff > 0.1) {
-        zoom = 11; // área média (cidade)
-      } else if (maxDiff > 0.05) {
-        zoom = 12; // área pequena (bairros)
-      } else if (maxDiff > 0.02) {
-        zoom = 13; // área muito pequena (bairro específico)
+      // Se há apenas um bairro, fazer zoom mais próximo para centralizar melhor
+      if (neighborhoods.length === 1) {
+        if (maxDiff > 0.1) {
+          zoom = 12; // bairro grande
+        } else if (maxDiff > 0.05) {
+          zoom = 13; // bairro médio
+        } else if (maxDiff > 0.02) {
+          zoom = 14; // bairro pequeno
+        } else {
+          zoom = 15; // bairro muito pequeno - zoom bem próximo
+        }
       } else {
-        zoom = 14; // área mínima
+        // Múltiplos bairros
+        if (maxDiff > 0.5) {
+          zoom = 9; // área muito grande (estado)
+        } else if (maxDiff > 0.2) {
+          zoom = 10; // área grande (região)
+        } else if (maxDiff > 0.1) {
+          zoom = 11; // área média (cidade)
+        } else if (maxDiff > 0.05) {
+          zoom = 12; // área pequena (bairros)
+        } else if (maxDiff > 0.02) {
+          zoom = 13; // área muito pequena (bairro específico)
+        } else {
+          zoom = 14; // área mínima
+        }
       }
     }
 
@@ -479,17 +511,10 @@ export function SearchComponent() {
   );
 
   // Função para buscar dados geoespaciais dos bairros
-  // Se não há bairros específicos selecionados, não precisa buscar (usaremos dados da cidade)
+  // Quando apenas cidade é selecionada (sem bairros específicos), busca todos os bairros para mostrar delimitação
   const fetchNeighborhoodsData = useCallback(
     async (filters: FilterState) => {
       if (filters.cities.length === 0) {
-        setNeighborhoodsData([]);
-        setAllNeighborhoodsForBounds([]);
-        return;
-      }
-
-      // Se não há bairros selecionados, não precisa buscar bairros (usaremos dados da cidade)
-      if (filters.neighborhoods.length === 0) {
         setNeighborhoodsData([]);
         setAllNeighborhoodsForBounds([]);
         return;
@@ -503,6 +528,7 @@ export function SearchComponent() {
 
         if (cityStateCodes.length === 0) {
           setNeighborhoodsData([]);
+          setAllNeighborhoodsForBounds([]);
           return;
         }
 
@@ -512,17 +538,24 @@ export function SearchComponent() {
           auth.store.token as string | undefined
         );
 
-        // Filtrar apenas os bairros selecionados
-        const selectedNeighborhoods = response.data.filter((neighborhood) =>
-          filters.neighborhoods.includes(neighborhood.name)
-        );
-
-        // Armazenar apenas os bairros selecionados (para renderização)
-        setNeighborhoodsData(selectedNeighborhoods);
-        setAllNeighborhoodsForBounds([]);
+        // Se há bairros específicos selecionados, filtrar apenas esses
+        if (filters.neighborhoods.length > 0) {
+          const selectedNeighborhoods = response.data.filter((neighborhood) =>
+            filters.neighborhoods.includes(neighborhood.name)
+          );
+          // Armazenar apenas os bairros selecionados (para renderização)
+          setNeighborhoodsData(selectedNeighborhoods);
+          setAllNeighborhoodsForBounds([]);
+        } else {
+          // Se não há bairros específicos selecionados, armazenar TODOS os bairros
+          // para mostrar a delimitação completa da cidade
+          setNeighborhoodsData([]);
+          setAllNeighborhoodsForBounds(response.data);
+        }
       } catch (error) {
         console.error("Erro ao buscar dados dos bairros:", error);
         setNeighborhoodsData([]);
+        setAllNeighborhoodsForBounds([]);
       }
     },
     [cityToCodeMap, auth.store.token]
@@ -551,25 +584,58 @@ export function SearchComponent() {
     }
   }, [currentFilters, fetchCitiesData]);
 
+  // Ref para rastrear bairros anteriores e evitar buscas duplicadas
+  const previousNeighborhoodsRef = useRef<string>('');
+
+  // Efeito para buscar dados dos bairros imediatamente quando os bairros mudarem
+  // Isso permite centralizar o mapa sem precisar fazer a busca completa de propriedades
+  useEffect(() => {
+    if (!currentFilters) {
+      previousNeighborhoodsRef.current = '';
+      return;
+    }
+
+    // Criar uma chave única baseada nos bairros selecionados (mesmo se vazio)
+    const neighborhoodsKey = currentFilters.neighborhoods.length > 0 
+      ? [...currentFilters.neighborhoods].sort().join(',')
+      : '';
+    
+    // Só buscar se os bairros realmente mudaram
+    if (previousNeighborhoodsRef.current !== neighborhoodsKey) {
+      previousNeighborhoodsRef.current = neighborhoodsKey;
+      // Buscar dados dos bairros imediatamente quando mudarem
+      // Não fazer busca de propriedades aqui, apenas buscar dados geoespaciais
+      // fetchNeighborhoodsData já trata o caso de array vazio
+      fetchNeighborhoodsData(currentFilters);
+    }
+  }, [currentFilters, fetchNeighborhoodsData]);
+
   // Efeito para calcular bounds quando cidades ou bairros mudarem
   useEffect(() => {
     // Se não há dados, limpar
-    if (citiesData.length === 0 && neighborhoodsData.length === 0) {
+    if (citiesData.length === 0 && neighborhoodsData.length === 0 && allNeighborhoodsForBounds.length === 0) {
       setMapCenter(undefined);
       setMapZoom(undefined);
       return;
     }
 
     // Calcular bounds usando cidades e bairros
-    // Quando apenas cidades são selecionadas, usamos os dados geoespaciais da cidade
-    // Quando há bairros selecionados, usamos os dados dos bairros
-    const bounds = calculateMapBounds(neighborhoodsData, citiesData);
+    // Quando apenas cidades são selecionadas (sem bairros específicos), usar todos os bairros da cidade
+    // Quando há bairros selecionados, usamos os dados dos bairros selecionados
+    // Prioridade: neighborhoodsData > allNeighborhoodsForBounds > citiesData
+    const neighborhoodsToUse = neighborhoodsData.length > 0 
+      ? neighborhoodsData 
+      : allNeighborhoodsForBounds.length > 0 
+        ? allNeighborhoodsForBounds 
+        : [];
+    
+    const bounds = calculateMapBounds(neighborhoodsToUse, citiesData);
     
     if (bounds.center) {
       setMapCenter(bounds.center);
       setMapZoom(bounds.zoom);
     }
-  }, [citiesData, neighborhoodsData, calculateMapBounds]);
+  }, [citiesData, neighborhoodsData, allNeighborhoodsForBounds, calculateMapBounds]);
 
   // Função para aplicar filtros e buscar da API
   const applyFilters = useCallback(
@@ -2057,6 +2123,11 @@ export function SearchComponent() {
                 selectedNeighborhoodNames={currentFilters?.neighborhoods || []}
                 cities={citiesData}
                 selectedCityCodes={currentFilters?.cities.map(city => cityToCodeMap[city]).filter((code): code is string => Boolean(code)) || []}
+                allNeighborhoodsForCityBounds={allNeighborhoodsForBounds}
+                filters={currentFilters}
+                cityToCodeMap={cityToCodeMap}
+                token={auth.store.token || localStorage.getItem("auth_token") || undefined}
+                useMapSearch={true}
               />
             </Box>
           </Box>
@@ -2199,6 +2270,11 @@ export function SearchComponent() {
                 selectedNeighborhoodNames={currentFilters?.neighborhoods || []}
                 cities={citiesData}
                 selectedCityCodes={currentFilters?.cities.map(city => cityToCodeMap[city]).filter((code): code is string => Boolean(code)) || []}
+                allNeighborhoodsForCityBounds={allNeighborhoodsForBounds}
+                filters={currentFilters}
+                cityToCodeMap={cityToCodeMap}
+                token={auth.store.token || localStorage.getItem("auth_token") || undefined}
+                useMapSearch={true}
               />
             </Box>
           </Box>

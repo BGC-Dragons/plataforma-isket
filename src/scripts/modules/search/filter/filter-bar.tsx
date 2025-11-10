@@ -312,11 +312,14 @@ export function FilterBar({
 
   // Função para lidar com mudança de bairros
   const handleNeighborhoodChange = useCallback((neighborhoods: string[]) => {
-    setTempFilters((prev) => ({
-      ...prev,
+    const updatedFilters = {
+      ...tempFilters,
       neighborhoods,
-    }));
-  }, []);
+    };
+    setTempFilters(updatedFilters);
+    // Aplicar filtros automaticamente quando um bairro for selecionado para centralizar o mapa
+    onFiltersChange(updatedFilters);
+  }, [tempFilters, onFiltersChange]);
 
   // Função para limpar todos os bairros selecionados
   const handleClearNeighborhoods = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
