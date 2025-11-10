@@ -82,6 +82,9 @@ interface FilterState {
   search: string;
   cities: string[];
   neighborhoods: string[];
+  // Coordenadas do endereço selecionado (quando há busca por endereço)
+  addressCoordinates?: { lat: number; lng: number };
+  addressZoom?: number;
   // Negócio
   venda: boolean;
   aluguel: boolean;
@@ -589,7 +592,13 @@ export function SearchComponent() {
   // Efeito para buscar dados das cidades imediatamente quando as cidades mudarem
   // Isso permite centralizar o mapa sem precisar fazer a busca completa de propriedades
   useEffect(() => {
-    if (!currentFilters || currentFilters.cities.length === 0) {
+    // Não buscar dados de cidades quando há busca por endereço (para não sobrescrever centralização)
+    if (!currentFilters || currentFilters.addressCoordinates) {
+      previousCitiesRef.current = "";
+      return;
+    }
+
+    if (currentFilters.cities.length === 0) {
       previousCitiesRef.current = "";
       return;
     }
@@ -612,7 +621,8 @@ export function SearchComponent() {
   // Efeito para buscar dados dos bairros imediatamente quando os bairros mudarem
   // Isso permite centralizar o mapa sem precisar fazer a busca completa de propriedades
   useEffect(() => {
-    if (!currentFilters) {
+    // Não buscar dados de bairros quando há busca por endereço (para não sobrescrever centralização)
+    if (!currentFilters || currentFilters.addressCoordinates) {
       previousNeighborhoodsRef.current = "";
       return;
     }
@@ -633,8 +643,24 @@ export function SearchComponent() {
     }
   }, [currentFilters, fetchNeighborhoodsData]);
 
-  // Efeito para calcular bounds quando cidades ou bairros mudarem
+  // Efeito para centralizar o mapa quando há busca por endereço (prioridade máxima)
   useEffect(() => {
+    if (currentFilters?.addressCoordinates && currentFilters?.addressZoom) {
+      // Quando há busca por endereço, centralizar no endereço
+      setMapCenter(currentFilters.addressCoordinates);
+      setMapZoom(currentFilters.addressZoom);
+      return; // Não calcular bounds de cidades/bairros quando há endereço
+    }
+  }, [currentFilters?.addressCoordinates, currentFilters?.addressZoom]);
+
+  // Efeito para calcular bounds quando cidades ou bairros mudarem
+  // Só executa se NÃO houver busca por endereço
+  useEffect(() => {
+    // Se há busca por endereço, não calcular bounds de cidades/bairros
+    if (currentFilters?.addressCoordinates) {
+      return;
+    }
+
     // Se não há dados, limpar
     if (
       citiesData.length === 0 &&
@@ -668,6 +694,7 @@ export function SearchComponent() {
     neighborhoodsData,
     allNeighborhoodsForBounds,
     calculateMapBounds,
+    currentFilters?.addressCoordinates, // Adicionar dependência para reagir quando endereço é removido
   ]);
 
   // Função para aplicar filtros e buscar da API
@@ -700,8 +727,11 @@ export function SearchComponent() {
         setError(null); // Garantir que não há erro após sucesso
 
         // Buscar dados geoespaciais das cidades e bairros selecionados
-        await fetchCitiesData(filters);
-        await fetchNeighborhoodsData(filters);
+        // NÃO buscar quando há busca por endereço (para não sobrescrever a centralização)
+        if (!filters.addressCoordinates) {
+          await fetchCitiesData(filters);
+          await fetchNeighborhoodsData(filters);
+        }
       } catch (error) {
         console.error("Erro ao buscar propriedades:", error);
         const errorMessage = getErrorMessage(error);

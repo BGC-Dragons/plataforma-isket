@@ -77,11 +77,35 @@ export const mapFiltersToSearchMap = (
     return request;
   }
 
-  // Busca textual
+  // Busca textual - quando há coordenadas, usar formato completo com geometria
   if (filters.search) {
-    request.address = {
-      street: filters.search,
-    };
+    if (filters.addressCoordinates) {
+      // Quando há coordenadas do endereço, usar formato completo
+      request.formattedAddress = filters.search;
+      request.center = {
+        lat: filters.addressCoordinates.lat,
+        lng: filters.addressCoordinates.lng,
+      };
+      request.markerPosition = {
+        lat: filters.addressCoordinates.lat,
+        lng: filters.addressCoordinates.lng,
+      };
+      request.geometry = [
+        {
+          type: "circle",
+          coordinates: [[filters.addressCoordinates.lng, filters.addressCoordinates.lat]],
+          radius: "1000", // 1000 metros conforme exemplo do payload esperado
+        },
+      ];
+      if (filters.addressZoom) {
+        request.zoom = filters.addressZoom;
+      }
+    } else {
+      // Fallback: quando não há coordenadas, usar apenas o campo address
+      request.address = {
+        street: filters.search,
+      };
+    }
   }
 
   // Cidades (convertendo para cityStateCodes)
@@ -199,9 +223,8 @@ export const mapFiltersToSearchMap = (
     request.advertiserTypes = advertiserTypes;
   }
 
-  // Status (sempre PUBLISHED e AVAILABLE para mapas)
-  request.status = ["PUBLISHED"];
-  request.propertyStatus = ["AVAILABLE"];
+  // Status e propertyStatus não devem ser enviados automaticamente
+  // Devem ser adicionados apenas quando explicitamente necessário
 
   return request;
 };

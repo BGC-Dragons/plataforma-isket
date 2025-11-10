@@ -26,6 +26,9 @@ interface FilterState {
   search: string;
   cities: string[];
   neighborhoods: string[];
+  // Coordenadas do endereço selecionado (quando há busca por endereço)
+  addressCoordinates?: { lat: number; lng: number };
+  addressZoom?: number;
   // Negócio
   venda: boolean;
   aluguel: boolean;
@@ -501,7 +504,7 @@ export function FilterBar({
 
   // Função para extrair cidade e bairro do resultado do Places API
   const extractCityAndNeighborhood = useCallback(
-    (placeId: string) => {
+    (placeId: string, fallbackDescription?: string) => {
       if (!isGoogleLoaded || !placesService.current) {
         console.warn("Places Service não está disponível");
         return;
@@ -510,7 +513,7 @@ export function FilterBar({
       try {
         const request: google.maps.places.PlaceDetailsRequest = {
           placeId,
-          fields: ["address_components", "formatted_address"],
+          fields: ["address_components", "formatted_address", "geometry"],
         };
 
         placesService.current.getDetails(request, (place, status) => {
@@ -547,25 +550,47 @@ export function FilterBar({
                 }
               });
 
-              // Se encontrou cidade, verificar se está nas cidades disponíveis
-              if (cityName && availableCities.includes(cityName)) {
-                // Armazenar bairro pendente
-                pendingNeighborhoodRef.current = neighborhoodName || null;
+              // IMPORTANTE: Atualizar o campo de busca com o endereço completo formatado
+              // Isso garante que o payload tenha o endereço completo, não apenas as palavras digitadas
+              let coordinatesToStore: { lat: number; lng: number } | undefined;
+              let zoomToStore: number | undefined;
+              let formattedAddressToUse: string | undefined;
 
-                // Atualizar cidade primeiro
-                handleCityChange([cityName]);
-
-                // Aguardar um pouco e então carregar bairros
-                setTimeout(async () => {
-                  await loadNeighborhoods();
-                }, 300);
-              } else if (cityName) {
-                // Cidade não encontrada nas disponíveis, apenas atualizar o campo de busca
-                console.warn(
-                  `Cidade "${cityName}" não está nas cidades disponíveis`
-                );
-                pendingNeighborhoodRef.current = null;
+              if (place.geometry?.location) {
+                const lat = place.geometry.location.lat();
+                const lng = place.geometry.location.lng();
+                coordinatesToStore = { lat, lng };
+                // Zoom padrão para busca por endereço (14 conforme exemplo do payload esperado)
+                zoomToStore = 14;
               }
+
+              if (place.formatted_address) {
+                formattedAddressToUse = place.formatted_address;
+                setSearchInputValue(formattedAddressToUse);
+              } else if (fallbackDescription) {
+                // Fallback: se não houver formatted_address, usar o description do autocomplete
+                formattedAddressToUse = fallbackDescription;
+                setSearchInputValue(formattedAddressToUse);
+              }
+
+              // Quando há busca por endereço, NÃO setar cidade automaticamente
+              // Apenas atualizar o campo de busca com coordenadas
+              // O mapa centralizará no endereço, não na cidade
+              if (formattedAddressToUse) {
+                const updatedFilters: FilterState = {
+                  ...tempFilters,
+                  search: formattedAddressToUse,
+                  // NÃO incluir cities aqui - deixar vazio para busca por endereço
+                  // Se o usuário quiser filtrar por cidade, ele pode selecionar manualmente
+                  addressCoordinates: coordinatesToStore,
+                  addressZoom: zoomToStore,
+                };
+                setTempFilters(updatedFilters);
+                onFiltersChange(updatedFilters);
+              }
+              
+              // Limpar bairro pendente já que não estamos setando cidade automaticamente
+              pendingNeighborhoodRef.current = null;
             }
           } catch (error) {
             console.error("Erro ao processar detalhes do lugar:", error);
@@ -575,7 +600,7 @@ export function FilterBar({
         console.error("Erro ao buscar detalhes do lugar:", error);
       }
     },
-    [isGoogleLoaded, availableCities, handleCityChange, loadNeighborhoods]
+    [isGoogleLoaded, availableCities, handleCityChange, loadNeighborhoods, handleFilterChange]
   );
 
   // Quando os bairros forem carregados, tentar selecionar o bairro pendente
@@ -618,12 +643,19 @@ export function FilterBar({
       value: google.maps.places.AutocompletePrediction | string | null
     ) => {
       if (value && typeof value !== "string" && value.place_id) {
+        // Definir o description temporariamente para melhor UX
+        // O extractCityAndNeighborhood vai atualizar com o formatted_address completo depois
         setSearchInputValue(value.description);
-        handleFilterChange({ search: value.description });
-        extractCityAndNeighborhood(value.place_id);
+        // Passar o description como fallback caso não haja formatted_address
+        extractCityAndNeighborhood(value.place_id, value.description);
       } else if (typeof value === "string") {
         setSearchInputValue(value);
-        handleFilterChange({ search: value });
+        // Limpar coordenadas quando o usuário digita uma string (não seleciona do autocomplete)
+        handleFilterChange({ 
+          search: value,
+          addressCoordinates: undefined,
+          addressZoom: undefined,
+        });
       }
     },
     [handleFilterChange, extractCityAndNeighborhood]
@@ -687,6 +719,8 @@ export function FilterBar({
       search: "",
       cities: [],
       neighborhoods: [],
+      addressCoordinates: undefined,
+      addressZoom: undefined,
       // Negócio
       venda: false,
       aluguel: false,
@@ -871,7 +905,12 @@ export function FilterBar({
           inputValue={searchInputValue}
           onInputChange={(_, newValue) => {
             setSearchInputValue(newValue);
-            handleFilterChange({ search: newValue });
+            // Limpar coordenadas quando o usuário digita manualmente (não seleciona do autocomplete)
+            handleFilterChange({ 
+              search: newValue,
+              addressCoordinates: undefined,
+              addressZoom: undefined,
+            });
           }}
           onChange={handleAddressSelect}
           getOptionLabel={(option) => {

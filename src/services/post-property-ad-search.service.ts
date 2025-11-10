@@ -76,9 +76,9 @@ export interface IAddressFilter {
 }
 
 export interface IGeometryFilter {
-  type: "Point";
-  coordinates: [number, number]; // [longitude, latitude]
-  radius?: string; // e.g., "5km"
+  type: "Point" | "circle";
+  coordinates: [number, number] | [[number, number]]; // [longitude, latitude] ou [[longitude, latitude]]
+  radius?: string; // e.g., "5km" ou "1000"
 }
 
 export interface IPostPropertyAdSearchRequest {
@@ -97,6 +97,15 @@ export interface IPostPropertyAdSearchRequest {
   bbox?: [number, number, number, number]; // [lat_min, lon_min, lat_max, lon_max]
   geometry?: IGeometryFilter[];
   radius?: number; // em metros
+  center?: {
+    lat: number;
+    lng: number;
+  };
+  markerPosition?: {
+    lat: number;
+    lng: number;
+  };
+  zoom?: number;
 
   // Filtros de Propriedade
   businessModels?: BusinessModel[];

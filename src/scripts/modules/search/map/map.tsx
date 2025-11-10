@@ -6,6 +6,7 @@ import {
   useLoadScript,
   DrawingManager,
   Polygon,
+  Circle,
 } from "@react-google-maps/api";
 import {
   Box,
@@ -166,6 +167,20 @@ export function MapComponent({
   const [mapPoints, setMapPoints] = useState<IMapPoint[]>([]);
   const [mapLoading, setMapLoading] = useState(false);
   const [currentZoom, setCurrentZoom] = useState<number>(zoom);
+  // Estados para informações de localização da resposta da API (quando há busca por endereço)
+  const [addressCenter, setAddressCenter] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
+  const [addressMarker, setAddressMarker] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
+  const [addressZoom, setAddressZoom] = useState<number | null>(null);
+  const [addressCircle, setAddressCircle] = useState<{
+    center: { lat: number; lng: number };
+    radius: number;
+  } | null>(null);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tokenRef = useRef<string | undefined>(token);
   const fetchMapDataRef = useRef<
@@ -310,9 +325,63 @@ export function MapComponent({
 
           setMapClusters(response.data.clusters || []);
           setMapPoints(response.data.points || []);
+
+          // Se a resposta contém informações de localização (busca por endereço), usar para centralizar o mapa
+          if (response.data.center) {
+            setAddressCenter(response.data.center);
+          } else {
+            setAddressCenter(null);
+          }
+
+          if (response.data.markerPosition) {
+            setAddressMarker(response.data.markerPosition);
+          } else {
+            setAddressMarker(null);
+          }
+
+          if (response.data.zoom !== undefined) {
+            setAddressZoom(response.data.zoom);
+          } else {
+            setAddressZoom(null);
+          }
+
+          // Processar geometry para desenhar círculo
+          if (response.data.geometry && response.data.geometry.length > 0) {
+            const circleGeometry = response.data.geometry.find(
+              (g) => g.type === "circle"
+            );
+            if (circleGeometry) {
+              // Extrair coordenadas - pode ser [lng, lat] ou [[lng, lat]]
+              let coords: [number, number];
+              if (Array.isArray(circleGeometry.coordinates[0])) {
+                coords = circleGeometry.coordinates[0] as [number, number];
+              } else {
+                coords = circleGeometry.coordinates as [number, number];
+              }
+
+              // Converter raio de string para número (metros)
+              const radiusStr = circleGeometry.radius || "1000";
+              const radius =
+                parseInt(radiusStr.replace(/[^0-9]/g, ""), 10) || 1000;
+
+              setAddressCircle({
+                center: { lat: coords[1], lng: coords[0] },
+                radius,
+              });
+            } else {
+              setAddressCircle(null);
+            }
+          } else {
+            setAddressCircle(null);
+          }
         } catch {
           setMapClusters([]);
           setMapPoints([]);
+          // Limpar estados de endereço em caso de erro
+          setAddressCenter(null);
+          setAddressMarker(null);
+          setAddressZoom(null);
+          setAddressCircle(null);
         } finally {
           setMapLoading(false);
         }
@@ -1108,6 +1177,79 @@ export function MapComponent({
     }).format(price);
   };
 
+  // Calcular center e zoom a serem usados
+  // Prioridade: 1) addressCenter/addressZoom da resposta da API (searchMap), 2) center/zoom das props (search normal)
+  const mapCenter = useMemo(() => {
+    return addressCenter || center;
+  }, [addressCenter, center]);
+
+  const mapZoom = useMemo(() => {
+    return addressZoom !== null ? addressZoom : zoom;
+  }, [addressZoom, zoom]);
+
+  // Efeito para centralizar o mapa quando há informações de endereço
+  // Pode vir da resposta da API (searchMap) ou das props (search normal)
+  useEffect(() => {
+    if (map) {
+      // Priorizar addressCenter/addressZoom da resposta da API (searchMap)
+      if (addressCenter && addressZoom !== null) {
+        // Marcar que estamos animando para evitar que os listeners disparem
+        isAnimatingRef.current = true;
+
+        map.panTo(new google.maps.LatLng(addressCenter.lat, addressCenter.lng));
+        map.setZoom(addressZoom);
+
+        // Resetar flag após animação
+        setTimeout(() => {
+          isAnimatingRef.current = false;
+        }, 1000);
+      }
+      // Se não há addressCenter da API mas há center/zoom das props e há busca por endereço nos filtros
+      else if (filters?.addressCoordinates && center && zoom) {
+        // Verificar se o centro atual é diferente do centro desejado
+        const currentCenter = map.getCenter();
+        const targetCenter = new google.maps.LatLng(center.lat, center.lng);
+        const currentZoom = map.getZoom() || zoom;
+
+        // Só centralizar se o centro ou zoom forem diferentes
+        if (
+          !currentCenter ||
+          Math.abs(currentCenter.lat() - center.lat) > 0.0001 ||
+          Math.abs(currentCenter.lng() - center.lng) > 0.0001 ||
+          Math.abs(currentZoom - zoom) > 0.5
+        ) {
+          // Marcar que estamos animando para evitar que os listeners disparem
+          isAnimatingRef.current = true;
+
+          map.panTo(targetCenter);
+          map.setZoom(zoom);
+
+          // Resetar flag após animação
+          setTimeout(() => {
+            isAnimatingRef.current = false;
+          }, 1000);
+        }
+      }
+    }
+  }, [
+    map,
+    addressCenter,
+    addressZoom,
+    filters?.addressCoordinates,
+    center,
+    zoom,
+  ]);
+
+  // Limpar estados de endereço quando não há mais busca por endereço nos filtros
+  useEffect(() => {
+    if (filters && !filters.search && !filters.addressCoordinates) {
+      setAddressCenter(null);
+      setAddressMarker(null);
+      setAddressZoom(null);
+      setAddressCircle(null);
+    }
+  }, [filters]);
+
   // Se houver erro ao carregar o mapa
   if (loadError) {
     return (
@@ -1162,8 +1304,8 @@ export function MapComponent({
     >
       <GoogleMap
         mapContainerStyle={mapContainerStyle}
-        center={center}
-        zoom={zoom}
+        center={mapCenter}
+        zoom={mapZoom}
         onLoad={onMapLoad}
         onClick={onMapClick}
         options={{
@@ -1268,6 +1410,39 @@ export function MapComponent({
             );
           });
         })()}
+
+        {/* Círculo e marcador do endereço (quando há busca por endereço) */}
+        {addressCircle && (
+          <Circle
+            center={addressCircle.center}
+            radius={addressCircle.radius}
+            options={{
+              fillColor: theme.palette.primary.main,
+              fillOpacity: 0.15,
+              strokeColor: theme.palette.primary.main,
+              strokeOpacity: 0.8,
+              strokeWeight: 2,
+              clickable: false,
+              zIndex: 5,
+            }}
+          />
+        )}
+        {addressMarker && (
+          <Marker
+            position={addressMarker}
+            icon={{
+              url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+                <svg width="40" height="50" viewBox="0 0 40 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M20 0C8.954 0 0 8.954 0 20c0 20 20 30 20 30s20-10 20-30C40 8.954 31.046 0 20 0z" fill="${theme.palette.error.main}"/>
+                  <circle cx="20" cy="20" r="8" fill="white"/>
+                </svg>
+              `)}`,
+              scaledSize: new google.maps.Size(40, 50),
+              anchor: new google.maps.Point(20, 50),
+            }}
+            zIndex={15}
+          />
+        )}
 
         {/* Clusters do mapa */}
         {useMapSearch &&

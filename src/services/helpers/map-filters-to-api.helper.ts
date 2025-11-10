@@ -12,6 +12,9 @@ export interface ILocalFilterState {
   search: string;
   cities: string[];
   neighborhoods: string[];
+  // Coordenadas do endereço selecionado (quando há busca por endereço)
+  addressCoordinates?: { lat: number; lng: number };
+  addressZoom?: number;
   // Negócio
   venda: boolean;
   aluguel: boolean;
@@ -141,13 +144,39 @@ export const mapFiltersToApi = (
     request.sortType = "TOTAL" as AreaType;
   }
 
-  // Busca textual
+  // Busca textual - quando há coordenadas, usar formato completo com geometria
   if (filters.search) {
-    request.formattedAddress = filters.search;
+    if (filters.addressCoordinates) {
+      // Quando há coordenadas do endereço, usar formato completo
+      request.formattedAddress = filters.search;
+      request.center = {
+        lat: filters.addressCoordinates.lat,
+        lng: filters.addressCoordinates.lng,
+      };
+      request.markerPosition = {
+        lat: filters.addressCoordinates.lat,
+        lng: filters.addressCoordinates.lng,
+      };
+      request.geometry = [
+        {
+          type: "circle",
+          coordinates: [[filters.addressCoordinates.lng, filters.addressCoordinates.lat]],
+          radius: "1000", // 1000 metros conforme exemplo do payload esperado
+        },
+      ];
+      if (filters.addressZoom) {
+        request.zoom = filters.addressZoom;
+      }
+      // NÃO incluir cityStateCodes quando há busca por endereço específico
+      // O endereço já contém a localização precisa
+    } else {
+      // Quando não há coordenadas, usar apenas formattedAddress
+      request.formattedAddress = filters.search;
+    }
   }
 
-  // Cidades (convertendo para cityStateCodes)
-  if (filters.cities.length > 0) {
+  // Cidades (convertendo para cityStateCodes) - apenas se não houver busca por endereço com coordenadas
+  if (filters.cities.length > 0 && !filters.addressCoordinates) {
     request.cityStateCodes = filters.cities
       .map((city) => cityToCodeMap[city])
       .filter((code): code is string => Boolean(code));

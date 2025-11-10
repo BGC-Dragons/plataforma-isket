@@ -22,10 +22,20 @@ export interface IPostPropertyAdSearchMapRequest {
   bbox?: [number, number, number, number]; // [lon_min, lat_min, lon_max, lat_max]
   zoomLevel?: number; // Nível de zoom do mapa para clustering (padrão: 8, máximo: 22)
   radius?: number; // Raio em pixels para clustering de pontos (padrão: 200)
+  zoom?: number; // Zoom do mapa quando há busca por endereço
+  center?: {
+    lat: number;
+    lng: number;
+  };
+  markerPosition?: {
+    lat: number;
+    lng: number;
+  };
 
   // Localização
   cityStateCodes?: string[];
   neighborhoods?: string[];
+  formattedAddress?: string; // Endereço completo formatado
   address?: {
     postalCode?: string;
     street?: string;
@@ -35,9 +45,9 @@ export interface IPostPropertyAdSearchMapRequest {
     countryAcronym?: string;
   };
   geometry?: Array<{
-    type: "Point";
-    coordinates: [number, number]; // [longitude, latitude]
-    radius?: string; // e.g., "5km"
+    type: "Point" | "circle";
+    coordinates: [number, number] | [[number, number]]; // [longitude, latitude] ou [[longitude, latitude]]
+    radius?: string; // e.g., "5km" ou "1000"
   }>;
 
   // Filtros de Propriedade
@@ -93,6 +103,22 @@ export interface IMapPoint {
 export interface IPostPropertyAdSearchMapResponse {
   clusters: IMapCluster[];
   points: IMapPoint[];
+  // Informações de localização quando há busca por endereço
+  center?: {
+    lat: number;
+    lng: number;
+  };
+  markerPosition?: {
+    lat: number;
+    lng: number;
+  };
+  zoom?: number;
+  geometry?: Array<{
+    type: "Point" | "circle";
+    coordinates: [number, number] | [[number, number]];
+    radius?: string;
+  }>;
+  formattedAddress?: string;
 }
 
 // Constante do endpoint
