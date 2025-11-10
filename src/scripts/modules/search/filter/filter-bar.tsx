@@ -189,6 +189,10 @@ export function FilterBar({
   const [isLoadingNeighborhoods, setIsLoadingNeighborhoods] = useState(false);
   const [neighborhoodsLoaded, setNeighborhoodsLoaded] = useState(false);
   
+  // Estados para controlar abertura dos selects
+  const [isCitySelectOpen, setIsCitySelectOpen] = useState(false);
+  const [isNeighborhoodSelectOpen, setIsNeighborhoodSelectOpen] = useState(false);
+  
   // Google Places Autocomplete
   const [isGoogleLoaded, setIsGoogleLoaded] = useState(false);
   const [autocompleteOptions, setAutocompleteOptions] = useState<google.maps.places.AutocompletePrediction[]>([]);
@@ -213,6 +217,9 @@ export function FilterBar({
     setTempFilters(updatedFilters);
     setNeighborhoods([]);
     setNeighborhoodsLoaded(false);
+    
+    // Fechar o select após seleção
+    setIsCitySelectOpen(false);
     
     // Notificar mudança imediatamente para centralizar o mapa
     onFiltersChange(updatedFilters);
@@ -320,6 +327,10 @@ export function FilterBar({
       neighborhoods,
     };
     setTempFilters(updatedFilters);
+    
+    // Fechar o select após seleção
+    setIsNeighborhoodSelectOpen(false);
+    
     // Aplicar filtros automaticamente quando um bairro for selecionado para centralizar o mapa
     onFiltersChange(updatedFilters);
   }, [tempFilters, onFiltersChange]);
@@ -1006,6 +1017,9 @@ export function FilterBar({
             multiple
             value={tempFilters.cities}
             onChange={(e) => handleCityChange(typeof e.target.value === 'string' ? [e.target.value] : e.target.value)}
+            open={isCitySelectOpen}
+            onOpen={() => setIsCitySelectOpen(true)}
+            onClose={() => setIsCitySelectOpen(false)}
             displayEmpty
             size="small"
             renderValue={(selected) => {
@@ -1106,7 +1120,12 @@ export function FilterBar({
             multiple
             value={tempFilters.neighborhoods}
             onChange={(e) => handleNeighborhoodChange(typeof e.target.value === 'string' ? [e.target.value] : e.target.value)}
-            onOpen={handleNeighborhoodSelectOpen}
+            open={isNeighborhoodSelectOpen}
+            onOpen={() => {
+              setIsNeighborhoodSelectOpen(true);
+              handleNeighborhoodSelectOpen();
+            }}
+            onClose={() => setIsNeighborhoodSelectOpen(false)}
             displayEmpty
             size="small"
             disabled={
