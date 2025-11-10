@@ -15,6 +15,8 @@ export interface ILocalFilterState {
   // Coordenadas do endereço selecionado (quando há busca por endereço)
   addressCoordinates?: { lat: number; lng: number };
   addressZoom?: number;
+  // Geometria do desenho no mapa (quando há desenho)
+  drawingGeometry?: { type: "Polygon"; coordinates: number[][][] };
   // Negócio
   venda: boolean;
   aluguel: boolean;
@@ -288,6 +290,17 @@ export const mapFiltersToApi = (
   }
   if (advertiserTypes.length > 0) {
     request.advertiserTypes = advertiserTypes as any[];
+  }
+
+  // Geometria do desenho (quando há desenho no mapa)
+  if (filters.drawingGeometry) {
+    request.geometry = [
+      {
+        type: "Polygon",
+        coordinates: filters.drawingGeometry.coordinates,
+      },
+    ];
+    request.requireAreaInfo = false;
   }
 
   // Removido: status, propertyStatus, requireAreaInfo e requireCoordinates

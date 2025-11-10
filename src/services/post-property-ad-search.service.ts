@@ -76,8 +76,8 @@ export interface IAddressFilter {
 }
 
 export interface IGeometryFilter {
-  type: "Point" | "circle";
-  coordinates: [number, number] | [[number, number]]; // [longitude, latitude] ou [[longitude, latitude]]
+  type: "Point" | "circle" | "Polygon";
+  coordinates: [number, number] | [[number, number]] | number[][][]; // [longitude, latitude] ou [[longitude, latitude]] ou [[[lng, lat], ...]]
   radius?: string; // e.g., "5km" ou "1000"
 }
 

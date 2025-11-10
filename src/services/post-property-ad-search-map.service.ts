@@ -45,8 +45,8 @@ export interface IPostPropertyAdSearchMapRequest {
     countryAcronym?: string;
   };
   geometry?: Array<{
-    type: "Point" | "circle";
-    coordinates: [number, number] | [[number, number]]; // [longitude, latitude] ou [[longitude, latitude]]
+    type: "Point" | "circle" | "Polygon";
+    coordinates: [number, number] | [[number, number]] | number[][][]; // [longitude, latitude] ou [[longitude, latitude]] ou [[[lng, lat], ...]]
     radius?: string; // e.g., "5km" ou "1000"
   }>;
 
@@ -75,6 +75,9 @@ export interface IPostPropertyAdSearchMapRequest {
   // Filtros de Anunciante
   advertiserIds?: string[];
   advertiserTypes?: string[];
+
+  // Outros
+  requireAreaInfo?: boolean;
 }
 
 // Interface de Response - Cluster
@@ -114,8 +117,8 @@ export interface IPostPropertyAdSearchMapResponse {
   };
   zoom?: number;
   geometry?: Array<{
-    type: "Point" | "circle";
-    coordinates: [number, number] | [[number, number]];
+    type: "Point" | "circle" | "Polygon";
+    coordinates: [number, number] | [[number, number]] | number[][][];
     radius?: string;
   }>;
   formattedAddress?: string;

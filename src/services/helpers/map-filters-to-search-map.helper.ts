@@ -223,6 +223,17 @@ export const mapFiltersToSearchMap = (
     request.advertiserTypes = advertiserTypes;
   }
 
+  // Geometria do desenho (quando há desenho no mapa)
+  if (filters.drawingGeometry) {
+    request.geometry = [
+      {
+        type: "Polygon",
+        coordinates: filters.drawingGeometry.coordinates,
+      },
+    ];
+    request.requireAreaInfo = false;
+  }
+
   // Status e propertyStatus não devem ser enviados automaticamente
   // Devem ser adicionados apenas quando explicitamente necessário
 

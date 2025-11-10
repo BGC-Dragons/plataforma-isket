@@ -89,3 +89,50 @@ export const filterPropertiesByOverlay = (
     }
   });
 };
+
+/**
+ * Converte um overlay do Google Maps para o formato GeoJSON Polygon esperado pela API
+ * Retorna null se o overlay não for um Polygon
+ */
+export const convertOverlayToGeoJSONPolygon = (
+  overlay: google.maps.drawing.OverlayCompleteEvent
+): { type: "Polygon"; coordinates: number[][][] } | null => {
+  if (overlay.type !== google.maps.drawing.OverlayType.POLYGON) {
+    return null;
+  }
+
+  const polygon = overlay.overlay as google.maps.Polygon;
+  if (!polygon) {
+    return null;
+  }
+
+  const paths = polygon.getPath();
+  if (!paths) {
+    return null;
+  }
+
+  // Converter paths do Google Maps para formato GeoJSON
+  // GeoJSON usa [longitude, latitude] e o primeiro ponto deve ser igual ao último (fechar o polígono)
+  const coordinates: number[][] = [];
+  
+  for (let i = 0; i < paths.getLength(); i++) {
+    const latLng = paths.getAt(i);
+    coordinates.push([latLng.lng(), latLng.lat()]);
+  }
+
+  // Garantir que o polígono está fechado (primeiro ponto = último ponto)
+  if (coordinates.length > 0) {
+    const first = coordinates[0];
+    const last = coordinates[coordinates.length - 1];
+    if (first[0] !== last[0] || first[1] !== last[1]) {
+      coordinates.push([first[0], first[1]]);
+    }
+  }
+
+  // GeoJSON Polygon format: coordinates é um array de arrays de arrays
+  // [[[lng, lat], [lng, lat], ...]]
+  return {
+    type: "Polygon",
+    coordinates: [coordinates],
+  };
+};

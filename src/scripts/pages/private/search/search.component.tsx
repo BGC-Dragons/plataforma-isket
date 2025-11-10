@@ -39,7 +39,7 @@ import { PropertiesCard } from "../../../modules/search/properties-card";
 import { FilterBar } from "../../../modules/search/filter/filter-bar";
 import { PropertyDetails } from "../../../modules/search/property-details/property-details";
 import { MapComponent } from "../../../modules/search/map/map";
-import { filterPropertiesByOverlay } from "../../../modules/search/map/map-utils";
+import { convertOverlayToGeoJSONPolygon } from "../../../modules/search/map/map-utils";
 import { CustomPagination } from "../../../library/components/custom-pagination";
 import {
   useGetPurchases,
@@ -85,6 +85,8 @@ interface FilterState {
   // Coordenadas do endereço selecionado (quando há busca por endereço)
   addressCoordinates?: { lat: number; lng: number };
   addressZoom?: number;
+  // Geometria do desenho no mapa (quando há desenho)
+  drawingGeometry?: { type: "Polygon"; coordinates: number[][][] };
   // Negócio
   venda: boolean;
   aluguel: boolean;
@@ -1026,26 +1028,97 @@ export function SearchComponent() {
   };
 
   // Funções para o desenho no mapa
-  const handleDrawingComplete = (
-    overlay: google.maps.drawing.OverlayCompleteEvent
-  ) => {
-    // Filtrar propriedades baseado na área desenhada (filtro local após receber da API)
-    const filteredByOverlay = filterPropertiesByOverlay(
-      filteredProperties,
-      overlay
-    );
-    setFilteredProperties(filteredByOverlay);
-    setCurrentPage(1);
-  };
+  const handleDrawingComplete = useCallback(
+    async (overlay: google.maps.drawing.OverlayCompleteEvent) => {
+      // Converter overlay para GeoJSON Polygon
+      const geometry = convertOverlayToGeoJSONPolygon(overlay);
+
+      if (!geometry) {
+        // Se não for um Polygon, não fazer nada (ou pode implementar suporte para Circle/Rectangle depois)
+        return;
+      }
+
+      // Criar novos filtros com a geometria do desenho
+      const newFilters: FilterState = {
+        ...(currentFilters || {
+          search: "",
+          cities: [],
+          neighborhoods: [],
+          venda: false,
+          aluguel: false,
+          residencial: false,
+          comercial: false,
+          industrial: false,
+          agricultura: false,
+          apartamento_padrao: false,
+          apartamento_flat: false,
+          apartamento_loft: false,
+          apartamento_studio: false,
+          apartamento_duplex: false,
+          apartamento_triplex: false,
+          apartamento_cobertura: false,
+          comercial_sala: false,
+          comercial_casa: false,
+          comercial_ponto: false,
+          comercial_galpao: false,
+          comercial_loja: false,
+          comercial_predio: false,
+          comercial_clinica: false,
+          comercial_coworking: false,
+          comercial_sobreloja: false,
+          casa_casa: false,
+          casa_sobrado: false,
+          casa_sitio: false,
+          casa_chale: false,
+          casa_chacara: false,
+          casa_edicula: false,
+          terreno_terreno: false,
+          terreno_fazenda: false,
+          outros_garagem: false,
+          outros_quarto: false,
+          outros_resort: false,
+          outros_republica: false,
+          outros_box: false,
+          outros_tombado: false,
+          outros_granja: false,
+          outros_haras: false,
+          outros_outros: false,
+          quartos: null,
+          banheiros: null,
+          suites: null,
+          garagem: null,
+          area_min: 0,
+          area_max: 1000000,
+          preco_min: 0,
+          preco_max: 100000000,
+          proprietario_direto: false,
+          imobiliaria: false,
+          portal: false,
+          lancamento: false,
+          palavras_chave: "",
+        }),
+        drawingGeometry: geometry,
+      };
+
+      // Aplicar filtros com a geometria (isso vai buscar na API)
+      await applyFilters(newFilters);
+    },
+    [currentFilters, applyFilters]
+  );
 
   // Função para limpar filtros (chamada pela lixeira)
-  const handleClearFilters = () => {
+  const handleClearFilters = useCallback(() => {
     if (currentFilters) {
+      // Remover a geometria do desenho dos filtros
+      const filtersWithoutDrawing: FilterState = {
+        ...currentFilters,
+        drawingGeometry: undefined,
+      };
       // Aplicar filtros sem o desenho do mapa
-      applyFilters(currentFilters);
+      applyFilters(filtersWithoutDrawing);
       setCurrentPage(1);
     }
-  };
+  }, [currentFilters, applyFilters]);
 
   // Função para limpar TODOS os filtros (campo de busca, cidades, bairros e filtros do modal)
   const handleClearAllFilters = useCallback(() => {
@@ -1121,6 +1194,8 @@ export function SearchComponent() {
       // Opcionais
       lancamento: false,
       palavras_chave: "",
+      // Geometria do desenho
+      drawingGeometry: undefined,
     };
     applyFilters(clearedFilters);
   }, [applyFilters]);
