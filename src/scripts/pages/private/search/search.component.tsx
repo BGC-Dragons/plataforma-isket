@@ -39,7 +39,10 @@ import { PropertiesCard } from "../../../modules/search/properties-card";
 import { FilterBar } from "../../../modules/search/filter/filter-bar";
 import { PropertyDetails } from "../../../modules/search/property-details/property-details";
 import { MapComponent } from "../../../modules/search/map/map";
-import { convertOverlayToGeoJSONPolygon } from "../../../modules/search/map/map-utils";
+import {
+  convertOverlayToGeoJSONPolygon,
+  convertOverlayToGeoJSONCircle,
+} from "../../../modules/search/map/map-utils";
 import { CustomPagination } from "../../../library/components/custom-pagination";
 import {
   useGetPurchases,
@@ -86,7 +89,9 @@ interface FilterState {
   addressCoordinates?: { lat: number; lng: number };
   addressZoom?: number;
   // Geometria do desenho no mapa (quando há desenho)
-  drawingGeometry?: { type: "Polygon"; coordinates: number[][][] };
+  drawingGeometry?:
+    | { type: "Polygon"; coordinates: number[][][] }
+    | { type: "circle"; coordinates: [[number, number]]; radius: string };
   // Negócio
   venda: boolean;
   aluguel: boolean;
@@ -1030,11 +1035,20 @@ export function SearchComponent() {
   // Funções para o desenho no mapa
   const handleDrawingComplete = useCallback(
     async (overlay: google.maps.drawing.OverlayCompleteEvent) => {
-      // Converter overlay para GeoJSON Polygon
-      const geometry = convertOverlayToGeoJSONPolygon(overlay);
+      // Converter overlay para GeoJSON (Polygon ou Circle)
+      let geometry:
+        | { type: "Polygon"; coordinates: number[][][] }
+        | { type: "circle"; coordinates: [[number, number]]; radius: string }
+        | null = null;
+
+      if (overlay.type === google.maps.drawing.OverlayType.POLYGON) {
+        geometry = convertOverlayToGeoJSONPolygon(overlay);
+      } else if (overlay.type === google.maps.drawing.OverlayType.CIRCLE) {
+        geometry = convertOverlayToGeoJSONCircle(overlay);
+      }
 
       if (!geometry) {
-        // Se não for um Polygon, não fazer nada (ou pode implementar suporte para Circle/Rectangle depois)
+        // Se não for um Polygon ou Circle, não fazer nada
         return;
       }
 

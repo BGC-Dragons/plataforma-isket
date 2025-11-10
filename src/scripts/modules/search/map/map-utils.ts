@@ -136,3 +136,36 @@ export const convertOverlayToGeoJSONPolygon = (
     coordinates: [coordinates],
   };
 };
+
+/**
+ * Converte um overlay do Google Maps para o formato GeoJSON Circle esperado pela API
+ * Retorna null se o overlay não for um Circle
+ */
+export const convertOverlayToGeoJSONCircle = (
+  overlay: google.maps.drawing.OverlayCompleteEvent
+): { type: "circle"; coordinates: [[number, number]]; radius: string } | null => {
+  if (overlay.type !== google.maps.drawing.OverlayType.CIRCLE) {
+    return null;
+  }
+
+  const circle = overlay.overlay as google.maps.Circle;
+  if (!circle) {
+    return null;
+  }
+
+  const center = circle.getCenter();
+  const radius = circle.getRadius();
+
+  if (!center || !radius) {
+    return null;
+  }
+
+  // Converter para formato esperado pela API
+  // coordinates: [[lng, lat]]
+  // radius: string (em metros)
+  return {
+    type: "circle",
+    coordinates: [[center.lng(), center.lat()]],
+    radius: radius.toString(),
+  };
+};
