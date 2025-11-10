@@ -785,10 +785,19 @@ export function FilterBar({
       lancamento: false,
       palavras_chave: "",
     };
+    // Limpar também o campo de busca visual
+    setSearchInputValue("");
+    // Limpar bairros carregados
+    setNeighborhoods([]);
+    setNeighborhoodsLoaded(false);
+    // Limpar opções do autocomplete
+    setAutocompleteOptions([]);
+    // Atualizar estados
     setTempFilters(clearedFilters);
     setAppliedFilters(clearedFilters);
+    // Aplicar filtros limpos (isso vai disparar a busca com filtros vazios)
     onFiltersChange(clearedFilters);
-  }, [defaultCity, onFiltersChange]);
+  }, [onFiltersChange]);
 
   // Contar filtros ativos
   const getActiveFiltersCount = () => {
@@ -1220,29 +1229,6 @@ export function FilterBar({
             },
           }}
         >
-          {/* Botão de Pesquisar */}
-          <Button
-            onClick={handleSearch}
-            variant="contained"
-            startIcon={<Search />}
-            sx={{
-              borderRadius: 2,
-              px: 2,
-              py: 0.5,
-              textTransform: "none",
-              fontWeight: 600,
-              fontSize: "0.85rem",
-              backgroundColor: theme.palette.primary.main,
-              color: "white",
-              flex: 1,
-              "&:hover": {
-                backgroundColor: theme.palette.primary.dark,
-              },
-            }}
-          >
-            Pesquisar
-          </Button>
-
           {/* Botão de Filtros */}
           <Button
             onClick={() => setIsFilterModalOpen(true)}
@@ -1264,6 +1250,29 @@ export function FilterBar({
           >
             Filtros{" "}
             {getActiveFiltersCount() > 0 && `(${getActiveFiltersCount()})`}
+          </Button>
+
+          {/* Botão de Limpar Filtros */}
+          <Button
+            onClick={clearAllFilters}
+            variant="contained"
+            startIcon={<Close />}
+            sx={{
+              borderRadius: 2,
+              px: 2,
+              py: 0.5,
+              textTransform: "none",
+              fontWeight: 600,
+              fontSize: "0.85rem",
+              backgroundColor: theme.palette.primary.main,
+              color: "white",
+              flex: 1,
+              "&:hover": {
+                backgroundColor: theme.palette.primary.dark,
+              },
+            }}
+          >
+            Limpar Filtros
           </Button>
         </Box>
 
@@ -1278,27 +1287,6 @@ export function FilterBar({
             },
           }}
         >
-          {/* Botão de Pesquisar */}
-          <Button
-            onClick={handleSearch}
-            variant="contained"
-            startIcon={<Search />}
-            sx={{
-              borderRadius: 2,
-              px: 3,
-              py: 1,
-              textTransform: "none",
-              fontWeight: 600,
-              backgroundColor: theme.palette.primary.main,
-              color: "white",
-              "&:hover": {
-                backgroundColor: theme.palette.primary.dark,
-              },
-            }}
-          >
-            Pesquisar
-          </Button>
-
           {/* Botão de Filtros */}
           <Button
             onClick={() => setIsFilterModalOpen(true)}
@@ -1318,6 +1306,27 @@ export function FilterBar({
           >
             Filtros{" "}
             {getActiveFiltersCount() > 0 && `(${getActiveFiltersCount()})`}
+          </Button>
+
+          {/* Botão de Limpar Filtros */}
+          <Button
+            onClick={clearAllFilters}
+            variant="contained"
+            startIcon={<Close />}
+            sx={{
+              borderRadius: 2,
+              px: 3,
+              py: 1,
+              textTransform: "none",
+              fontWeight: 600,
+              backgroundColor: theme.palette.primary.main,
+              color: "white",
+              "&:hover": {
+                backgroundColor: theme.palette.primary.dark,
+              },
+            }}
+          >
+            Limpar Filtros
           </Button>
         </Box>
       </Paper>
