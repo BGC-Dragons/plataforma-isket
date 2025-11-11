@@ -321,13 +321,17 @@ export function MapComponent({
         return;
       }
 
-      // Só fazer busca se houver pelo menos um bairro selecionado OU desenho no mapa
+      // Só fazer busca se houver pelo menos um bairro selecionado OU desenho no mapa OU busca por endereço
       const hasNeighborhoods =
         filters?.neighborhoods && filters.neighborhoods.length > 0;
       const hasDrawingGeometry = filters?.drawingGeometry !== undefined;
+      const hasAddressCoordinates = filters?.addressCoordinates !== undefined;
 
-      if (!filters || (!hasNeighborhoods && !hasDrawingGeometry)) {
-        // Limpar dados do mapa se não há bairros selecionados nem desenho
+      if (
+        !filters ||
+        (!hasNeighborhoods && !hasDrawingGeometry && !hasAddressCoordinates)
+      ) {
+        // Limpar dados do mapa se não há bairros selecionados nem desenho nem busca por endereço
         setMapClusters([]);
         setMapPoints([]);
         return;
@@ -342,6 +346,7 @@ export function MapComponent({
       searchTimeoutRef.current = setTimeout(async () => {
         try {
           // Se há desenho no mapa, calcular bbox a partir da geometria do desenho
+          // Se há busca por endereço (sem desenho), calcular bbox a partir do círculo do endereço
           let bbox: [number, number, number, number];
           if (filters?.drawingGeometry) {
             if (filters.drawingGeometry.type === "Polygon") {
@@ -385,6 +390,25 @@ export function MapComponent({
             } else {
               bbox = calculateLimitedBbox(bounds, zoomLevel);
             }
+          } else if (filters?.addressCoordinates) {
+            // Quando há busca por endereço mas não há drawingGeometry, calcular bbox a partir do círculo do endereço
+            // Usar o raio atual do círculo se disponível, senão usar o padrão de 1000 metros
+            const centerLat = filters.addressCoordinates.lat;
+            const centerLng = filters.addressCoordinates.lng;
+            const circle = addressCircleOverlayRef.current;
+            const radius = circle?.getRadius() || 1000; // Usar raio do círculo se disponível, senão 1000 metros (padrão)
+
+            // Converter raio de metros para graus (aproximação)
+            const latDiff = radius / 111000; // metros para graus
+            const lngDiff =
+              radius / (111000 * Math.cos((centerLat * Math.PI) / 180));
+
+            bbox = [
+              centerLng - lngDiff,
+              centerLat - latDiff,
+              centerLng + lngDiff,
+              centerLat + latDiff,
+            ];
           } else {
             // Calcular bbox limitado baseado no zoom e cidade selecionada
             bbox = calculateLimitedBbox(bounds, zoomLevel);

@@ -1351,12 +1351,15 @@ export function SearchComponent() {
   // Função para limpar filtros (chamada pela lixeira)
   const handleClearFilters = useCallback(() => {
     if (currentFilters) {
-      // Remover a geometria do desenho dos filtros
+      // Remover a geometria do desenho e as coordenadas do endereço dos filtros
       const filtersWithoutDrawing: FilterState = {
         ...currentFilters,
         drawingGeometry: undefined,
+        addressCoordinates: undefined,
+        addressZoom: undefined,
+        search: currentFilters.addressCoordinates ? "" : currentFilters.search, // Limpar busca se havia endereço
       };
-      // Aplicar filtros sem o desenho do mapa
+      // Aplicar filtros sem o desenho do mapa e sem busca por endereço
       applyFilters(filtersWithoutDrawing);
       setCurrentPage(1);
     }
