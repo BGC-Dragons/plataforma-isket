@@ -219,6 +219,16 @@ export function MapComponent({
   >(null);
   const lastSearchKeyRef = useRef<string | null>(null);
   const isAnimatingRef = useRef<boolean>(false);
+  // Refs para armazenar listeners de arrasto/edição dos overlays
+  const overlayListenersRef = useRef<
+    Map<
+      google.maps.Polygon | google.maps.Circle,
+      google.maps.MapsEventListener[]
+    >
+  >(new Map());
+  const overlayUpdateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
 
   // Carrega o script do Google Maps
   const { isLoaded, loadError } = useLoadScript({
@@ -988,16 +998,126 @@ export function MapComponent({
     [map, onNeighborhoodClick, calculateNeighborhoodBounds]
   );
 
+  // Função para atualizar geometria e buscar quando overlay é modificado
+  const handleOverlayUpdate = useCallback(
+    (overlay: google.maps.drawing.OverlayCompleteEvent) => {
+      // Debounce para evitar muitas requisições durante o arrasto
+      if (overlayUpdateTimeoutRef.current) {
+        clearTimeout(overlayUpdateTimeoutRef.current);
+      }
+
+      overlayUpdateTimeoutRef.current = setTimeout(() => {
+        if (onDrawingComplete) {
+          onDrawingComplete(overlay);
+        }
+      }, 500); // 500ms de debounce
+    },
+    [onDrawingComplete]
+  );
+
+  // Função para adicionar listeners de arrasto/edição aos overlays
+  const addOverlayListeners = useCallback(
+    (overlay: google.maps.drawing.OverlayCompleteEvent) => {
+      if (!overlay.overlay) return;
+
+      // Só adicionar listeners para Polygon e Circle
+      const isPolygon =
+        overlay.type === google.maps.drawing.OverlayType.POLYGON;
+      const isCircle = overlay.type === google.maps.drawing.OverlayType.CIRCLE;
+
+      if (!isPolygon && !isCircle) return;
+
+      const overlayInstance = overlay.overlay as
+        | google.maps.Polygon
+        | google.maps.Circle;
+
+      // Remover listeners anteriores se existirem
+      const existingListeners =
+        overlayListenersRef.current.get(overlayInstance);
+      if (existingListeners) {
+        existingListeners.forEach((listener) => {
+          google.maps.event.removeListener(listener);
+        });
+        overlayListenersRef.current.delete(overlayInstance);
+      }
+
+      const listeners: google.maps.MapsEventListener[] = [];
+
+      if (isPolygon) {
+        const polygon = overlayInstance as google.maps.Polygon;
+        const path = polygon.getPath();
+
+        // Listener para quando um vértice é movido
+        const setAtListener = path.addListener("set_at", () => {
+          handleOverlayUpdate(overlay);
+        });
+        listeners.push(setAtListener);
+
+        // Listener para quando um vértice é inserido
+        const insertAtListener = path.addListener("insert_at", () => {
+          handleOverlayUpdate(overlay);
+        });
+        listeners.push(insertAtListener);
+
+        // Listener para quando um vértice é removido
+        const removeAtListener = path.addListener("remove_at", () => {
+          handleOverlayUpdate(overlay);
+        });
+        listeners.push(removeAtListener);
+
+        // Listener para quando o polígono é arrastado
+        const dragendListener = google.maps.event.addListener(
+          polygon,
+          "dragend",
+          () => {
+            handleOverlayUpdate(overlay);
+          }
+        );
+        listeners.push(dragendListener);
+      } else if (isCircle) {
+        const circle = overlayInstance as google.maps.Circle;
+
+        // Listener para quando o centro do círculo muda (arrasto)
+        const centerChangedListener = google.maps.event.addListener(
+          circle,
+          "center_changed",
+          () => {
+            handleOverlayUpdate(overlay);
+          }
+        );
+        listeners.push(centerChangedListener);
+
+        // Listener para quando o raio do círculo muda (redimensionamento)
+        const radiusChangedListener = google.maps.event.addListener(
+          circle,
+          "radius_changed",
+          () => {
+            handleOverlayUpdate(overlay);
+          }
+        );
+        listeners.push(radiusChangedListener);
+      }
+
+      // Armazenar listeners para cleanup posterior
+      overlayListenersRef.current.set(overlayInstance, listeners);
+    },
+    [handleOverlayUpdate]
+  );
+
   // Callbacks para o DrawingManager
   const onDrawingCompleteCallback = useCallback(
     (overlay: google.maps.drawing.OverlayCompleteEvent) => {
       setDrawnOverlays((prev) => [...prev, overlay]);
+
+      // Adicionar listeners de arrasto/edição
+      addOverlayListeners(overlay);
+
       if (onDrawingComplete) {
         onDrawingComplete(overlay);
       }
       setDrawingMode(null);
     },
-    [onDrawingComplete]
+    [onDrawingComplete, addOverlayListeners]
   );
 
   // -------- Freehand drawing (desenho à mão livre) ---------
@@ -1086,6 +1206,10 @@ export function MapComponent({
       } as unknown as google.maps.drawing.OverlayCompleteEvent;
 
       setDrawnOverlays((prev) => [...prev, fakeEvent]);
+
+      // Adicionar listeners de arrasto/edição
+      addOverlayListeners(fakeEvent);
+
       if (onDrawingComplete) onDrawingComplete(fakeEvent);
       setDrawingMode(null);
 
@@ -1114,7 +1238,13 @@ export function MapComponent({
         map.setOptions({ draggableCursor: undefined });
       }
     });
-  }, [map, drawingManager, onDrawingComplete, teardownFreehandListeners]);
+  }, [
+    map,
+    drawingManager,
+    onDrawingComplete,
+    teardownFreehandListeners,
+    addOverlayListeners,
+  ]);
 
   const toggleFreehand = useCallback(() => {
     if (freehandActive) {
@@ -1137,6 +1267,14 @@ export function MapComponent({
 
   // Função para limpar todos os desenhos
   const clearAllDrawings = () => {
+    // Limpar listeners de todos os overlays
+    overlayListenersRef.current.forEach((listeners) => {
+      listeners.forEach((listener) => {
+        google.maps.event.removeListener(listener);
+      });
+    });
+    overlayListenersRef.current.clear();
+
     drawnOverlays.forEach((overlay) => {
       if (overlay.overlay) {
         try {
@@ -1177,6 +1315,12 @@ export function MapComponent({
     }
     setAddressMarker(null);
     setAddressCenter(null);
+
+    // Limpar timeout de atualização
+    if (overlayUpdateTimeoutRef.current) {
+      clearTimeout(overlayUpdateTimeoutRef.current);
+      overlayUpdateTimeoutRef.current = null;
+    }
 
     // Limpar filtros para mostrar todas as propriedades
     if (onClearFilters) {
@@ -1492,6 +1636,9 @@ export function MapComponent({
       // Adicionar aos desenhos
       setDrawnOverlays((prev) => [...prev, fakeEvent]);
 
+      // Adicionar listeners de arrasto/edição
+      addOverlayListeners(fakeEvent);
+
       // Também atualizar estados para marcador e centro
       setAddressMarker({
         lat: coords.lat,
@@ -1505,6 +1652,16 @@ export function MapComponent({
       !filters?.addressCoordinates &&
       addressCircleOverlayRef.current
     ) {
+      // Remover listeners do círculo de endereço antes de removê-lo
+      const existingListeners = overlayListenersRef.current.get(
+        addressCircleOverlayRef.current
+      );
+      if (existingListeners) {
+        existingListeners.forEach((listener) => {
+          google.maps.event.removeListener(listener);
+        });
+        overlayListenersRef.current.delete(addressCircleOverlayRef.current);
+      }
       // Remover círculo de endereço quando não há mais busca por endereço
       const circle = addressCircleOverlayRef.current;
 
@@ -1526,7 +1683,7 @@ export function MapComponent({
       setAddressMarker(null);
       setAddressCenter(null);
     }
-  }, [filters?.addressCoordinates, map]);
+  }, [filters?.addressCoordinates, map, addOverlayListeners]);
 
   // Atualizar refs sempre que mudarem
   useEffect(() => {
@@ -1708,6 +1865,22 @@ export function MapComponent({
         if (searchTimeoutRef.current) {
           clearTimeout(searchTimeoutRef.current);
           searchTimeoutRef.current = null;
+        }
+
+        // Limpar listeners de overlays
+        // Copiar referência para evitar problemas com cleanup
+        const listenersToClean = new Map(overlayListenersRef.current);
+        listenersToClean.forEach((listeners) => {
+          listeners.forEach((listener) => {
+            google.maps.event.removeListener(listener);
+          });
+        });
+        overlayListenersRef.current.clear();
+
+        // Limpar timeout de atualização de overlay
+        if (overlayUpdateTimeoutRef.current) {
+          clearTimeout(overlayUpdateTimeoutRef.current);
+          overlayUpdateTimeoutRef.current = null;
         }
 
         // Limpar drawing manager - desabilitar completamente antes de desmontar
