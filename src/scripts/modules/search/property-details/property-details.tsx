@@ -133,8 +133,9 @@ export function PropertyDetails({
 
   // Função para clicar na imobiliária
   const handleRealEstateClick = () => {
-    console.log("Acessando página da imobiliária:", property?.realEstateName);
-    // Implementar navegação para página da imobiliária
+    if (property?.url) {
+      window.open(property.url, "_blank", "noopener,noreferrer");
+    }
   };
 
   // Função para clicar em uma imagem
@@ -288,6 +289,7 @@ export function PropertyDetails({
               variant="contained"
               startIcon={<Business />}
               onClick={handleRealEstateClick}
+              disabled={!property?.url || property.url?.trim() === ""}
               size="small"
               sx={{
                 backgroundColor: theme.palette.primary.main,
@@ -300,6 +302,10 @@ export function PropertyDetails({
                 fontSize: "0.8rem",
                 "&:hover": {
                   backgroundColor: theme.palette.primary.dark,
+                },
+                "&:disabled": {
+                  backgroundColor: theme.palette.action.disabledBackground,
+                  color: theme.palette.action.disabled,
                 },
                 // Apenas para telas menores que 750px
                 "@media (max-width: 750px)": {

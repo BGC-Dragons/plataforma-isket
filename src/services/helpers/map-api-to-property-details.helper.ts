@@ -19,6 +19,7 @@ export interface IPropertyDetailsData {
   characteristics?: string[];
   description?: string;
   realEstateName?: string;
+  url?: string;
   coordinates?: {
     lat: number;
     lng: number;
@@ -134,6 +135,7 @@ export const mapApiToPropertyDetails = (propertyAd: IPropertyAd): IPropertyDetai
     characteristics,
     description: propertyAd.description,
     realEstateName,
+    url: propertyAd.url,
     coordinates,
   };
 };
