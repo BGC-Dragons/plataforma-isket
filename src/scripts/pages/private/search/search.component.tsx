@@ -661,10 +661,15 @@ export function SearchComponent() {
   }, [currentFilters?.addressCoordinates, currentFilters?.addressZoom]);
 
   // Efeito para calcular bounds quando cidades ou bairros mudarem
-  // Só executa se NÃO houver busca por endereço
+  // Só executa se NÃO houver busca por endereço ou desenho no mapa
   useEffect(() => {
     // Se há busca por endereço, não calcular bounds de cidades/bairros
     if (currentFilters?.addressCoordinates) {
+      return;
+    }
+
+    // Se há desenho no mapa, não calcular bounds de cidades/bairros (prioridade do desenho)
+    if (currentFilters?.drawingGeometry) {
       return;
     }
 
@@ -702,6 +707,7 @@ export function SearchComponent() {
     allNeighborhoodsForBounds,
     calculateMapBounds,
     currentFilters?.addressCoordinates, // Adicionar dependência para reagir quando endereço é removido
+    currentFilters?.drawingGeometry, // Adicionar dependência para reagir quando desenho é adicionado/removido
   ]);
 
   // Função para aplicar filtros e buscar da API
@@ -1032,9 +1038,122 @@ export function SearchComponent() {
     setHelpPopupAnchor(null);
   };
 
+  // Função para calcular centro e zoom do desenho
+  const calculateDrawingBounds = useCallback(
+    (
+      overlay: google.maps.drawing.OverlayCompleteEvent
+    ): {
+      center: { lat: number; lng: number };
+      zoom: number;
+    } | null => {
+      if (!overlay.overlay) {
+        return null;
+      }
+
+      let bounds: google.maps.LatLngBounds | null = null;
+      let center: { lat: number; lng: number } | null = null;
+
+      if (overlay.type === google.maps.drawing.OverlayType.POLYGON) {
+        const polygon = overlay.overlay as google.maps.Polygon;
+        const paths = polygon.getPath();
+        if (!paths || paths.getLength() === 0) {
+          return null;
+        }
+
+        // Criar bounds a partir dos pontos do polígono
+        bounds = new google.maps.LatLngBounds();
+        for (let i = 0; i < paths.getLength(); i++) {
+          const latLng = paths.getAt(i);
+          bounds.extend(latLng);
+        }
+      } else if (overlay.type === google.maps.drawing.OverlayType.CIRCLE) {
+        const circle = overlay.overlay as google.maps.Circle;
+        const circleCenter = circle.getCenter();
+        const radius = circle.getRadius();
+
+        if (!circleCenter || !radius) {
+          return null;
+        }
+
+        // Para círculo, calcular bounds baseado no raio
+        const centerLat = circleCenter.lat();
+        const centerLng = circleCenter.lng();
+
+        // Calcular a distância em graus (aproximação)
+        // 1 grau de latitude ≈ 111 km
+        // 1 grau de longitude ≈ 111 km * cos(latitude)
+        const latDiff = radius / 111000; // metros para graus
+        const lngDiff =
+          radius / (111000 * Math.cos((centerLat * Math.PI) / 180));
+
+        bounds = new google.maps.LatLngBounds(
+          new google.maps.LatLng(centerLat - latDiff, centerLng - lngDiff),
+          new google.maps.LatLng(centerLat + latDiff, centerLng + lngDiff)
+        );
+
+        center = {
+          lat: centerLat,
+          lng: centerLng,
+        };
+      } else {
+        return null;
+      }
+
+      if (!bounds) {
+        return null;
+      }
+
+      // Calcular centro se ainda não foi calculado
+      if (!center) {
+        const ne = bounds.getNorthEast();
+        const sw = bounds.getSouthWest();
+        center = {
+          lat: (ne.lat() + sw.lat()) / 2,
+          lng: (ne.lng() + sw.lng()) / 2,
+        };
+      }
+
+      // Calcular zoom baseado no tamanho dos bounds
+      const ne = bounds.getNorthEast();
+      const sw = bounds.getSouthWest();
+      const latDiff = ne.lat() - sw.lat();
+      const lngDiff = ne.lng() - sw.lng();
+      const maxDiff = Math.max(latDiff, lngDiff);
+
+      // Calcular zoom baseado na diferença de coordenadas
+      let zoom = 12; // zoom padrão
+
+      if (maxDiff > 0.5) {
+        zoom = 9; // área muito grande
+      } else if (maxDiff > 0.2) {
+        zoom = 10; // área grande
+      } else if (maxDiff > 0.1) {
+        zoom = 11; // área média-grande
+      } else if (maxDiff > 0.05) {
+        zoom = 12; // área média
+      } else if (maxDiff > 0.02) {
+        zoom = 13; // área pequena
+      } else if (maxDiff > 0.01) {
+        zoom = 14; // área muito pequena
+      } else {
+        zoom = 15; // área mínima - zoom bem próximo
+      }
+
+      return { center, zoom };
+    },
+    []
+  );
+
   // Funções para o desenho no mapa
   const handleDrawingComplete = useCallback(
     async (overlay: google.maps.drawing.OverlayCompleteEvent) => {
+      // Calcular centro e zoom do desenho
+      const drawingBounds = calculateDrawingBounds(overlay);
+      if (drawingBounds) {
+        setMapCenter(drawingBounds.center);
+        setMapZoom(drawingBounds.zoom);
+      }
+
       // Converter overlay para GeoJSON (Polygon ou Circle)
       let geometry:
         | { type: "Polygon"; coordinates: number[][][] }
@@ -1117,7 +1236,7 @@ export function SearchComponent() {
       // Aplicar filtros com a geometria (isso vai buscar na API)
       await applyFilters(newFilters);
     },
-    [currentFilters, applyFilters]
+    [currentFilters, applyFilters, calculateDrawingBounds]
   );
 
   // Função para limpar filtros (chamada pela lixeira)
