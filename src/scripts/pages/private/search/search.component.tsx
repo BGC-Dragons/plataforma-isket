@@ -235,50 +235,72 @@ export function SearchComponent() {
   );
 
   // Extrair cidades disponíveis das compras e criar mapeamento cidade -> cityStateCode
-  const { availableCities, cityToCodeMap } = useMemo(() => {
-    if (!purchasesData || purchasesData.length === 0) {
-      return {
-        availableCities: ["CURITIBA"],
-        cityToCodeMap: {} as Record<string, string>,
-      };
-    }
+  const { availableCities, cityToCodeMap, defaultCityStateCode } =
+    useMemo(() => {
+      if (!purchasesData || purchasesData.length === 0) {
+        return {
+          availableCities: ["CURITIBA"],
+          cityToCodeMap: {} as Record<string, string>,
+          defaultCityStateCode: undefined,
+        };
+      }
 
-    const citiesSet = new Set<string>();
-    const cityToCode: Record<string, string> = {};
+      const citiesSet = new Set<string>();
+      const cityToCode: Record<string, string> = {};
+      let defaultCityCode: string | undefined;
 
-    purchasesData.forEach((purchase: IGetPurchasesResponseSuccess) => {
-      // Adicionar cidade padrão
-      if (purchase.defaultCityStateCode) {
-        const cityName = formatCityNameFromCode(purchase.defaultCityStateCode);
+      // Encontrar a primeira purchase com defaultCityStateCode (cidade padrão do plano)
+      const purchaseWithDefaultCity = purchasesData.find(
+        (purchase: IGetPurchasesResponseSuccess) =>
+          purchase.defaultCityStateCode
+      );
+
+      if (purchaseWithDefaultCity?.defaultCityStateCode) {
+        defaultCityCode = purchaseWithDefaultCity.defaultCityStateCode;
+        const cityName = formatCityNameFromCode(defaultCityCode);
         citiesSet.add(cityName);
-        cityToCode[cityName] = purchase.defaultCityStateCode;
+        cityToCode[cityName] = defaultCityCode;
       }
 
-      // Adicionar cidades escolhidas
-      if (purchase.chosenCityCodes && purchase.chosenCityCodes.length > 0) {
-        purchase.chosenCityCodes.forEach((cityCode) => {
-          const cityName = formatCityNameFromCode(cityCode);
+      purchasesData.forEach((purchase: IGetPurchasesResponseSuccess) => {
+        // Adicionar cidade padrão
+        if (purchase.defaultCityStateCode) {
+          const cityName = formatCityNameFromCode(
+            purchase.defaultCityStateCode
+          );
           citiesSet.add(cityName);
-          cityToCode[cityName] = cityCode;
-        });
-      }
-    });
+          cityToCode[cityName] = purchase.defaultCityStateCode;
+        }
 
-    // Converter para array e ordenar
-    const citiesArray = Array.from(citiesSet).sort((a, b) =>
-      a.localeCompare(b, "pt-BR")
-    );
+        // Adicionar cidades escolhidas
+        if (purchase.chosenCityCodes && purchase.chosenCityCodes.length > 0) {
+          purchase.chosenCityCodes.forEach((cityCode) => {
+            const cityName = formatCityNameFromCode(cityCode);
+            citiesSet.add(cityName);
+            cityToCode[cityName] = cityCode;
+          });
+        }
+      });
 
-    return {
-      availableCities: citiesArray,
-      cityToCodeMap: cityToCode,
-    };
-  }, [purchasesData, formatCityNameFromCode]);
+      // Converter para array e ordenar
+      const citiesArray = Array.from(citiesSet).sort((a, b) =>
+        a.localeCompare(b, "pt-BR")
+      );
 
-  // Cidade padrão (primeira cidade disponível ou fallback)
+      return {
+        availableCities: citiesArray,
+        cityToCodeMap: cityToCode,
+        defaultCityStateCode: defaultCityCode,
+      };
+    }, [purchasesData, formatCityNameFromCode]);
+
+  // Cidade padrão (cidade padrão do plano ou primeira cidade disponível ou fallback)
   const defaultCity = useMemo(() => {
+    if (defaultCityStateCode) {
+      return formatCityNameFromCode(defaultCityStateCode);
+    }
     return availableCities.length > 0 ? availableCities[0] : "CURITIBA";
-  }, [availableCities]);
+  }, [availableCities, defaultCityStateCode, formatCityNameFromCode]);
 
   // Detectar quando há um propertyId na URL
   useEffect(() => {
@@ -720,8 +742,22 @@ export function SearchComponent() {
 
       try {
         const sortConfig = mapSortOptionToApi(sortBy);
+
+        // Se não há cidades selecionadas e não há busca por endereço/desenho,
+        // usar a cidade padrão internamente na busca
+        const filtersForApi = { ...filters };
+        if (
+          filtersForApi.cities.length === 0 &&
+          !filtersForApi.addressCoordinates &&
+          !filtersForApi.drawingGeometry &&
+          defaultCity &&
+          cityToCodeMap[defaultCity]
+        ) {
+          filtersForApi.cities = [defaultCity];
+        }
+
         const apiRequest = mapFiltersToApi(
-          filters,
+          filtersForApi,
           cityToCodeMap,
           1,
           itemsPerPage,
@@ -742,8 +778,8 @@ export function SearchComponent() {
         // Buscar dados geoespaciais das cidades e bairros selecionados
         // NÃO buscar quando há busca por endereço (para não sobrescrever a centralização)
         if (!filters.addressCoordinates) {
-          await fetchCitiesData(filters);
-          await fetchNeighborhoodsData(filters);
+          await fetchCitiesData(filtersForApi);
+          await fetchNeighborhoodsData(filtersForApi);
         }
       } catch (error) {
         console.error("Erro ao buscar propriedades:", error);
@@ -762,6 +798,7 @@ export function SearchComponent() {
       auth.store.token,
       fetchNeighborhoodsData,
       fetchCitiesData,
+      defaultCity,
     ]
   );
 
@@ -774,8 +811,22 @@ export function SearchComponent() {
       setError(null); // Limpar erro anterior
       try {
         const sortConfig = mapSortOptionToApi(sortBy);
+
+        // Se não há cidades selecionadas e não há busca por endereço/desenho,
+        // usar a cidade padrão internamente na busca
+        const filtersForApi = { ...filters };
+        if (
+          filtersForApi.cities.length === 0 &&
+          !filtersForApi.addressCoordinates &&
+          !filtersForApi.drawingGeometry &&
+          defaultCity &&
+          cityToCodeMap[defaultCity]
+        ) {
+          filtersForApi.cities = [defaultCity];
+        }
+
         const apiRequest = mapFiltersToApi(
-          filters,
+          filtersForApi,
           cityToCodeMap,
           page,
           itemsPerPage,
@@ -801,7 +852,7 @@ export function SearchComponent() {
         setLoading(false);
       }
     },
-    [sortBy, cityToCodeMap, itemsPerPage, auth.store.token]
+    [sortBy, cityToCodeMap, itemsPerPage, auth.store.token, defaultCity]
   );
 
   // Flag para evitar busca dupla na página 1 durante o mount inicial
@@ -874,13 +925,72 @@ export function SearchComponent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage]);
 
-  // Função para buscar propriedades iniciais (sem filtros)
+  // Função para buscar propriedades iniciais (com cidade padrão do plano)
   const fetchInitialProperties = useCallback(async () => {
     // Marcar que está fazendo busca inicial para evitar interferência do useEffect
     isFetchingInitial.current = true;
 
-    // Limpar filtros ANTES de fazer a busca para evitar que o useEffect interfira
-    setCurrentFilters(undefined);
+    // Criar filtros vazios - a cidade padrão será usada internamente pelo applyFilters
+    const initialFilters: FilterState = {
+      search: "",
+      cities: [],
+      neighborhoods: [],
+      venda: false,
+      aluguel: false,
+      residencial: false,
+      comercial: false,
+      industrial: false,
+      agricultura: false,
+      apartamento_padrao: false,
+      apartamento_flat: false,
+      apartamento_loft: false,
+      apartamento_studio: false,
+      apartamento_duplex: false,
+      apartamento_triplex: false,
+      apartamento_cobertura: false,
+      comercial_sala: false,
+      comercial_casa: false,
+      comercial_ponto: false,
+      comercial_galpao: false,
+      comercial_loja: false,
+      comercial_predio: false,
+      comercial_clinica: false,
+      comercial_coworking: false,
+      comercial_sobreloja: false,
+      casa_casa: false,
+      casa_sobrado: false,
+      casa_sitio: false,
+      casa_chale: false,
+      casa_chacara: false,
+      casa_edicula: false,
+      terreno_terreno: false,
+      terreno_fazenda: false,
+      outros_garagem: false,
+      outros_quarto: false,
+      outros_resort: false,
+      outros_republica: false,
+      outros_box: false,
+      outros_tombado: false,
+      outros_granja: false,
+      outros_haras: false,
+      outros_outros: false,
+      quartos: null,
+      banheiros: null,
+      suites: null,
+      garagem: null,
+      area_min: 0,
+      area_max: 1000000,
+      preco_min: 0,
+      preco_max: 100000000,
+      proprietario_direto: false,
+      imobiliaria: false,
+      portal: false,
+      lancamento: false,
+      palavras_chave: "",
+    };
+
+    // Definir filtros ANTES de fazer a busca
+    setCurrentFilters(initialFilters);
     setCurrentPage(1);
     setError(null);
     setLoading(true);
@@ -889,27 +999,8 @@ export function SearchComponent() {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     try {
-      // Criar payload mínimo - apenas o essencial
-      // IMPORTANTE: Não usar mapFiltersToApi aqui, criar o payload diretamente
-      const apiRequest: {
-        page: number;
-        size: number;
-        requireAreaInfo: boolean;
-      } = {
-        page: 1,
-        size: itemsPerPage,
-        requireAreaInfo: false,
-      };
-
-      const response = await postPropertyAdSearch(
-        apiRequest,
-        auth.store.token as string | undefined
-      );
-
-      const propertyData = mapApiToPropertyDataArray(response.data.data);
-      setFilteredProperties(propertyData);
-      setTotalPages(response.data.meta.lastPage);
-      setError(null);
+      // Usar applyFilters que já usa a cidade padrão internamente quando não há cidades selecionadas
+      await applyFilters(initialFilters);
     } catch (error) {
       console.error("Erro ao buscar propriedades iniciais:", error);
       const errorMessage = getErrorMessage(error);
@@ -923,7 +1014,7 @@ export function SearchComponent() {
         isFetchingInitial.current = false;
       }, 100);
     }
-  }, [itemsPerPage, auth.store.token]);
+  }, [applyFilters]);
 
   // Buscar propriedades iniciais quando o componente monta (sem filtros)
   useEffect(() => {
@@ -1278,6 +1369,7 @@ export function SearchComponent() {
     setNeighborhoodsData([]);
     setAllNeighborhoodsForBounds([]);
     setCitiesData([]);
+
     const clearedFilters: FilterState = {
       search: "",
       cities: [],
@@ -2491,13 +2583,8 @@ export function SearchComponent() {
                 properties={filteredProperties}
                 onPropertyClick={handlePropertyClick}
                 height="100%"
-                center={
-                  mapCenter || {
-                    lat: -25.4284, // Curitiba
-                    lng: -49.2733,
-                  }
-                }
-                zoom={mapZoom || 12}
+                center={mapCenter}
+                zoom={mapZoom}
                 onDrawingComplete={handleDrawingComplete}
                 onClearFilters={handleClearFilters}
                 neighborhoods={neighborhoodsData}
