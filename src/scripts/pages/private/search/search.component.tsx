@@ -1029,6 +1029,23 @@ export function SearchComponent() {
     }
   };
 
+  // Função para formatar moeda
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(value);
+  };
+
+  // Função para formatar preço por m²
+  const formatPricePerSquareMeter = (value: number) => {
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+      minimumFractionDigits: 2,
+    }).format(value);
+  };
+
   // Funções para o modal de ajuda
   const handleHelpHover = (event: React.MouseEvent<HTMLElement>) => {
     setHelpPopupAnchor(event.currentTarget);
@@ -2212,6 +2229,57 @@ export function SearchComponent() {
                                     },
                                   }}
                                 />
+                              </Box>
+                              {/* Preço e Preço por m² */}
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 1.5,
+                                  mb: 0.5,
+                                  flexWrap: "wrap",
+                                }}
+                              >
+                                <Typography
+                                  variant="h6"
+                                  sx={{
+                                    fontWeight: 700,
+                                    color: theme.palette.text.primary,
+                                    fontSize: "1.1rem",
+                                  }}
+                                >
+                                  {formatCurrency(property.price)}
+                                </Typography>
+                                {property.pricePerSquareMeter > 0 && (
+                                  <Box
+                                    sx={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: 0.5,
+                                    }}
+                                  >
+                                    <SquareFoot
+                                      sx={{
+                                        fontSize: "0.875rem",
+                                        color: getIconColor(
+                                          property.propertyType
+                                        ),
+                                      }}
+                                    />
+                                    <Typography
+                                      variant="body2"
+                                      sx={{
+                                        color: theme.palette.text.secondary,
+                                        fontSize: "0.875rem",
+                                      }}
+                                    >
+                                      {formatPricePerSquareMeter(
+                                        property.pricePerSquareMeter
+                                      )}
+                                      /m²
+                                    </Typography>
+                                  </Box>
+                                )}
                               </Box>
                               <Typography
                                 variant="body2"
