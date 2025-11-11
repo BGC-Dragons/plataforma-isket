@@ -1719,18 +1719,54 @@ export function MapComponent({
   // Isso previne que a biblioteca tente limpar overlays automaticamente
   useLayoutEffect(() => {
     return () => {
-      // Desabilitar DrawingManager imediatamente quando o componente começar a desmontar
-      // Isso deve acontecer ANTES que a biblioteca tente limpar overlays
+      // PRIMEIRO: Remover todos os overlays do mapa ANTES de desabilitar o DrawingManager
+      // Isso evita que o DrawingManager tente limpá-los automaticamente
+      drawnOverlaysRef.current.forEach((overlay) => {
+        if (overlay?.overlay) {
+          try {
+            if (typeof overlay.overlay.setMap === "function") {
+              overlay.overlay.setMap(null);
+            }
+          } catch {
+            // Ignorar erros silenciosamente
+          }
+        }
+      });
+
+      // SEGUNDO: Desabilitar o DrawingManager DEPOIS de remover todos os overlays
+      // Isso garante que o DrawingManager não tente limpar overlays que já foram removidos
       try {
         if (drawingManagerRef.current) {
           // Desabilitar modo de desenho primeiro
           drawingManagerRef.current.setDrawingMode(null);
 
-          // Pequeno delay para garantir que o modo foi desabilitado
-          // antes que a biblioteca tente limpar overlays
-          setTimeout(() => {
-            // Não fazer nada, apenas garantir que o setDrawingMode foi processado
-          }, 0);
+          // Tentar acessar e limpar overlays internos do DrawingManager se possível
+          const manager = drawingManagerRef.current as unknown as {
+            overlays?: Array<{
+              overlay?: {
+                remove?: () => void;
+                setMap?: (map: google.maps.Map | null) => void;
+              };
+            }>;
+          };
+
+          // Remover overlays do DrawingManager usando setMap(null)
+          if (Array.isArray(manager.overlays)) {
+            manager.overlays.forEach((item) => {
+              if (item?.overlay) {
+                try {
+                  // Usar setMap(null) ao invés de remove() para evitar erros
+                  if (typeof item.overlay.setMap === "function") {
+                    item.overlay.setMap(null);
+                  }
+                } catch {
+                  // Ignorar erros silenciosamente
+                }
+              }
+            });
+            // Limpar array de overlays do manager
+            manager.overlays = [];
+          }
         }
       } catch {
         // Ignorar erros
@@ -1801,11 +1837,58 @@ export function MapComponent({
     window.addEventListener("unhandledrejection", unhandledRejectionHandler);
 
     return () => {
-      // Desabilitar o DrawingManager ANTES de limpar overlays
-      // Isso evita que a biblioteca tente limpar overlays automaticamente
+      // PRIMEIRO: Remover todos os overlays do mapa ANTES de desabilitar o DrawingManager
+      // Isso evita que o DrawingManager tente limpá-los automaticamente
+      // Limpar todos os overlays de forma segura
+      drawnOverlaysRef.current.forEach((overlay) => {
+        if (overlay?.overlay) {
+          try {
+            // Verificar se o overlay tem o método setMap antes de usar
+            if (typeof overlay.overlay.setMap === "function") {
+              overlay.overlay.setMap(null);
+            }
+            // Não tentar usar remove() pois nem todos os overlays têm esse método
+          } catch {
+            // Ignorar erros silenciosamente durante cleanup
+          }
+        }
+      });
+
+      // SEGUNDO: Desabilitar o DrawingManager DEPOIS de remover todos os overlays
+      // Isso garante que o DrawingManager não tente limpar overlays que já foram removidos
       try {
         if (drawingManagerRef.current) {
+          // Desabilitar modo de desenho primeiro
           drawingManagerRef.current.setDrawingMode(null);
+
+          // Tentar acessar e limpar overlays internos do DrawingManager se possível
+          const manager = drawingManagerRef.current as unknown as {
+            overlays?: Array<{
+              overlay?: {
+                remove?: () => void;
+                setMap?: (map: google.maps.Map | null) => void;
+              };
+            }>;
+          };
+
+          // Remover overlays do DrawingManager usando setMap(null)
+          // Isso remove as referências antes que o DrawingManager tente limpá-los
+          if (Array.isArray(manager.overlays)) {
+            manager.overlays.forEach((item) => {
+              if (item?.overlay) {
+                try {
+                  // Usar setMap(null) ao invés de remove() para evitar erros
+                  if (typeof item.overlay.setMap === "function") {
+                    item.overlay.setMap(null);
+                  }
+                } catch {
+                  // Ignorar erros silenciosamente
+                }
+              }
+            });
+            // Limpar array de overlays do manager para evitar que ele tente limpá-los
+            manager.overlays = [];
+          }
         }
       } catch {
         // Ignorar erros
@@ -1814,20 +1897,6 @@ export function MapComponent({
       // Pequeno delay para garantir que o DrawingManager foi desabilitado
       // e que ele não tentará limpar overlays automaticamente
       setTimeout(() => {
-        // Limpar todos os overlays de forma segura
-        drawnOverlaysRef.current.forEach((overlay) => {
-          if (overlay?.overlay) {
-            try {
-              // Verificar se o overlay tem o método setMap antes de usar
-              if (typeof overlay.overlay.setMap === "function") {
-                overlay.overlay.setMap(null);
-              }
-              // Não tentar usar remove() pois nem todos os overlays têm esse método
-            } catch {
-              // Ignorar erros silenciosamente durante cleanup
-            }
-          }
-        });
 
         // Limpar círculo de endereço se existir
         if (addressCircleOverlayRef.current) {
@@ -1904,55 +1973,8 @@ export function MapComponent({
           overlayUpdateTimeoutRef.current = null;
         }
 
-        // Limpar drawing manager - desabilitar completamente antes de desmontar
-        try {
-          if (drawingManagerRef.current) {
-            // Desabilitar modo de desenho
-            try {
-              drawingManagerRef.current.setDrawingMode(null);
-            } catch {
-              // Ignorar se já foi desabilitado
-            }
-
-            // Tentar limpar overlays do drawing manager se possível
-            // O DrawingManager pode ter overlays internos que precisam ser limpos
-            const manager = drawingManagerRef.current as unknown as {
-              overlays?: Array<{
-                overlay?: {
-                  remove?: () => void;
-                  setMap?: (map: google.maps.Map | null) => void;
-                };
-              }>;
-              clear?: () => void;
-            };
-
-            // Se o manager tem um método clear, usar ele
-            if (typeof manager.clear === "function") {
-              try {
-                manager.clear();
-              } catch {
-                // Ignorar erros
-              }
-            }
-
-            // Limpar overlays internos do manager se existirem
-            if (Array.isArray(manager.overlays)) {
-              manager.overlays.forEach((item) => {
-                if (item?.overlay) {
-                  try {
-                    if (typeof item.overlay.setMap === "function") {
-                      item.overlay.setMap(null);
-                    }
-                  } catch {
-                    // Ignorar erros
-                  }
-                }
-              });
-            }
-          }
-        } catch {
-          // Ignorar erros silenciosamente durante cleanup
-        }
+        // Drawing manager já foi limpo no início do cleanup
+        // Não precisa fazer nada aqui pois já removemos os overlays e desabilitamos o modo
 
         // Limpar freehand polyline
         try {
@@ -2099,16 +2121,51 @@ export function MapComponent({
 
             const allNeighborhoods = neighborhoodsToShow;
 
-            return allNeighborhoods.map((neighborhood) => {
-              // Converter coordenadas GeoJSON para formato do Google Maps
-              // GeoJSON usa [lon, lat], Google Maps usa {lat, lng}
-              const paths =
-                neighborhood.geo?.coordinates?.[0]?.map((coord) => ({
-                  lat: coord[1], // latitude
-                  lng: coord[0], // longitude
-                })) || [];
+            // Filtrar bairros válidos antes de renderizar
+            return allNeighborhoods
+              .filter((neighborhood) => {
+                // Verificar se o bairro tem dados geoespaciais válidos
+                return (
+                  neighborhood.geo &&
+                  neighborhood.geo.coordinates &&
+                  Array.isArray(neighborhood.geo.coordinates) &&
+                  neighborhood.geo.coordinates.length > 0 &&
+                  Array.isArray(neighborhood.geo.coordinates[0]) &&
+                  neighborhood.geo.coordinates[0].length > 0
+                );
+              })
+              .map((neighborhood) => {
+                // Converter coordenadas GeoJSON para formato do Google Maps
+                // GeoJSON usa [lon, lat], Google Maps usa {lat, lng}
+                const paths =
+                  neighborhood.geo?.coordinates?.[0]
+                    ?.map((coord) => {
+                      // Validar coordenadas antes de adicionar
+                      if (
+                        !Array.isArray(coord) ||
+                        coord.length < 2 ||
+                        typeof coord[0] !== "number" ||
+                        typeof coord[1] !== "number"
+                      ) {
+                        return null;
+                      }
+                      const lng = coord[0];
+                      const lat = coord[1];
+                      // Validar se as coordenadas estão dentro dos limites válidos
+                      if (!isValidCoordinate({ lat, lng })) {
+                        return null;
+                      }
+                      return {
+                        lat,
+                        lng,
+                      };
+                    })
+                    .filter((coord): coord is { lat: number; lng: number } =>
+                      coord !== null
+                    ) || [];
 
-              if (paths.length === 0) return null;
+                // Se não há paths válidos após a filtragem, não renderizar
+                if (paths.length === 0) return null;
 
               // Verificar se o bairro está selecionado
               const isSelected = selectedNeighborhoodNames.includes(

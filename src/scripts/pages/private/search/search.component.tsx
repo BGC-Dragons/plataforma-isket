@@ -644,10 +644,10 @@ export function SearchComponent() {
     }
   }, [currentFilters, fetchCitiesData]);
 
-  // Ref para rastrear bairros anteriores e evitar buscas duplicadas
+  // Ref para rastrear cidades e bairros anteriores e evitar buscas duplicadas
   const previousNeighborhoodsRef = useRef<string>("");
 
-  // Efeito para buscar dados dos bairros imediatamente quando os bairros mudarem
+  // Efeito para buscar dados dos bairros imediatamente quando os bairros ou cidades mudarem
   // Isso permite centralizar o mapa sem precisar fazer a busca completa de propriedades
   useEffect(() => {
     // Não buscar dados de bairros quando há busca por endereço (para não sobrescrever centralização)
@@ -656,15 +656,26 @@ export function SearchComponent() {
       return;
     }
 
-    // Criar uma chave única baseada nos bairros selecionados (mesmo se vazio)
+    // Se não há cidades selecionadas, limpar dados dos bairros
+    if (currentFilters.cities.length === 0) {
+      setNeighborhoodsData([]);
+      setAllNeighborhoodsForBounds([]);
+      previousNeighborhoodsRef.current = "";
+      return;
+    }
+
+    // Criar uma chave única baseada nas cidades e bairros selecionados
+    // Isso garante que os bairros sejam buscados quando apenas cidades mudarem
+    const citiesKey = [...currentFilters.cities].sort().join(",");
     const neighborhoodsKey =
       currentFilters.neighborhoods.length > 0
         ? [...currentFilters.neighborhoods].sort().join(",")
         : "";
+    const combinedKey = `${citiesKey}|${neighborhoodsKey}`;
 
-    // Só buscar se os bairros realmente mudaram
-    if (previousNeighborhoodsRef.current !== neighborhoodsKey) {
-      previousNeighborhoodsRef.current = neighborhoodsKey;
+    // Só buscar se as cidades ou bairros realmente mudaram
+    if (previousNeighborhoodsRef.current !== combinedKey) {
+      previousNeighborhoodsRef.current = combinedKey;
       // Buscar dados dos bairros imediatamente quando mudarem
       // Não fazer busca de propriedades aqui, apenas buscar dados geoespaciais
       // fetchNeighborhoodsData já trata o caso de array vazio
