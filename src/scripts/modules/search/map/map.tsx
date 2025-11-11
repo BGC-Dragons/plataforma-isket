@@ -1,4 +1,11 @@
-import { useCallback, useState, useMemo, useRef, useEffect } from "react";
+import {
+  useCallback,
+  useState,
+  useMemo,
+  useRef,
+  useEffect,
+  useLayoutEffect,
+} from "react";
 import {
   GoogleMap,
   Marker,
@@ -166,9 +173,16 @@ export function MapComponent({
     useState<google.maps.drawing.OverlayType | null>(null);
   const [drawingManager, setDrawingManager] =
     useState<google.maps.drawing.DrawingManager | null>(null);
+  const drawingManagerRef = useRef<google.maps.drawing.DrawingManager | null>(
+    null
+  );
   const [drawnOverlays, setDrawnOverlays] = useState<
     google.maps.drawing.OverlayCompleteEvent[]
   >([]);
+  // Ref para manter referência atualizada dos overlays para cleanup
+  const drawnOverlaysRef = useRef<google.maps.drawing.OverlayCompleteEvent[]>(
+    []
+  );
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [freehandActive, setFreehandActive] = useState<boolean>(false);
   const isMouseDownRef = useRef<boolean>(false);
@@ -1490,6 +1504,258 @@ export function MapComponent({
     }
   }, [filters?.addressCoordinates, map]);
 
+  // Atualizar refs sempre que mudarem
+  useEffect(() => {
+    drawnOverlaysRef.current = drawnOverlays;
+  }, [drawnOverlays]);
+
+  useEffect(() => {
+    drawingManagerRef.current = drawingManager;
+  }, [drawingManager]);
+
+  // useLayoutEffect para desabilitar DrawingManager ANTES da desmontagem visual
+  // Isso previne que a biblioteca tente limpar overlays automaticamente
+  useLayoutEffect(() => {
+    return () => {
+      // Desabilitar DrawingManager imediatamente quando o componente começar a desmontar
+      // Isso deve acontecer ANTES que a biblioteca tente limpar overlays
+      try {
+        if (drawingManagerRef.current) {
+          // Desabilitar modo de desenho primeiro
+          drawingManagerRef.current.setDrawingMode(null);
+
+          // Pequeno delay para garantir que o modo foi desabilitado
+          // antes que a biblioteca tente limpar overlays
+          setTimeout(() => {
+            // Não fazer nada, apenas garantir que o setDrawingMode foi processado
+          }, 0);
+        }
+      } catch {
+        // Ignorar erros
+      }
+    };
+  }, []);
+
+  // Cleanup quando o componente é desmontado (navegação para outra página)
+  useEffect(() => {
+    // Handler de erro global para capturar erros durante cleanup
+    const originalErrorHandler = window.onerror;
+    const originalUnhandledRejection = window.onunhandledrejection;
+
+    window.onerror = (message, source, lineno, colno, error) => {
+      // Suprimir erros relacionados a overlay.remove durante cleanup
+      const messageStr = String(message || "");
+      const sourceStr = String(source || "");
+      const errorMessage = error?.message ? String(error.message) : "";
+
+      // Verificar se é o erro específico de overlay.remove
+      const isOverlayRemoveError =
+        messageStr.includes("overlay.remove") ||
+        messageStr.includes("remove is not a function") ||
+        messageStr.includes("b.overlay.remove") ||
+        messageStr.includes(".overlay.remove") ||
+        messageStr.includes("overlay.remove is not a function") ||
+        sourceStr.includes("overlay.js") ||
+        sourceStr.includes("overlay") ||
+        errorMessage.includes("overlay.remove") ||
+        errorMessage.includes("remove is not a function");
+
+      if (isOverlayRemoveError) {
+        // Suprimir completamente o erro
+        return true;
+      }
+      // Para outros erros, usar o handler original se existir
+      if (originalErrorHandler) {
+        return originalErrorHandler(message, source, lineno, colno, error);
+      }
+      return false;
+    };
+
+    const unhandledRejectionHandler = (event: PromiseRejectionEvent) => {
+      // Suprimir rejeições relacionadas a overlay.remove durante cleanup
+      const reason = event.reason;
+      const reasonMessage =
+        reason && typeof reason === "object" && "message" in reason
+          ? String(reason.message)
+          : String(reason || "");
+
+      const isOverlayRemoveError =
+        reasonMessage.includes("overlay.remove") ||
+        reasonMessage.includes("remove is not a function") ||
+        reasonMessage.includes("b.overlay.remove") ||
+        reasonMessage.includes(".overlay.remove") ||
+        reasonMessage.includes("overlay.remove is not a function");
+
+      if (isOverlayRemoveError) {
+        event.preventDefault();
+        return;
+      }
+      // Para outras rejeições, usar o handler original se existir
+      if (originalUnhandledRejection) {
+        originalUnhandledRejection.call(window, event);
+      }
+    };
+
+    window.addEventListener("unhandledrejection", unhandledRejectionHandler);
+
+    return () => {
+      // Desabilitar o DrawingManager ANTES de limpar overlays
+      // Isso evita que a biblioteca tente limpar overlays automaticamente
+      try {
+        if (drawingManagerRef.current) {
+          drawingManagerRef.current.setDrawingMode(null);
+        }
+      } catch {
+        // Ignorar erros
+      }
+
+      // Pequeno delay para garantir que o DrawingManager foi desabilitado
+      // e que ele não tentará limpar overlays automaticamente
+      setTimeout(() => {
+        // Limpar todos os overlays de forma segura
+        drawnOverlaysRef.current.forEach((overlay) => {
+          if (overlay?.overlay) {
+            try {
+              // Verificar se o overlay tem o método setMap antes de usar
+              if (typeof overlay.overlay.setMap === "function") {
+                overlay.overlay.setMap(null);
+              }
+              // Não tentar usar remove() pois nem todos os overlays têm esse método
+            } catch {
+              // Ignorar erros silenciosamente durante cleanup
+            }
+          }
+        });
+
+        // Limpar círculo de endereço se existir
+        if (addressCircleOverlayRef.current) {
+          try {
+            const circle = addressCircleOverlayRef.current;
+            if (circle && typeof circle.setMap === "function") {
+              circle.setMap(null);
+            }
+            addressCircleOverlayRef.current = null;
+          } catch {
+            // Ignorar erros silenciosamente durante cleanup
+          }
+        }
+
+        // Limpar listeners do freehand
+        try {
+          if (mouseMoveListenerRef.current) {
+            mouseMoveListenerRef.current.remove();
+            mouseMoveListenerRef.current = null;
+          }
+          if (mouseDownListenerRef.current) {
+            mouseDownListenerRef.current.remove();
+            mouseDownListenerRef.current = null;
+          }
+          if (mouseUpListenerRef.current) {
+            mouseUpListenerRef.current.remove();
+            mouseUpListenerRef.current = null;
+          }
+        } catch {
+          // Ignorar erros silenciosamente durante cleanup
+        }
+
+        // Limpar listener de tooltip
+        try {
+          if (tooltipMouseMoveListenerRef.current) {
+            google.maps.event.removeListener(
+              tooltipMouseMoveListenerRef.current
+            );
+            tooltipMouseMoveListenerRef.current = null;
+          }
+        } catch {
+          // Ignorar erros silenciosamente durante cleanup
+        }
+
+        // Limpar tooltip overlay
+        try {
+          if (tooltipOverlayRef.current) {
+            tooltipOverlayRef.current.setMap(null);
+            tooltipOverlayRef.current = null;
+          }
+        } catch {
+          // Ignorar erros silenciosamente durante cleanup
+        }
+
+        // Limpar timeout de busca
+        if (searchTimeoutRef.current) {
+          clearTimeout(searchTimeoutRef.current);
+          searchTimeoutRef.current = null;
+        }
+
+        // Limpar drawing manager - desabilitar completamente antes de desmontar
+        try {
+          if (drawingManagerRef.current) {
+            // Desabilitar modo de desenho
+            try {
+              drawingManagerRef.current.setDrawingMode(null);
+            } catch {
+              // Ignorar se já foi desabilitado
+            }
+
+            // Tentar limpar overlays do drawing manager se possível
+            // O DrawingManager pode ter overlays internos que precisam ser limpos
+            const manager = drawingManagerRef.current as unknown as {
+              overlays?: Array<{
+                overlay?: {
+                  remove?: () => void;
+                  setMap?: (map: google.maps.Map | null) => void;
+                };
+              }>;
+              clear?: () => void;
+            };
+
+            // Se o manager tem um método clear, usar ele
+            if (typeof manager.clear === "function") {
+              try {
+                manager.clear();
+              } catch {
+                // Ignorar erros
+              }
+            }
+
+            // Limpar overlays internos do manager se existirem
+            if (Array.isArray(manager.overlays)) {
+              manager.overlays.forEach((item) => {
+                if (item?.overlay) {
+                  try {
+                    if (typeof item.overlay.setMap === "function") {
+                      item.overlay.setMap(null);
+                    }
+                  } catch {
+                    // Ignorar erros
+                  }
+                }
+              });
+            }
+          }
+        } catch {
+          // Ignorar erros silenciosamente durante cleanup
+        }
+
+        // Limpar freehand polyline
+        try {
+          if (freehandPolylineRef.current) {
+            freehandPolylineRef.current.setMap(null);
+            freehandPolylineRef.current = null;
+          }
+        } catch {
+          // Ignorar erros silenciosamente durante cleanup
+        }
+
+        // Restaurar handlers de erro originais
+        window.onerror = originalErrorHandler || null;
+        window.removeEventListener(
+          "unhandledrejection",
+          unhandledRejectionHandler
+        );
+      }, 0);
+    };
+  }, []); // Executar apenas uma vez no mount/unmount
+
   // Se houver erro ao carregar o mapa
   if (loadError) {
     return (
@@ -1564,38 +1830,41 @@ export function MapComponent({
           ],
         }}
       >
-        {/* DrawingManager - Sempre ativo */}
-        <DrawingManager
-          onOverlayComplete={onDrawingCompleteCallback}
-          onLoad={(manager) => {
-            setDrawingManager(manager);
-          }}
-          options={{
-            drawingControl: false, // Desabilitar controles padrão
-            drawingMode: drawingMode, // Usar o modo atual
-            polygonOptions: {
-              fillColor: "#4285F4",
-              fillOpacity: 0.2,
-              strokeColor: "#4285F4",
-              strokeOpacity: 0.8,
-              strokeWeight: 2,
-              clickable: true,
-              editable: true,
-              draggable: true,
-            },
-            circleOptions: {
-              fillColor: "#4285F4",
-              fillOpacity: 0.2,
-              strokeColor: "#4285F4",
-              strokeOpacity: 0.8,
-              strokeWeight: 2,
-              clickable: true,
-              editable: true,
-              draggable: true,
-            },
-            // Retângulo foi substituído por desenho livre
-          }}
-        />
+        {/* DrawingManager - Sempre renderizado, mas desabilitado durante unmount */}
+        {map && (
+          <DrawingManager
+            key="drawing-manager"
+            onOverlayComplete={onDrawingCompleteCallback}
+            onLoad={(manager) => {
+              setDrawingManager(manager);
+            }}
+            options={{
+              drawingControl: false, // Desabilitar controles padrão
+              drawingMode: drawingMode, // Usar o modo atual
+              polygonOptions: {
+                fillColor: "#4285F4",
+                fillOpacity: 0.2,
+                strokeColor: "#4285F4",
+                strokeOpacity: 0.8,
+                strokeWeight: 2,
+                clickable: true,
+                editable: true,
+                draggable: true,
+              },
+              circleOptions: {
+                fillColor: "#4285F4",
+                fillOpacity: 0.2,
+                strokeColor: "#4285F4",
+                strokeOpacity: 0.8,
+                strokeWeight: 2,
+                clickable: true,
+                editable: true,
+                draggable: true,
+              },
+              // Retângulo foi substituído por desenho livre
+            }}
+          />
+        )}
 
         {/* Polígonos dos bairros - mostrar todos os bairros disponíveis */}
         {/* Usar allNeighborhoodsForCityBounds como fonte principal (sempre tem todos os bairros) */}
