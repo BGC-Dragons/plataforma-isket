@@ -1088,9 +1088,33 @@ export function MapComponent({
       setDrawnOverlays((prev) => [...prev, fakeEvent]);
       if (onDrawingComplete) onDrawingComplete(fakeEvent);
       setDrawingMode(null);
-      // Mantém modo freehand ativo até usuário desativar no botão
+
+      // Desselecionar o polígono após um pequeno delay
+      // Usar a API do Google Maps para disparar um evento de clique no mapa
+      setTimeout(() => {
+        if (map) {
+          // Obter o centro do mapa para simular o clique
+          const center = map.getCenter();
+          if (center) {
+            // Criar um evento de clique no mapa usando a API do Google Maps
+            google.maps.event.trigger(map, "click", {
+              latLng: center,
+            });
+          }
+        }
+      }, 100);
+
+      // Desativar o modo freehand automaticamente após completar o desenho
+      // Isso permite que o usuário mexa no mapa sem criar um novo desenho
+      setFreehandActive(false);
+      isMouseDownRef.current = false;
+      teardownFreehandListeners();
+      if (map) {
+        map.setOptions({ draggable: true });
+        map.setOptions({ draggableCursor: undefined });
+      }
     });
-  }, [map, drawingManager, onDrawingComplete]);
+  }, [map, drawingManager, onDrawingComplete, teardownFreehandListeners]);
 
   const toggleFreehand = useCallback(() => {
     if (freehandActive) {
