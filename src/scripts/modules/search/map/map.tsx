@@ -1600,67 +1600,69 @@ export function MapComponent({
         {/* Polígonos dos bairros - mostrar todos os bairros disponíveis */}
         {/* Usar allNeighborhoodsForCityBounds como fonte principal (sempre tem todos os bairros) */}
         {/* Se não houver, usar neighborhoods como fallback */}
-        {(() => {
-          // Priorizar allNeighborhoodsForCityBounds (sempre tem todos os bairros)
-          // Se não houver, usar neighborhoods como fallback
-          const neighborhoodsToShow =
-            allNeighborhoodsForCityBounds.length > 0
-              ? allNeighborhoodsForCityBounds
-              : neighborhoods;
+        {/* Ocultar quando há um desenho ativo para não poluir o mapa */}
+        {!filters?.drawingGeometry &&
+          (() => {
+            // Priorizar allNeighborhoodsForCityBounds (sempre tem todos os bairros)
+            // Se não houver, usar neighborhoods como fallback
+            const neighborhoodsToShow =
+              allNeighborhoodsForCityBounds.length > 0
+                ? allNeighborhoodsForCityBounds
+                : neighborhoods;
 
-          const allNeighborhoods = neighborhoodsToShow;
+            const allNeighborhoods = neighborhoodsToShow;
 
-          return allNeighborhoods.map((neighborhood) => {
-            // Converter coordenadas GeoJSON para formato do Google Maps
-            // GeoJSON usa [lon, lat], Google Maps usa {lat, lng}
-            const paths =
-              neighborhood.geo?.coordinates?.[0]?.map((coord) => ({
-                lat: coord[1], // latitude
-                lng: coord[0], // longitude
-              })) || [];
+            return allNeighborhoods.map((neighborhood) => {
+              // Converter coordenadas GeoJSON para formato do Google Maps
+              // GeoJSON usa [lon, lat], Google Maps usa {lat, lng}
+              const paths =
+                neighborhood.geo?.coordinates?.[0]?.map((coord) => ({
+                  lat: coord[1], // latitude
+                  lng: coord[0], // longitude
+                })) || [];
 
-            if (paths.length === 0) return null;
+              if (paths.length === 0) return null;
 
-            // Verificar se o bairro está selecionado
-            const isSelected = selectedNeighborhoodNames.includes(
-              neighborhood.name
-            );
+              // Verificar se o bairro está selecionado
+              const isSelected = selectedNeighborhoodNames.includes(
+                neighborhood.name
+              );
 
-            // Desabilitar cliques e hovers quando um modo de desenho estiver ativo
-            const isDrawingActive = drawingMode !== null || freehandActive;
+              // Desabilitar cliques e hovers quando um modo de desenho estiver ativo
+              const isDrawingActive = drawingMode !== null || freehandActive;
 
-            return (
-              <Polygon
-                key={neighborhood.id}
-                paths={paths}
-                options={{
-                  fillColor: theme.palette.primary.main,
-                  fillOpacity: isSelected ? 0.3 : 0.15, // Mais opaco se selecionado
-                  strokeColor: theme.palette.primary.main,
-                  strokeOpacity: isSelected ? 1 : 0.8, // Mais visível se selecionado
-                  strokeWeight: isSelected ? 3 : 2, // Mais espesso se selecionado
-                  clickable: !isDrawingActive, // Desabilitar cliques quando desenhando
-                  editable: false,
-                  draggable: false,
-                  zIndex: isSelected ? 2 : 1, // Bairros selecionados ficam na frente
-                }}
-                onMouseOver={
-                  !isDrawingActive
-                    ? (e) => handleNeighborhoodMouseOver(neighborhood, e)
-                    : undefined
-                }
-                onMouseOut={
-                  !isDrawingActive ? handleNeighborhoodMouseOut : undefined
-                }
-                onClick={
-                  !isDrawingActive
-                    ? () => handleNeighborhoodClick(neighborhood)
-                    : undefined
-                }
-              />
-            );
-          });
-        })()}
+              return (
+                <Polygon
+                  key={neighborhood.id}
+                  paths={paths}
+                  options={{
+                    fillColor: theme.palette.primary.main,
+                    fillOpacity: isSelected ? 0.3 : 0.15, // Mais opaco se selecionado
+                    strokeColor: theme.palette.primary.main,
+                    strokeOpacity: isSelected ? 1 : 0.8, // Mais visível se selecionado
+                    strokeWeight: isSelected ? 3 : 2, // Mais espesso se selecionado
+                    clickable: !isDrawingActive, // Desabilitar cliques quando desenhando
+                    editable: false,
+                    draggable: false,
+                    zIndex: isSelected ? 2 : 1, // Bairros selecionados ficam na frente
+                  }}
+                  onMouseOver={
+                    !isDrawingActive
+                      ? (e) => handleNeighborhoodMouseOver(neighborhood, e)
+                      : undefined
+                  }
+                  onMouseOut={
+                    !isDrawingActive ? handleNeighborhoodMouseOut : undefined
+                  }
+                  onClick={
+                    !isDrawingActive
+                      ? () => handleNeighborhoodClick(neighborhood)
+                      : undefined
+                  }
+                />
+              );
+            });
+          })()}
 
         {/* Marcador do endereço (quando há busca por endereço) */}
         {/* O círculo é criado automaticamente como desenho editável no useEffect */}
