@@ -13,6 +13,7 @@ import { ArrowBack, PhotoLibrary, Share, Business } from "@mui/icons-material";
 import { PropertyGallery } from "./property-gallery";
 import { PropertyInformation } from "./property-information";
 import { PropertyLocalization } from "./property-localization";
+import { FullscreenGallery } from "./fullscreen-gallery";
 import { getPropertyAdView } from "../../../../services/get-property-ad-view.service";
 import {
   mapApiToPropertyDetails,
@@ -42,6 +43,8 @@ export function PropertyDetails({
   const [error, setError] = useState<string | null>(null);
   const [evaluationEmails, setEvaluationEmails] = useState<string[]>([]);
   const [evaluationCredits] = useState(3); // Mock - virá da API
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [galleryInitialIndex, setGalleryInitialIndex] = useState(0);
 
   // TODO: Integrar com API para buscar créditos de avaliação do perfil
   // useEffect(() => {
@@ -102,8 +105,10 @@ export function PropertyDetails({
 
   // Função para mostrar todas as fotos
   const handleShowAllPhotos = () => {
-    console.log("Mostrando todas as fotos da propriedade:", propertyId);
-    // Implementar modal de galeria completa
+    if (property && property.images.length > 0) {
+      setGalleryInitialIndex(0);
+      setGalleryOpen(true);
+    }
   };
 
   // Função para compartilhar
@@ -134,8 +139,10 @@ export function PropertyDetails({
 
   // Função para clicar em uma imagem
   const handleImageClick = (index: number) => {
-    console.log("Imagem clicada:", index);
-    // Implementar lógica adicional se necessário
+    if (property && property.images.length > 0) {
+      setGalleryInitialIndex(index);
+      setGalleryOpen(true);
+    }
   };
 
   // Função para nova captação
@@ -454,6 +461,17 @@ export function PropertyDetails({
           )}
         </Box>
       </Box>
+
+      {/* Galeria em Tela Cheia */}
+      {property && property.images.length > 0 && (
+        <FullscreenGallery
+          open={galleryOpen}
+          onClose={() => setGalleryOpen(false)}
+          images={property.images}
+          initialIndex={galleryInitialIndex}
+          propertyTitle={property.title}
+        />
+      )}
     </Drawer>
   );
 }
