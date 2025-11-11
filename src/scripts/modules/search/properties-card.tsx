@@ -61,6 +61,7 @@ export function PropertiesCard({
   const theme = useTheme();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
+  const [failedImages, setFailedImages] = useState<Set<number>>(new Set());
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -77,6 +78,11 @@ export function PropertiesCard({
     }).format(value);
   };
 
+  const hasValidImages =
+    images &&
+    images.length > 0 &&
+    images.some((img) => img && img.trim() !== "");
+
   const handleImageNavigation = (direction: "prev" | "next") => {
     if (direction === "prev") {
       setCurrentImageIndex(
@@ -88,6 +94,13 @@ export function PropertiesCard({
       );
     }
   };
+
+  const handleImageError = () => {
+    setFailedImages((prev) => new Set(prev).add(currentImageIndex));
+  };
+
+  const currentImageFailed = failedImages.has(currentImageIndex);
+  const shouldShowPlaceholder = !hasValidImages || currentImageFailed;
 
   const getPropertyTypeColor = (type: string) => {
     switch (type) {
@@ -115,11 +128,6 @@ export function PropertiesCard({
     }
   };
 
-  const hasValidImages =
-    images &&
-    images.length > 0 &&
-    images.some((img) => img && img.trim() !== "");
-
   return (
     <Card
       sx={{
@@ -143,19 +151,7 @@ export function PropertiesCard({
       {/* Seção da Imagem */}
       <Box sx={{ position: "relative", height: 240 }}>
         {/* Imagem Principal */}
-        {hasValidImages ? (
-          <CardMedia
-            component="img"
-            height="240"
-            image={images[currentImageIndex]}
-            alt={title || "Propriedade"}
-            sx={{
-              objectFit: "cover",
-              transition: "transform 0.3s ease",
-              transform: isHovered ? "scale(1.05)" : "scale(1)",
-            }}
-          />
-        ) : (
+        {shouldShowPlaceholder ? (
           <Box
             sx={{
               height: "100%",
@@ -165,6 +161,19 @@ export function PropertiesCard({
           >
             <PropertyPlaceholderImage />
           </Box>
+        ) : (
+          <CardMedia
+            component="img"
+            height="240"
+            image={images[currentImageIndex]}
+            alt={title || "Propriedade"}
+            onError={handleImageError}
+            sx={{
+              objectFit: "cover",
+              transition: "transform 0.3s ease",
+              transform: isHovered ? "scale(1.05)" : "scale(1)",
+            }}
+          />
         )}
 
         {/* Overlay com gradiente sutil */}
@@ -200,7 +209,7 @@ export function PropertiesCard({
         />
 
         {/* Indicadores do Carousel */}
-        {hasValidImages && images.length > 1 && (
+        {hasValidImages && images.length > 1 && !shouldShowPlaceholder && (
           <Box
             sx={{
               position: "absolute",
@@ -230,7 +239,7 @@ export function PropertiesCard({
         )}
 
         {/* Botões de Navegação (apenas no hover) */}
-        {hasValidImages && images.length > 1 && isHovered && (
+        {hasValidImages && images.length > 1 && !shouldShowPlaceholder && isHovered && (
           <>
             <IconButton
               onClick={(e) => {
