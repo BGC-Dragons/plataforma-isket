@@ -297,12 +297,16 @@ export function MapComponent({
         return;
       }
 
-      // Só fazer busca se houver pelo menos uma cidade selecionada OU busca por endereço
+      // Só fazer busca se houver pelo menos uma cidade selecionada OU busca por endereço OU desenho no mapa
       const hasCities = filters?.cities && filters.cities.length > 0;
       const hasAddressSearch = filters?.addressCoordinates !== undefined;
+      const hasDrawingGeometry = filters?.drawingGeometry !== undefined;
 
-      if (!filters || (!hasCities && !hasAddressSearch)) {
-        // Limpar dados do mapa se não há cidade selecionada nem busca por endereço
+      if (
+        !filters ||
+        (!hasCities && !hasAddressSearch && !hasDrawingGeometry)
+      ) {
+        // Limpar dados do mapa se não há cidade selecionada, busca por endereço nem desenho
         setMapClusters([]);
         setMapPoints([]);
         return;
@@ -316,8 +320,54 @@ export function MapComponent({
       // Debounce de 500ms para evitar muitas requisições
       searchTimeoutRef.current = setTimeout(async () => {
         try {
-          // Calcular bbox limitado baseado no zoom e cidade selecionada
-          const bbox = calculateLimitedBbox(bounds, zoomLevel);
+          // Se há desenho no mapa, calcular bbox a partir da geometria do desenho
+          let bbox: [number, number, number, number];
+          if (filters?.drawingGeometry) {
+            if (filters.drawingGeometry.type === "Polygon") {
+              // Calcular bbox a partir das coordenadas do polígono
+              const allCoords = filters.drawingGeometry.coordinates[0];
+              if (allCoords.length === 0) {
+                bbox = calculateLimitedBbox(bounds, zoomLevel);
+              } else {
+                let minLng = allCoords[0][0];
+                let maxLng = allCoords[0][0];
+                let minLat = allCoords[0][1];
+                let maxLat = allCoords[0][1];
+
+                allCoords.forEach((coord) => {
+                  const [lng, lat] = coord;
+                  if (lng < minLng) minLng = lng;
+                  if (lng > maxLng) maxLng = lng;
+                  if (lat < minLat) minLat = lat;
+                  if (lat > maxLat) maxLat = lat;
+                });
+
+                bbox = [minLng, minLat, maxLng, maxLat];
+              }
+            } else if (filters.drawingGeometry.type === "circle") {
+              // Calcular bbox a partir do círculo
+              const [centerLng, centerLat] =
+                filters.drawingGeometry.coordinates[0];
+              const radius = parseFloat(filters.drawingGeometry.radius); // em metros
+
+              // Converter raio de metros para graus (aproximação)
+              const latDiff = radius / 111000; // metros para graus
+              const lngDiff =
+                radius / (111000 * Math.cos((centerLat * Math.PI) / 180));
+
+              bbox = [
+                centerLng - lngDiff,
+                centerLat - latDiff,
+                centerLng + lngDiff,
+                centerLat + latDiff,
+              ];
+            } else {
+              bbox = calculateLimitedBbox(bounds, zoomLevel);
+            }
+          } else {
+            // Calcular bbox limitado baseado no zoom e cidade selecionada
+            bbox = calculateLimitedBbox(bounds, zoomLevel);
+          }
 
           // Verificar se já fizemos uma busca com os mesmos bounds e zoom
           const boundsKey = JSON.stringify(bbox);
@@ -326,6 +376,7 @@ export function MapComponent({
                 cities: filters.cities?.sort(),
                 neighborhoods: filters.neighborhoods?.sort(),
                 addressCoordinates: filters.addressCoordinates,
+                drawingGeometry: filters.drawingGeometry,
                 venda: filters.venda,
                 aluguel: filters.aluguel,
               })
@@ -495,6 +546,7 @@ export function MapComponent({
       neighborhoods: filters.neighborhoods?.sort(),
       search: filters.search,
       addressCoordinates: filters.addressCoordinates, // Incluir coordenadas do endereço
+      drawingGeometry: filters.drawingGeometry, // Incluir geometria do desenho
       venda: filters.venda,
       aluguel: filters.aluguel,
       residencial: filters.residencial,

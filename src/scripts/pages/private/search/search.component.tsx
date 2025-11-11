@@ -1234,6 +1234,7 @@ export function SearchComponent() {
       };
 
       // Aplicar filtros com a geometria (isso vai buscar na API)
+      // O componente do mapa fará a busca automaticamente quando os filtros mudarem
       await applyFilters(newFilters);
     },
     [currentFilters, applyFilters, calculateDrawingBounds]
