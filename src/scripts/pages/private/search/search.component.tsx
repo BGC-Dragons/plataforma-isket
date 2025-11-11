@@ -52,7 +52,6 @@ import {
   postPropertyAdSearch,
   type SortBy,
   type SortOrder,
-  type AreaType,
 } from "../../../../services/post-property-ad-search.service";
 import { mapFiltersToApi } from "../../../../services/helpers/map-filters-to-api.helper";
 import { mapApiToPropertyDataArray } from "../../../../services/helpers/map-api-to-property-data.helper";
@@ -304,31 +303,23 @@ export function SearchComponent() {
     };
   }, []);
 
-  // Função para mapear SortOption local para SortBy/SortOrder/SortType da API
+  // Função para mapear SortOption local para SortBy/SortOrder da API
   const mapSortOptionToApi = (
     sortOption: SortOption
-  ): { sortBy?: SortBy; sortOrder?: SortOrder; sortType?: AreaType } => {
+  ): { sortBy?: SortBy; sortOrder?: SortOrder } => {
     switch (sortOption) {
       case "price-per-m2-asc":
-        return {
-          sortBy: "pricePerSquareMeter",
-          sortOrder: "asc",
-          sortType: "TOTAL",
-        };
+        return { sortBy: "pricePerSquareMeter", sortOrder: "asc" };
       case "price-per-m2-desc":
-        return {
-          sortBy: "pricePerSquareMeter",
-          sortOrder: "desc",
-          sortType: "TOTAL",
-        };
+        return { sortBy: "pricePerSquareMeter", sortOrder: "desc" };
       case "price-asc":
         return { sortBy: "price", sortOrder: "asc" };
       case "price-desc":
         return { sortBy: "price", sortOrder: "desc" };
       case "area-asc":
-        return { sortBy: "area", sortOrder: "asc", sortType: "TOTAL" };
+        return { sortBy: "area", sortOrder: "asc" };
       case "area-desc":
-        return { sortBy: "area", sortOrder: "desc", sortType: "TOTAL" };
+        return { sortBy: "area", sortOrder: "desc" };
       default:
         return {};
     }
@@ -729,8 +720,7 @@ export function SearchComponent() {
           1,
           itemsPerPage,
           sortConfig.sortBy,
-          sortConfig.sortOrder,
-          sortConfig.sortType
+          sortConfig.sortOrder
         );
 
         const response = await postPropertyAdSearch(
@@ -784,8 +774,7 @@ export function SearchComponent() {
           page,
           itemsPerPage,
           sortConfig.sortBy,
-          sortConfig.sortOrder,
-          sortConfig.sortType
+          sortConfig.sortOrder
         );
 
         const response = await postPropertyAdSearch(
@@ -844,13 +833,10 @@ export function SearchComponent() {
           setError(null);
 
           try {
-            // Aplicar ordenação mesmo quando não há filtros
-            const sortConfig = mapSortOptionToApi(sortBy);
             const apiRequest = {
               page: currentPage,
               size: itemsPerPage,
               requireAreaInfo: false,
-              ...sortConfig,
             };
 
             const response = await postPropertyAdSearch(
@@ -897,20 +883,16 @@ export function SearchComponent() {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     try {
-      // Aplicar ordenação mesmo na busca inicial
-      const sortConfig = mapSortOptionToApi(sortBy);
+      // Criar payload mínimo - apenas o essencial
+      // IMPORTANTE: Não usar mapFiltersToApi aqui, criar o payload diretamente
       const apiRequest: {
         page: number;
         size: number;
         requireAreaInfo: boolean;
-        sortBy?: SortBy;
-        sortOrder?: SortOrder;
-        sortType?: AreaType;
       } = {
         page: 1,
         size: itemsPerPage,
         requireAreaInfo: false,
-        ...sortConfig,
       };
 
       const response = await postPropertyAdSearch(
@@ -935,7 +917,7 @@ export function SearchComponent() {
         isFetchingInitial.current = false;
       }, 100);
     }
-  }, [itemsPerPage, auth.store.token, sortBy]);
+  }, [itemsPerPage, auth.store.token]);
 
   // Buscar propriedades iniciais quando o componente monta (sem filtros)
   useEffect(() => {
@@ -953,11 +935,7 @@ export function SearchComponent() {
   const handleSortChange = (newSortBy: SortOption) => {
     setSortBy(newSortBy);
     if (currentFilters) {
-      // Se há filtros, aplicar filtros novamente com nova ordenação
       applyFilters(currentFilters);
-    } else {
-      // Se não há filtros, buscar novamente com a nova ordenação
-      fetchInitialProperties();
     }
   };
 

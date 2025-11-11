@@ -724,6 +724,27 @@ export function FilterBar({
     }
   }, [externalFilters]);
 
+  // Função para limpar busca de endereço
+  const handleClearAddressSearch = useCallback(() => {
+    setSearchInputValue("");
+    setAutocompleteOptions([]);
+    handleFilterChange({
+      search: "",
+      addressCoordinates: undefined,
+      addressZoom: undefined,
+    });
+    // Aplicar filtros sem o endereço
+    const updatedFilters: FilterState = {
+      ...tempFilters,
+      search: "",
+      addressCoordinates: undefined,
+      addressZoom: undefined,
+    };
+    setTempFilters(updatedFilters);
+    setAppliedFilters(updatedFilters);
+    onFiltersChange(updatedFilters);
+  }, [tempFilters, handleFilterChange, onFiltersChange]);
+
   // Função para limpar todos os filtros
   const clearAllFilters = useCallback(() => {
     const clearedFilters: FilterState = {
@@ -966,6 +987,24 @@ export function FilterBar({
                     <Search sx={{ color: theme.palette.text.secondary }} />
                   </InputAdornment>
                 ),
+                endAdornment: tempFilters.search || tempFilters.addressCoordinates ? (
+                  <InputAdornment position="end">
+                    <IconButton
+                      size="small"
+                      onClick={handleClearAddressSearch}
+                      sx={{
+                        p: 0.5,
+                        color: theme.palette.text.secondary,
+                        "&:hover": {
+                          color: theme.palette.error.main,
+                          backgroundColor: theme.palette.error.light,
+                        },
+                      }}
+                    >
+                      <Close fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ) : null,
               }}
               onKeyPress={(e) => {
                 if (e.key === "Enter") {

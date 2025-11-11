@@ -6,7 +6,6 @@ import {
   useLoadScript,
   DrawingManager,
   Polygon,
-  Circle,
 } from "@react-google-maps/api";
 import {
   Box,
@@ -197,10 +196,7 @@ export function MapComponent({
     lng: number;
   } | null>(null);
   const [addressZoom, setAddressZoom] = useState<number | null>(null);
-  const [addressCircle, setAddressCircle] = useState<{
-    center: { lat: number; lng: number };
-    radius: number;
-  } | null>(null);
+  const addressCircleOverlayRef = useRef<google.maps.Circle | null>(null);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tokenRef = useRef<string | undefined>(token);
   const fetchMapDataRef = useRef<
@@ -377,43 +373,8 @@ export function MapComponent({
             setAddressZoom(null);
           }
 
-          // Processar geometry para desenhar círculo
-          if (response.data.geometry && response.data.geometry.length > 0) {
-            const circleGeometry = response.data.geometry.find(
-              (g) => g.type === "circle"
-            );
-            if (circleGeometry) {
-              // Extrair coordenadas - pode ser [lng, lat] ou [[lng, lat]]
-              let coords: [number, number];
-              if (Array.isArray(circleGeometry.coordinates[0])) {
-                coords = circleGeometry.coordinates[0] as [number, number];
-              } else {
-                coords = circleGeometry.coordinates as [number, number];
-              }
-
-              // Converter raio de string para número (metros)
-              const radiusStr = circleGeometry.radius || "1000";
-              const radius =
-                parseInt(radiusStr.replace(/[^0-9]/g, ""), 10) || 1000;
-
-              setAddressCircle({
-                center: { lat: coords[1], lng: coords[0] },
-                radius,
-              });
-            } else {
-              // Só limpar o círculo se não houver busca por endereço
-              // Se houver busca por endereço, manter o círculo criado automaticamente
-              if (!filters?.addressCoordinates) {
-                setAddressCircle(null);
-              }
-            }
-          } else {
-            // Só limpar o círculo se não houver busca por endereço
-            // Se houver busca por endereço, manter o círculo criado automaticamente
-            if (!filters?.addressCoordinates) {
-              setAddressCircle(null);
-            }
-          }
+          // O círculo agora é criado automaticamente como desenho editável quando há busca por endereço
+          // Não precisamos mais processar o círculo da resposta da API aqui
         } catch {
           setMapClusters([]);
           setMapPoints([]);
@@ -421,10 +382,6 @@ export function MapComponent({
           setAddressCenter(null);
           setAddressMarker(null);
           setAddressZoom(null);
-          // Só limpar o círculo se não houver busca por endereço
-          if (!filters?.addressCoordinates) {
-            setAddressCircle(null);
-          }
         } finally {
           setMapLoading(false);
         }
@@ -1120,6 +1077,17 @@ export function MapComponent({
       stopFreehand();
     }
 
+    // Limpar também o círculo de endereço se existir
+    if (addressCircleOverlayRef.current) {
+      const circle = addressCircleOverlayRef.current;
+      if (circle && circle.getMap()) {
+        circle.setMap(null);
+      }
+      addressCircleOverlayRef.current = null;
+    }
+    setAddressMarker(null);
+    setAddressCenter(null);
+
     // Limpar filtros para mostrar todas as propriedades
     if (onClearFilters) {
       onClearFilters();
@@ -1358,23 +1326,83 @@ export function MapComponent({
       setAddressCenter(null);
       setAddressMarker(null);
       setAddressZoom(null);
-      setAddressCircle(null);
     }
   }, [filters]);
 
-  // Criar círculo automaticamente quando há busca por endereço
+  // Limpar todos os desenhos quando os filtros são completamente limpos (sem drawingGeometry e sem addressCoordinates)
   useEffect(() => {
-    if (filters?.addressCoordinates) {
+    if (filters && !filters.drawingGeometry && !filters.addressCoordinates) {
+      // Se não há desenho nos filtros e não há busca por endereço, limpar todos os desenhos
+      // Mas só se houver desenhos para evitar loops
+      if (drawnOverlays.length > 0 || addressCircleOverlayRef.current) {
+        // Limpar todos os desenhos manualmente criados
+        drawnOverlays.forEach((overlay) => {
+          if (
+            overlay.overlay &&
+            overlay.overlay !== addressCircleOverlayRef.current
+          ) {
+            try {
+              if (typeof overlay.overlay.setMap === "function") {
+                overlay.overlay.setMap(null);
+              }
+            } catch (error) {
+              console.warn("Error removing overlay:", error);
+            }
+          }
+        });
+        setDrawnOverlays([]);
+
+        // Limpar círculo de endereço se existir
+        if (addressCircleOverlayRef.current) {
+          const circle = addressCircleOverlayRef.current;
+          if (circle && circle.getMap()) {
+            circle.setMap(null);
+          }
+          addressCircleOverlayRef.current = null;
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters?.drawingGeometry, filters?.addressCoordinates]);
+
+  // Criar círculo automaticamente quando há busca por endereço (como desenho editável)
+  useEffect(() => {
+    if (filters?.addressCoordinates && map) {
       const coords = filters.addressCoordinates;
-      // Criar círculo de 1000 metros de raio com o endereço como centro
-      setAddressCircle({
-        center: {
-          lat: coords.lat,
-          lng: coords.lng,
-        },
+
+      // Se já existe um círculo de endereço, não criar novamente
+      if (addressCircleOverlayRef.current) {
+        return;
+      }
+
+      // Criar círculo editável usando Google Maps API
+      const circle = new google.maps.Circle({
+        map,
+        center: new google.maps.LatLng(coords.lat, coords.lng),
         radius: 1000, // 1000 metros
+        fillColor: "#4285F4",
+        fillOpacity: 0.2,
+        strokeColor: "#4285F4",
+        strokeOpacity: 0.8,
+        strokeWeight: 2,
+        clickable: true,
+        editable: true,
+        draggable: true,
       });
-      // Também definir o marcador e centro
+
+      // Armazenar referência ao círculo do endereço
+      addressCircleOverlayRef.current = circle;
+
+      // Criar um evento fake para adicionar aos drawnOverlays
+      const fakeEvent = {
+        type: google.maps.drawing.OverlayType.CIRCLE,
+        overlay: circle,
+      } as unknown as google.maps.drawing.OverlayCompleteEvent;
+
+      // Adicionar aos desenhos
+      setDrawnOverlays((prev) => [...prev, fakeEvent]);
+
+      // Também atualizar estados para marcador e centro
       setAddressMarker({
         lat: coords.lat,
         lng: coords.lng,
@@ -1383,8 +1411,32 @@ export function MapComponent({
         lat: coords.lat,
         lng: coords.lng,
       });
+    } else if (
+      !filters?.addressCoordinates &&
+      addressCircleOverlayRef.current
+    ) {
+      // Remover círculo de endereço quando não há mais busca por endereço
+      const circle = addressCircleOverlayRef.current;
+
+      // Remover do mapa
+      if (circle && circle.getMap()) {
+        circle.setMap(null);
+      }
+
+      // Remover dos desenhos
+      setDrawnOverlays((prev) => {
+        return prev.filter((overlay) => {
+          // Remover apenas o círculo de endereço (identificado pela referência)
+          return overlay.overlay !== circle;
+        });
+      });
+
+      // Limpar referência
+      addressCircleOverlayRef.current = null;
+      setAddressMarker(null);
+      setAddressCenter(null);
     }
-  }, [filters?.addressCoordinates]);
+  }, [filters?.addressCoordinates, map]);
 
   // Se houver erro ao carregar o mapa
   if (loadError) {
@@ -1558,22 +1610,8 @@ export function MapComponent({
           });
         })()}
 
-        {/* Círculo e marcador do endereço (quando há busca por endereço) */}
-        {addressCircle && (
-          <Circle
-            center={addressCircle.center}
-            radius={addressCircle.radius}
-            options={{
-              fillColor: theme.palette.primary.main,
-              fillOpacity: 0.15,
-              strokeColor: theme.palette.primary.main,
-              strokeOpacity: 0.8,
-              strokeWeight: 2,
-              clickable: false,
-              zIndex: 5,
-            }}
-          />
-        )}
+        {/* Marcador do endereço (quando há busca por endereço) */}
+        {/* O círculo é criado automaticamente como desenho editável no useEffect */}
         {addressMarker && (
           <Marker
             position={addressMarker}
