@@ -301,9 +301,12 @@ export function MapComponent({
         return;
       }
 
-      // Só fazer busca se houver pelo menos uma cidade selecionada
-      if (!filters || !filters.cities || filters.cities.length === 0) {
-        // Limpar dados do mapa se não há cidade selecionada
+      // Só fazer busca se houver pelo menos uma cidade selecionada OU busca por endereço
+      const hasCities = filters?.cities && filters.cities.length > 0;
+      const hasAddressSearch = filters?.addressCoordinates !== undefined;
+
+      if (!filters || (!hasCities && !hasAddressSearch)) {
+        // Limpar dados do mapa se não há cidade selecionada nem busca por endereço
         setMapClusters([]);
         setMapPoints([]);
         return;
@@ -326,6 +329,7 @@ export function MapComponent({
             ? JSON.stringify({
                 cities: filters.cities?.sort(),
                 neighborhoods: filters.neighborhoods?.sort(),
+                addressCoordinates: filters.addressCoordinates,
                 venda: filters.venda,
                 aluguel: filters.aluguel,
               })
@@ -397,19 +401,30 @@ export function MapComponent({
                 radius,
               });
             } else {
-              setAddressCircle(null);
+              // Só limpar o círculo se não houver busca por endereço
+              // Se houver busca por endereço, manter o círculo criado automaticamente
+              if (!filters?.addressCoordinates) {
+                setAddressCircle(null);
+              }
             }
           } else {
-            setAddressCircle(null);
+            // Só limpar o círculo se não houver busca por endereço
+            // Se houver busca por endereço, manter o círculo criado automaticamente
+            if (!filters?.addressCoordinates) {
+              setAddressCircle(null);
+            }
           }
         } catch {
           setMapClusters([]);
           setMapPoints([]);
-          // Limpar estados de endereço em caso de erro
+          // Limpar estados de endereço em caso de erro, mas manter círculo se houver busca por endereço
           setAddressCenter(null);
           setAddressMarker(null);
           setAddressZoom(null);
-          setAddressCircle(null);
+          // Só limpar o círculo se não houver busca por endereço
+          if (!filters?.addressCoordinates) {
+            setAddressCircle(null);
+          }
         } finally {
           setMapLoading(false);
         }
@@ -522,6 +537,7 @@ export function MapComponent({
       cities: filters.cities?.sort(), // Ordenar para comparação consistente
       neighborhoods: filters.neighborhoods?.sort(),
       search: filters.search,
+      addressCoordinates: filters.addressCoordinates, // Incluir coordenadas do endereço
       venda: filters.venda,
       aluguel: filters.aluguel,
       residencial: filters.residencial,
@@ -1345,6 +1361,30 @@ export function MapComponent({
       setAddressCircle(null);
     }
   }, [filters]);
+
+  // Criar círculo automaticamente quando há busca por endereço
+  useEffect(() => {
+    if (filters?.addressCoordinates) {
+      const coords = filters.addressCoordinates;
+      // Criar círculo de 1000 metros de raio com o endereço como centro
+      setAddressCircle({
+        center: {
+          lat: coords.lat,
+          lng: coords.lng,
+        },
+        radius: 1000, // 1000 metros
+      });
+      // Também definir o marcador e centro
+      setAddressMarker({
+        lat: coords.lat,
+        lng: coords.lng,
+      });
+      setAddressCenter({
+        lat: coords.lat,
+        lng: coords.lng,
+      });
+    }
+  }, [filters?.addressCoordinates]);
 
   // Se houver erro ao carregar o mapa
   if (loadError) {
