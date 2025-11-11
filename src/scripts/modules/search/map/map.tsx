@@ -321,16 +321,13 @@ export function MapComponent({
         return;
       }
 
-      // Só fazer busca se houver pelo menos uma cidade selecionada OU busca por endereço OU desenho no mapa
-      const hasCities = filters?.cities && filters.cities.length > 0;
-      const hasAddressSearch = filters?.addressCoordinates !== undefined;
+      // Só fazer busca se houver pelo menos um bairro selecionado OU desenho no mapa
+      const hasNeighborhoods =
+        filters?.neighborhoods && filters.neighborhoods.length > 0;
       const hasDrawingGeometry = filters?.drawingGeometry !== undefined;
 
-      if (
-        !filters ||
-        (!hasCities && !hasAddressSearch && !hasDrawingGeometry)
-      ) {
-        // Limpar dados do mapa se não há cidade selecionada, busca por endereço nem desenho
+      if (!filters || (!hasNeighborhoods && !hasDrawingGeometry)) {
+        // Limpar dados do mapa se não há bairros selecionados nem desenho
         setMapClusters([]);
         setMapPoints([]);
         return;
@@ -588,7 +585,7 @@ export function MapComponent({
     });
   }, [filters]);
 
-  // Efeito para buscar quando filtros mudarem (especialmente cidades)
+  // Efeito para buscar quando filtros mudarem (especialmente bairros ou desenhos)
   useEffect(() => {
     if (!map || !useMapSearch || !token || !fetchMapDataRef.current) return;
 
@@ -599,7 +596,7 @@ export function MapComponent({
     const bounds = map.getBounds();
     if (!bounds) return;
 
-    // Fazer busca única quando filtros mudarem
+    // Fazer busca única quando filtros mudarem (a busca só será executada se houver bairros ou desenho)
     const newZoom = map.getZoom() || zoom;
     fetchMapDataRef.current(bounds, newZoom);
   }, [filtersKey, map, useMapSearch, token, zoom]);
