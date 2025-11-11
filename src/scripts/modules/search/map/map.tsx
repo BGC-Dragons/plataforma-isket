@@ -103,6 +103,26 @@ const defaultCenter = {
 
 const defaultZoom = 12;
 
+// Helper function to validate coordinates
+const isValidCoordinate = (
+  coord: { lat: number; lng: number } | null | undefined
+): boolean => {
+  if (!coord) return false;
+  const { lat, lng } = coord;
+  return (
+    typeof lat === "number" &&
+    typeof lng === "number" &&
+    !isNaN(lat) &&
+    !isNaN(lng) &&
+    isFinite(lat) &&
+    isFinite(lng) &&
+    lat >= -90 &&
+    lat <= 90 &&
+    lng >= -180 &&
+    lng <= 180
+  );
+};
+
 export function MapComponent({
   properties = [],
   onPropertyClick,
@@ -278,6 +298,14 @@ export function MapComponent({
 
       // API requer autenticação - verificar se token está disponível
       if (!currentToken) {
+        return;
+      }
+
+      // Só fazer busca se houver pelo menos uma cidade selecionada
+      if (!filters || !filters.cities || filters.cities.length === 0) {
+        // Limpar dados do mapa se não há cidade selecionada
+        setMapClusters([]);
+        setMapPoints([]);
         return;
       }
 
@@ -531,6 +559,12 @@ export function MapComponent({
   useEffect(() => {
     if (!map || !center || zoom === undefined) return;
 
+    // Validar coordenadas antes de usar
+    if (!isValidCoordinate(center)) {
+      console.warn("Invalid center coordinates:", center);
+      return;
+    }
+
     // Verificar se o centro ou zoom realmente mudaram
     const centerChanged =
       !previousCenterRef.current ||
@@ -692,26 +726,41 @@ export function MapComponent({
     // SEMPRE garantir que o mapa se move quando center muda
     isAnimatingRef.current = true;
 
-    if (centerChanged && zoomChanged) {
-      map.panTo(new google.maps.LatLng(center.lat, center.lng));
-      setTimeout(() => {
-        if (map) {
-          map.setZoom(zoom);
+    try {
+      if (centerChanged && zoomChanged) {
+        // Validar novamente antes de usar (defesa em profundidade)
+        if (isValidCoordinate(center)) {
+          map.panTo(new google.maps.LatLng(center.lat, center.lng));
+          setTimeout(() => {
+            if (map) {
+              map.setZoom(zoom);
+            }
+            setTimeout(() => {
+              isAnimatingRef.current = false;
+            }, 500);
+          }, 100);
+        } else {
+          isAnimatingRef.current = false;
         }
+      } else if (centerChanged) {
+        // Validar novamente antes de usar (defesa em profundidade)
+        if (isValidCoordinate(center)) {
+          map.panTo(new google.maps.LatLng(center.lat, center.lng));
+          setTimeout(() => {
+            isAnimatingRef.current = false;
+          }, 500);
+        } else {
+          isAnimatingRef.current = false;
+        }
+      } else if (zoomChanged) {
+        map.setZoom(zoom);
         setTimeout(() => {
           isAnimatingRef.current = false;
         }, 500);
-      }, 100);
-    } else if (centerChanged) {
-      map.panTo(new google.maps.LatLng(center.lat, center.lng));
-      setTimeout(() => {
-        isAnimatingRef.current = false;
-      }, 500);
-    } else if (zoomChanged) {
-      map.setZoom(zoom);
-      setTimeout(() => {
-        isAnimatingRef.current = false;
-      }, 500);
+      }
+    } catch (error) {
+      console.error("Error panning/zooming map:", error);
+      isAnimatingRef.current = false;
     }
 
     // Atualizar refs
@@ -873,18 +922,25 @@ export function MapComponent({
       if (!boundsData) return;
 
       // Fazer zoom no bairro
-      const bounds = new google.maps.LatLngBounds();
-      boundsData.paths.forEach((path) => {
-        bounds.extend(new google.maps.LatLng(path.lat, path.lng));
-      });
-
-      if (bounds && bounds.getNorthEast() && bounds.getSouthWest()) {
-        map.fitBounds(bounds, {
-          top: 50,
-          right: 50,
-          bottom: 50,
-          left: 50,
+      try {
+        const bounds = new google.maps.LatLngBounds();
+        boundsData.paths.forEach((path) => {
+          // Validar coordenadas antes de adicionar ao bounds
+          if (isValidCoordinate(path)) {
+            bounds.extend(new google.maps.LatLng(path.lat, path.lng));
+          }
         });
+
+        if (bounds && bounds.getNorthEast() && bounds.getSouthWest()) {
+          map.fitBounds(bounds, {
+            top: 50,
+            right: 50,
+            bottom: 50,
+            left: 50,
+          });
+        }
+      } catch (error) {
+        console.error("Error fitting bounds to neighborhood:", error);
       }
 
       // Chamar callback para atualizar filtros
@@ -1020,7 +1076,23 @@ export function MapComponent({
   const clearAllDrawings = () => {
     drawnOverlays.forEach((overlay) => {
       if (overlay.overlay) {
-        overlay.overlay.setMap(null);
+        try {
+          // Verificar se o overlay tem o método setMap antes de usar
+          if (typeof overlay.overlay.setMap === "function") {
+            overlay.overlay.setMap(null);
+          } else {
+            // Alguns overlays podem ter método remove ao invés de setMap
+            // Usar type assertion para acessar método remove se existir
+            const overlayWithRemove = overlay.overlay as unknown as {
+              remove?: () => void;
+            };
+            if (typeof overlayWithRemove.remove === "function") {
+              overlayWithRemove.remove();
+            }
+          }
+        } catch (error) {
+          console.warn("Error removing overlay:", error);
+        }
       }
     });
     setDrawnOverlays([]);
@@ -1193,41 +1265,65 @@ export function MapComponent({
     if (map) {
       // Priorizar addressCenter/addressZoom da resposta da API (searchMap)
       if (addressCenter && addressZoom !== null) {
-        // Marcar que estamos animando para evitar que os listeners disparem
-        isAnimatingRef.current = true;
+        // Validar coordenadas antes de usar
+        if (!isValidCoordinate(addressCenter)) {
+          console.warn("Invalid addressCenter coordinates:", addressCenter);
+          return;
+        }
 
-        map.panTo(new google.maps.LatLng(addressCenter.lat, addressCenter.lng));
-        map.setZoom(addressZoom);
-
-        // Resetar flag após animação
-        setTimeout(() => {
-          isAnimatingRef.current = false;
-        }, 1000);
-      }
-      // Se não há addressCenter da API mas há center/zoom das props e há busca por endereço nos filtros
-      else if (filters?.addressCoordinates && center && zoom) {
-        // Verificar se o centro atual é diferente do centro desejado
-        const currentCenter = map.getCenter();
-        const targetCenter = new google.maps.LatLng(center.lat, center.lng);
-        const currentZoom = map.getZoom() || zoom;
-
-        // Só centralizar se o centro ou zoom forem diferentes
-        if (
-          !currentCenter ||
-          Math.abs(currentCenter.lat() - center.lat) > 0.0001 ||
-          Math.abs(currentCenter.lng() - center.lng) > 0.0001 ||
-          Math.abs(currentZoom - zoom) > 0.5
-        ) {
+        try {
           // Marcar que estamos animando para evitar que os listeners disparem
           isAnimatingRef.current = true;
 
-          map.panTo(targetCenter);
-          map.setZoom(zoom);
+          map.panTo(
+            new google.maps.LatLng(addressCenter.lat, addressCenter.lng)
+          );
+          map.setZoom(addressZoom);
 
           // Resetar flag após animação
           setTimeout(() => {
             isAnimatingRef.current = false;
           }, 1000);
+        } catch (error) {
+          console.error("Error panning to addressCenter:", error);
+          isAnimatingRef.current = false;
+        }
+      }
+      // Se não há addressCenter da API mas há center/zoom das props e há busca por endereço nos filtros
+      else if (filters?.addressCoordinates && center && zoom) {
+        // Validar coordenadas antes de usar
+        if (!isValidCoordinate(center)) {
+          console.warn("Invalid center coordinates:", center);
+          return;
+        }
+
+        try {
+          // Verificar se o centro atual é diferente do centro desejado
+          const currentCenter = map.getCenter();
+          const targetCenter = new google.maps.LatLng(center.lat, center.lng);
+          const currentZoom = map.getZoom() || zoom;
+
+          // Só centralizar se o centro ou zoom forem diferentes
+          if (
+            !currentCenter ||
+            Math.abs(currentCenter.lat() - center.lat) > 0.0001 ||
+            Math.abs(currentCenter.lng() - center.lng) > 0.0001 ||
+            Math.abs(currentZoom - zoom) > 0.5
+          ) {
+            // Marcar que estamos animando para evitar que os listeners disparem
+            isAnimatingRef.current = true;
+
+            map.panTo(targetCenter);
+            map.setZoom(zoom);
+
+            // Resetar flag após animação
+            setTimeout(() => {
+              isAnimatingRef.current = false;
+            }, 1000);
+          }
+        } catch (error) {
+          console.error("Error panning to center:", error);
+          isAnimatingRef.current = false;
         }
       }
     }
@@ -1386,6 +1482,9 @@ export function MapComponent({
               neighborhood.name
             );
 
+            // Desabilitar cliques e hovers quando um modo de desenho estiver ativo
+            const isDrawingActive = drawingMode !== null || freehandActive;
+
             return (
               <Polygon
                 key={neighborhood.id}
@@ -1396,16 +1495,24 @@ export function MapComponent({
                   strokeColor: theme.palette.primary.main,
                   strokeOpacity: isSelected ? 1 : 0.8, // Mais visível se selecionado
                   strokeWeight: isSelected ? 3 : 2, // Mais espesso se selecionado
-                  clickable: true,
+                  clickable: !isDrawingActive, // Desabilitar cliques quando desenhando
                   editable: false,
                   draggable: false,
                   zIndex: isSelected ? 2 : 1, // Bairros selecionados ficam na frente
                 }}
-                onMouseOver={(e) =>
-                  handleNeighborhoodMouseOver(neighborhood, e)
+                onMouseOver={
+                  !isDrawingActive
+                    ? (e) => handleNeighborhoodMouseOver(neighborhood, e)
+                    : undefined
                 }
-                onMouseOut={handleNeighborhoodMouseOut}
-                onClick={() => handleNeighborhoodClick(neighborhood)}
+                onMouseOut={
+                  !isDrawingActive ? handleNeighborhoodMouseOut : undefined
+                }
+                onClick={
+                  !isDrawingActive
+                    ? () => handleNeighborhoodClick(neighborhood)
+                    : undefined
+                }
               />
             );
           });

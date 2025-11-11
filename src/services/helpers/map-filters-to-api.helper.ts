@@ -130,7 +130,8 @@ export const mapFiltersToApi = (
   page: number = 1,
   size: number = 20,
   sortBy?: SortBy,
-  sortOrder?: SortOrder
+  sortOrder?: SortOrder,
+  sortType?: AreaType
 ): IPostPropertyAdSearchRequest => {
   const request: IPostPropertyAdSearchRequest = {
     page,
@@ -144,7 +145,11 @@ export const mapFiltersToApi = (
   if (sortOrder) {
     request.sortOrder = sortOrder;
   }
-  if (sortBy === "area") {
+  // sortType é obrigatório quando sortBy é "area" ou "pricePerSquareMeter"
+  if (sortType) {
+    request.sortType = sortType;
+  } else if (sortBy === "area" || sortBy === "pricePerSquareMeter") {
+    // Fallback: usar "TOTAL" como padrão se sortType não foi fornecido
     request.sortType = "TOTAL" as AreaType;
   }
 
