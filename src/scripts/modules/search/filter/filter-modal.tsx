@@ -33,6 +33,14 @@ interface FilterState {
   search: string;
   cities: string[];
   neighborhoods: string[];
+  // Coordenadas do endereço selecionado (quando há busca por endereço)
+  addressCoordinates?: { lat: number; lng: number };
+  addressZoom?: number;
+  // Geometrias dos desenhos no mapa (quando há desenhos)
+  drawingGeometries?: Array<
+    | { type: "Polygon"; coordinates: number[][][] }
+    | { type: "circle"; coordinates: [[number, number]]; radius: string }
+  >;
   // Negócio
   venda: boolean;
   aluguel: boolean;
@@ -310,6 +318,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
 
   const handleApplyFilters = () => {
     // Preservar a cidade se não estiver nos filtros
+    // E preservar drawingGeometries e addressCoordinates dos filtros iniciais
     const filtersWithCity = {
       ...filters,
       cities:
@@ -318,6 +327,10 @@ export const FilterModal: React.FC<FilterModalProps> = ({
           : initialFilters?.cities && initialFilters.cities.length > 0
           ? initialFilters.cities
           : [],
+      // Preservar drawingGeometries e addressCoordinates dos filtros iniciais
+      drawingGeometries: initialFilters?.drawingGeometries,
+      addressCoordinates: initialFilters?.addressCoordinates,
+      addressZoom: initialFilters?.addressZoom,
     };
     onApplyFilters(filtersWithCity);
     onClose();

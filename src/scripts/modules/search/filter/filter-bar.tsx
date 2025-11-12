@@ -29,6 +29,11 @@ interface FilterState {
   // Coordenadas do endereço selecionado (quando há busca por endereço)
   addressCoordinates?: { lat: number; lng: number };
   addressZoom?: number;
+  // Geometrias dos desenhos no mapa (quando há desenhos)
+  drawingGeometries?: Array<
+    | { type: "Polygon"; coordinates: number[][][] }
+    | { type: "circle"; coordinates: [[number, number]]; radius: string }
+  >;
   // Negócio
   venda: boolean;
   aluguel: boolean;
@@ -213,6 +218,10 @@ export function FilterBar({
       cities,
       // Limpar bairros quando as cidades mudarem (serão recarregados)
       neighborhoods: [],
+      // Preservar drawingGeometries e addressCoordinates
+      drawingGeometries: tempFilters.drawingGeometries || appliedFilters.drawingGeometries || externalFilters?.drawingGeometries,
+      addressCoordinates: tempFilters.addressCoordinates || appliedFilters.addressCoordinates || externalFilters?.addressCoordinates,
+      addressZoom: tempFilters.addressZoom || appliedFilters.addressZoom || externalFilters?.addressZoom,
     };
     setTempFilters(updatedFilters);
     setNeighborhoods([]);
@@ -223,7 +232,7 @@ export function FilterBar({
     
     // Notificar mudança imediatamente para centralizar o mapa
     onFiltersChange(updatedFilters);
-  }, [tempFilters, onFiltersChange]);
+  }, [tempFilters, appliedFilters, externalFilters, onFiltersChange]);
 
   // Função para limpar todas as cidades selecionadas
   const handleClearCities = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
@@ -291,40 +300,82 @@ export function FilterBar({
         ? appliedFilters.cities 
         : [defaultCity];
       
+      // Preservar drawingGeometries e addressCoordinates dos filtros externos ou aplicados
+      const preservedDrawingGeometries = 
+        filters.drawingGeometries || 
+        externalFilters?.drawingGeometries || 
+        appliedFilters.drawingGeometries;
+      const preservedAddressCoordinates = 
+        filters.addressCoordinates || 
+        externalFilters?.addressCoordinates || 
+        appliedFilters.addressCoordinates;
+      const preservedAddressZoom = 
+        filters.addressZoom || 
+        externalFilters?.addressZoom || 
+        appliedFilters.addressZoom;
+      
       const filtersWithCity = {
         ...filters,
         cities: filters.cities.length > 0 ? filters.cities : currentCity,
+        // Preservar drawingGeometries e addressCoordinates
+        drawingGeometries: preservedDrawingGeometries,
+        addressCoordinates: preservedAddressCoordinates,
+        addressZoom: preservedAddressZoom,
       };
       setAppliedFilters(filtersWithCity);
       setTempFilters(filtersWithCity);
       onFiltersChange(filtersWithCity);
     },
-    [onFiltersChange, tempFilters.cities, appliedFilters.cities, defaultCity]
+    [onFiltersChange, tempFilters.cities, appliedFilters, externalFilters, defaultCity]
   );
 
   // Função para toggle de checkboxes
   const handleCheckboxChange = useCallback((filterType: keyof FilterState) => {
-    setAppliedFilters((prev) => ({
-      ...prev,
-      [filterType]: !prev[filterType],
-    }));
-    setTempFilters((prev) => ({
-      ...prev,
-      [filterType]: !prev[filterType],
-    }));
-  }, []);
+    const updatedAppliedFilters = {
+      ...appliedFilters,
+      [filterType]: !appliedFilters[filterType],
+      // Preservar drawingGeometries e addressCoordinates
+      drawingGeometries: appliedFilters.drawingGeometries || externalFilters?.drawingGeometries,
+      addressCoordinates: appliedFilters.addressCoordinates || externalFilters?.addressCoordinates,
+      addressZoom: appliedFilters.addressZoom || externalFilters?.addressZoom,
+    };
+    const updatedTempFilters = {
+      ...tempFilters,
+      [filterType]: !tempFilters[filterType],
+      // Preservar drawingGeometries e addressCoordinates
+      drawingGeometries: tempFilters.drawingGeometries || externalFilters?.drawingGeometries,
+      addressCoordinates: tempFilters.addressCoordinates || externalFilters?.addressCoordinates,
+      addressZoom: tempFilters.addressZoom || externalFilters?.addressZoom,
+    };
+    
+    setAppliedFilters(updatedAppliedFilters);
+    setTempFilters(updatedTempFilters);
+    // Aplicar filtros automaticamente quando um checkbox é alterado
+    onFiltersChange(updatedAppliedFilters);
+  }, [appliedFilters, tempFilters, externalFilters, onFiltersChange]);
 
   // Função para pesquisar
   const handleSearch = useCallback(() => {
-    setAppliedFilters(tempFilters);
-    onFiltersChange(tempFilters);
-  }, [tempFilters, onFiltersChange]);
+    // Preservar drawingGeometries e addressCoordinates dos filtros aplicados ou externos
+    const filtersWithPreserved = {
+      ...tempFilters,
+      drawingGeometries: tempFilters.drawingGeometries || appliedFilters.drawingGeometries || externalFilters?.drawingGeometries,
+      addressCoordinates: tempFilters.addressCoordinates || appliedFilters.addressCoordinates || externalFilters?.addressCoordinates,
+      addressZoom: tempFilters.addressZoom || appliedFilters.addressZoom || externalFilters?.addressZoom,
+    };
+    setAppliedFilters(filtersWithPreserved);
+    onFiltersChange(filtersWithPreserved);
+  }, [tempFilters, appliedFilters, externalFilters, onFiltersChange]);
 
   // Função para lidar com mudança de bairros
   const handleNeighborhoodChange = useCallback((neighborhoods: string[]) => {
     const updatedFilters = {
       ...tempFilters,
       neighborhoods,
+      // Preservar drawingGeometries e addressCoordinates
+      drawingGeometries: tempFilters.drawingGeometries || appliedFilters.drawingGeometries || externalFilters?.drawingGeometries,
+      addressCoordinates: tempFilters.addressCoordinates || appliedFilters.addressCoordinates || externalFilters?.addressCoordinates,
+      addressZoom: tempFilters.addressZoom || appliedFilters.addressZoom || externalFilters?.addressZoom,
     };
     setTempFilters(updatedFilters);
     
@@ -333,7 +384,7 @@ export function FilterBar({
     
     // Aplicar filtros automaticamente quando um bairro for selecionado para centralizar o mapa
     onFiltersChange(updatedFilters);
-  }, [tempFilters, onFiltersChange]);
+  }, [tempFilters, appliedFilters, externalFilters, onFiltersChange]);
 
   // Função para limpar todos os bairros selecionados
   const handleClearNeighborhoods = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
@@ -595,6 +646,8 @@ export function FilterBar({
                   // Se o usuário quiser filtrar por cidade, ele pode selecionar manualmente
                   addressCoordinates: coordinatesToStore,
                   addressZoom: zoomToStore,
+                  // Preservar drawingGeometries
+                  drawingGeometries: tempFilters.drawingGeometries || appliedFilters.drawingGeometries || externalFilters?.drawingGeometries,
                 };
                 setTempFilters(updatedFilters);
                 onFiltersChange(updatedFilters);
@@ -733,17 +786,19 @@ export function FilterBar({
       addressCoordinates: undefined,
       addressZoom: undefined,
     });
-    // Aplicar filtros sem o endereço
+    // Aplicar filtros sem o endereço, mas preservar drawingGeometries
     const updatedFilters: FilterState = {
       ...tempFilters,
       search: "",
       addressCoordinates: undefined,
       addressZoom: undefined,
+      // Preservar drawingGeometries
+      drawingGeometries: tempFilters.drawingGeometries || appliedFilters.drawingGeometries || externalFilters?.drawingGeometries,
     };
     setTempFilters(updatedFilters);
     setAppliedFilters(updatedFilters);
     onFiltersChange(updatedFilters);
-  }, [tempFilters, handleFilterChange, onFiltersChange]);
+  }, [tempFilters, appliedFilters, externalFilters, handleFilterChange, onFiltersChange]);
 
   // Função para limpar todos os filtros
   const clearAllFilters = useCallback(() => {
