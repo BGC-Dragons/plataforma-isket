@@ -643,9 +643,7 @@ export function MapComponent({
 
     if (!map) return;
 
-    // Validar coordenadas antes de usar
     if (!isValidCoordinate(effectiveCenter)) {
-      console.warn("Invalid center coordinates:", effectiveCenter);
       return;
     }
 
@@ -881,8 +879,7 @@ export function MapComponent({
           isAnimatingRef.current = false;
         }, 500);
       }
-    } catch (error) {
-      console.error("Error panning/zooming map:", error);
+    } catch {
       isAnimatingRef.current = false;
     }
 
@@ -948,22 +945,14 @@ export function MapComponent({
     tooltipOverlayRef.current = overlay;
 
     return () => {
-      // Limpar tooltip overlay ANTES de qualquer outra coisa
-      // Isso previne que o Google Maps tente limpá-lo automaticamente quando o mapa muda
       if (tooltipOverlayRef.current) {
         try {
-          console.log("🟠 [MAP] Tooltip cleanup - Removendo tooltip overlay");
           const overlay = tooltipOverlayRef.current;
-          // Verificar se o overlay ainda está no mapa antes de remover
           if (overlay && typeof overlay.setMap === "function") {
             overlay.setMap(null);
-            console.log("🟠 [MAP] Tooltip cleanup - Tooltip overlay removido");
           }
-        } catch (error) {
-          console.error(
-            "🟠 [MAP] Tooltip cleanup - Erro ao remover tooltip:",
-            error
-          );
+        } catch {
+          // Ignorar erros
         } finally {
           tooltipOverlayRef.current = null;
         }
@@ -1086,8 +1075,8 @@ export function MapComponent({
             }
           }, 600);
         }
-      } catch (error) {
-        console.error("Error fitting bounds to neighborhood:", error);
+      } catch {
+        // Ignorar erros
       }
 
       // Chamar callback para atualizar filtros
@@ -1373,35 +1362,12 @@ export function MapComponent({
     });
     overlayListenersRef.current.clear();
 
-    console.log(
-      "🟡 [MAP] handleClearFilters - Limpando overlays:",
-      drawnOverlays.length
-    );
-    drawnOverlays.forEach((overlay, index) => {
-      if (overlay.overlay) {
+    drawnOverlays.forEach((overlay) => {
+      if (overlay.overlay?.setMap) {
         try {
-          console.log(
-            `🟡 [MAP] handleClearFilters - Removendo overlay ${index}`
-          );
-          // Verificar se o overlay tem o método setMap antes de usar
-          if (typeof overlay.overlay.setMap === "function") {
-            overlay.overlay.setMap(null);
-            console.log(
-              `🟡 [MAP] handleClearFilters - Overlay ${index} removido com setMap(null)`
-            );
-          } else {
-            // NÃO usar remove() - isso pode causar o erro b.overlay.remove
-            // Sempre usar setMap(null) que é mais seguro
-            console.warn(
-              `🟡 [MAP] handleClearFilters - Overlay ${index} não tem setMap, pulando`
-            );
-            // REMOVIDO: overlayWithRemove.remove() - isso estava causando o erro
-          }
-        } catch (error) {
-          console.error(
-            `🟡 [MAP] handleClearFilters - Erro ao remover overlay ${index}:`,
-            error
-          );
+          overlay.overlay.setMap(null);
+        } catch {
+          // Ignorar erros
         }
       }
     });
@@ -1607,7 +1573,6 @@ export function MapComponent({
       if (addressCenter && addressZoom !== null) {
         // Validar coordenadas antes de usar
         if (!isValidCoordinate(addressCenter)) {
-          console.warn("Invalid addressCenter coordinates:", addressCenter);
           return;
         }
 
@@ -1624,8 +1589,7 @@ export function MapComponent({
           setTimeout(() => {
             isAnimatingRef.current = false;
           }, 1000);
-        } catch (error) {
-          console.error("Error panning to addressCenter:", error);
+        } catch {
           isAnimatingRef.current = false;
         }
       }
@@ -1633,7 +1597,6 @@ export function MapComponent({
       else if (filters?.addressCoordinates && center && zoom) {
         // Validar coordenadas antes de usar
         if (!isValidCoordinate(center)) {
-          console.warn("Invalid center coordinates:", center);
           return;
         }
 
@@ -1661,8 +1624,7 @@ export function MapComponent({
               isAnimatingRef.current = false;
             }, 1000);
           }
-        } catch (error) {
-          console.error("Error panning to center:", error);
+        } catch {
           isAnimatingRef.current = false;
         }
       }
@@ -1701,8 +1663,8 @@ export function MapComponent({
               if (typeof overlay.overlay.setMap === "function") {
                 overlay.overlay.setMap(null);
               }
-            } catch (error) {
-              console.warn("Error removing overlay:", error);
+            } catch {
+              // Ignorar erros
             }
           }
         });
@@ -1846,23 +1808,11 @@ export function MapComponent({
     });
   }, [neighborhoods, allNeighborhoodsForCityBounds, selectedNeighborhoodNames]);
 
-  // useLayoutEffect para desabilitar DrawingManager ANTES da desmontagem visual
-  // Isso previne que a biblioteca tente limpar overlays automaticamente
   useLayoutEffect(() => {
-    console.log("🔵 [MAP] useLayoutEffect - Componente montado");
-
-    // Copiar referências para evitar problemas de stale closures no cleanup
     const neighborhoodPolygons = neighborhoodPolygonsRef.current;
     const drawnOverlays = drawnOverlaysRef.current;
     const drawingManager = drawingManagerRef.current;
 
-    console.log("🔵 [MAP] useLayoutEffect - Referências copiadas:", {
-      hasDrawingManager: !!drawingManager,
-      drawnOverlaysCount: drawnOverlays.length,
-      neighborhoodPolygonsCount: neighborhoodPolygons.size,
-    });
-
-    // Configurar handler de erro ANTES do cleanup para capturar erros durante a desmontagem
     const originalErrorHandler = window.onerror;
     const originalUnhandledRejection = window.onunhandledrejection;
 
@@ -1890,14 +1840,10 @@ export function MapComponent({
         errorMessage.includes("b.overlay.remove") ||
         errorStack.includes("overlay.remove") ||
         errorStack.includes("b.overlay.remove") ||
-        errorStack.includes("map_changed") || // Erro pode vir de map_changed
-        errorStack.includes("commitPassiveUnmountEffects"); // Erro durante desmontagem do React
+        errorStack.includes("map_changed") ||
+        errorStack.includes("commitPassiveUnmountEffects");
 
       if (isOverlayRemoveError) {
-        console.debug(
-          "Erro de overlay.remove suprimido durante cleanup:",
-          message
-        );
         return true;
       }
       if (originalErrorHandler) {
@@ -1925,14 +1871,10 @@ export function MapComponent({
         reasonMessage.includes("overlay.remove is not a function") ||
         reasonStack.includes("overlay.remove") ||
         reasonStack.includes("b.overlay.remove") ||
-        reasonStack.includes("map_changed") || // Erro pode vir de map_changed
-        reasonStack.includes("commitPassiveUnmountEffects"); // Erro durante desmontagem do React
+        reasonStack.includes("map_changed") ||
+        reasonStack.includes("commitPassiveUnmountEffects");
 
       if (isOverlayRemoveError) {
-        console.debug(
-          "Rejeição de overlay.remove suprimida durante cleanup:",
-          reasonMessage
-        );
         event.preventDefault();
         return;
       }
@@ -1941,200 +1883,98 @@ export function MapComponent({
       }
     };
 
-    // Configurar handlers ANTES do cleanup
     window.onerror = errorHandler;
     window.addEventListener("unhandledrejection", rejectionHandler);
 
     return () => {
-      console.log("🔴 [MAP] useLayoutEffect cleanup - INICIANDO");
-      console.log("🔴 [MAP] Cleanup - Estado:", {
-        hasDrawingManager: !!drawingManager,
-        drawnOverlaysCount: drawnOverlays.length,
-        neighborhoodPolygonsCount: neighborhoodPolygons.size,
-      });
-
-      // PRIMEIRO: Limpar tooltip overlay ANTES de qualquer outra coisa
-      // Isso previne que o Google Maps tente limpá-lo quando o mapa muda
+      // Limpar tooltip overlay primeiro
       try {
         const tooltipOverlay = tooltipOverlayRef.current;
-        if (tooltipOverlay) {
-          console.log("🔴 [MAP] Cleanup - Removendo tooltip overlay");
-          if (typeof tooltipOverlay.setMap === "function") {
-            tooltipOverlay.setMap(null);
-            console.log("🔴 [MAP] Cleanup - Tooltip overlay removido");
-          }
-          tooltipOverlayRef.current = null;
+        if (tooltipOverlay && typeof tooltipOverlay.setMap === "function") {
+          tooltipOverlay.setMap(null);
         }
-      } catch (error) {
-        console.error("🔴 [MAP] Cleanup - Erro ao remover tooltip:", error);
+        tooltipOverlayRef.current = null;
+      } catch {
+        // Ignorar erros durante cleanup
       }
 
-      // SEGUNDO: Desabilitar o DrawingManager IMEDIATAMENTE
-      // Isso previne que ele tente limpar overlays automaticamente
+      // Desabilitar DrawingManager e limpar overlays internos
       try {
         if (drawingManager) {
-          console.log("🔴 [MAP] Cleanup - Desabilitando DrawingManager");
-          // Desabilitar modo de desenho primeiro - CRÍTICO para evitar erros
           drawingManager.setDrawingMode(null);
 
-          // Tentar limpar overlays internos do DrawingManager ANTES de qualquer outra coisa
           const manager = drawingManager as unknown as {
             overlays?: Array<{
               overlay?: {
-                remove?: () => void;
                 setMap?: (map: google.maps.Map | null) => void;
               };
             }>;
           };
 
-          // Remover overlays do DrawingManager usando setMap(null)
-          // Isso remove as referências antes que o DrawingManager tente limpá-las
           if (Array.isArray(manager.overlays)) {
-            console.log(
-              "🔴 [MAP] Cleanup - Limpando overlays do DrawingManager:",
-              manager.overlays.length
-            );
-            manager.overlays.forEach((item, index) => {
-              if (item?.overlay) {
+            manager.overlays.forEach((item) => {
+              if (item?.overlay?.setMap) {
                 try {
-                  console.log(
-                    `🔴 [MAP] Cleanup - Removendo overlay ${index} do DrawingManager`
-                  );
-                  // Usar setMap(null) ao invés de remove() para evitar erros
-                  if (typeof item.overlay.setMap === "function") {
-                    item.overlay.setMap(null);
-                    console.log(
-                      `🔴 [MAP] Cleanup - Overlay ${index} removido com sucesso`
-                    );
-                  } else {
-                    console.warn(
-                      `🔴 [MAP] Cleanup - Overlay ${index} não tem setMap`
-                    );
-                  }
-                } catch (error) {
-                  console.error(
-                    `🔴 [MAP] Cleanup - Erro ao remover overlay ${index}:`,
-                    error
-                  );
+                  item.overlay.setMap(null);
+                } catch {
+                  // Ignorar erros
                 }
               }
             });
-            // Limpar array de overlays do manager para evitar que ele tente limpá-los
             manager.overlays = [];
-            console.log(
-              "🔴 [MAP] Cleanup - Array de overlays do DrawingManager limpo"
-            );
-          } else {
-            console.log(
-              "🔴 [MAP] Cleanup - DrawingManager não tem array de overlays"
-            );
           }
-
-          console.log("🔴 [MAP] Cleanup - DrawingManager desabilitado");
         }
-      } catch (error) {
-        console.error(
-          "🔴 [MAP] Cleanup - Erro ao desabilitar DrawingManager:",
-          error
-        );
+      } catch {
+        // Ignorar erros
       }
 
-      // Desabilitar renderização do DrawingManager com delay
-      // Isso dá tempo ao Google Maps limpar internamente antes do React desmontar
-      // Não precisamos desabilitar a renderização - o handler de erro já captura o erro
-
-      // SEGUNDO: Limpar polígonos dos bairros
-      // Isso previne que o Google Maps tente remover polígonos que já foram removidos
+      // Limpar polígonos dos bairros
       try {
-        console.log(
-          "🔴 [MAP] Cleanup - Limpando polígonos dos bairros:",
-          neighborhoodPolygons.size
-        );
-        neighborhoodPolygons.forEach((polygon, index) => {
+        neighborhoodPolygons.forEach((polygon) => {
           if (polygon && typeof polygon.setMap === "function") {
             try {
               polygon.setMap(null);
-            } catch (error) {
-              console.error(
-                `🔴 [MAP] Cleanup - Erro ao remover polígono ${index}:`,
-                error
-              );
+            } catch {
+              // Ignorar erros
             }
           }
         });
         neighborhoodPolygons.clear();
-        console.log("🔴 [MAP] Cleanup - Polígonos dos bairros limpos");
-      } catch (error) {
-        console.error("🔴 [MAP] Cleanup - Erro ao limpar polígonos:", error);
+      } catch {
+        // Ignorar erros
       }
 
-      // TERCEIRO: Remover todos os overlays do mapa
-      // Isso limpa qualquer overlay restante que não foi gerenciado pelo DrawingManager
-      console.log(
-        "🔴 [MAP] Cleanup - Limpando drawnOverlays:",
-        drawnOverlays.length
-      );
-      drawnOverlays.forEach((overlay, index) => {
-        if (overlay?.overlay) {
+      // Remover overlays desenhados
+      drawnOverlays.forEach((overlay) => {
+        if (overlay?.overlay?.setMap) {
           try {
-            console.log(`🔴 [MAP] Cleanup - Removendo drawnOverlay ${index}`);
-            if (typeof overlay.overlay.setMap === "function") {
-              overlay.overlay.setMap(null);
-              console.log(
-                `🔴 [MAP] Cleanup - drawnOverlay ${index} removido com sucesso`
-              );
-            } else {
-              console.warn(
-                `🔴 [MAP] Cleanup - drawnOverlay ${index} não tem setMap`
-              );
-            }
-          } catch (error) {
-            console.error(
-              `🔴 [MAP] Cleanup - Erro ao remover drawnOverlay ${index}:`,
-              error
-            );
+            overlay.overlay.setMap(null);
+          } catch {
+            // Ignorar erros
           }
         }
       });
-      console.log("🔴 [MAP] Cleanup - drawnOverlays limpos");
 
-      // Restaurar handlers de erro originais após cleanup
+      // Restaurar handlers de erro originais
       window.onerror = originalErrorHandler || null;
       window.removeEventListener("unhandledrejection", rejectionHandler);
-      console.log("🔴 [MAP] useLayoutEffect cleanup - FINALIZADO");
     };
   }, []);
 
-  // Cleanup quando o componente é desmontado (navegação para outra página)
   useEffect(() => {
-    console.log("🟢 [MAP] useEffect cleanup - Componente montado");
-
-    // Copiar referências para evitar problemas de stale closures no cleanup
     const overlayListeners = overlayListenersRef.current;
     const neighborhoodPolygons = neighborhoodPolygonsRef.current;
     const drawnOverlays = drawnOverlaysRef.current;
     const drawingManager = drawingManagerRef.current;
-
-    console.log("🟢 [MAP] useEffect cleanup - Referências copiadas:", {
-      hasDrawingManager: !!drawingManager,
-      drawnOverlaysCount: drawnOverlays.length,
-      neighborhoodPolygonsCount: neighborhoodPolygons.size,
-      overlayListenersCount: overlayListeners.size,
-    });
-
-    // Handler de erro global para capturar erros durante cleanup
     const originalErrorHandler = window.onerror;
     const originalUnhandledRejection = window.onunhandledrejection;
 
     window.onerror = (message, source, lineno, colno, error) => {
-      // Suprimir erros relacionados a overlay.remove durante cleanup
       const messageStr = String(message || "");
       const sourceStr = String(source || "");
       const errorMessage = error?.message ? String(error.message) : "";
       const errorStack = error?.stack ? String(error.stack) : "";
 
-      // Verificar se é o erro específico de overlay.remove
-      // Incluindo o erro específico "b.overlay.remove is not a function"
       const isOverlayRemoveError =
         messageStr.includes("overlay.remove") ||
         messageStr.includes("remove is not a function") ||
@@ -2149,23 +1989,12 @@ export function MapComponent({
         errorMessage.includes("b.overlay.remove") ||
         errorStack.includes("overlay.remove") ||
         errorStack.includes("b.overlay.remove") ||
-        errorStack.includes("map_changed") || // Erro pode vir de map_changed
-        errorStack.includes("commitPassiveUnmountEffects"); // Erro durante desmontagem do React
+        errorStack.includes("map_changed") ||
+        errorStack.includes("commitPassiveUnmountEffects");
 
       if (isOverlayRemoveError) {
-        // Suprimir completamente o erro
-        console.warn(
-          "⚠️ [MAP] useEffect - Erro de overlay.remove CAPTURADO e suprimido:",
-          {
-            message: messageStr,
-            source: sourceStr,
-            errorMessage,
-            errorStack: errorStack.substring(0, 200),
-          }
-        );
         return true;
       }
-      // Para outros erros, usar o handler original se existir
       if (originalErrorHandler) {
         return originalErrorHandler(message, source, lineno, colno, error);
       }
@@ -2173,7 +2002,6 @@ export function MapComponent({
     };
 
     const unhandledRejectionHandler = (event: PromiseRejectionEvent) => {
-      // Suprimir rejeições relacionadas a overlay.remove durante cleanup
       const reason = event.reason;
       const reasonMessage =
         reason && typeof reason === "object" && "message" in reason
@@ -2192,21 +2020,13 @@ export function MapComponent({
         reasonMessage.includes("overlay.remove is not a function") ||
         reasonStack.includes("overlay.remove") ||
         reasonStack.includes("b.overlay.remove") ||
-        reasonStack.includes("map_changed") || // Erro pode vir de map_changed
-        reasonStack.includes("commitPassiveUnmountEffects"); // Erro durante desmontagem do React
+        reasonStack.includes("map_changed") ||
+        reasonStack.includes("commitPassiveUnmountEffects");
 
       if (isOverlayRemoveError) {
-        console.warn(
-          "⚠️ [MAP] useEffect - Rejeição de overlay.remove CAPTURADA e suprimida:",
-          {
-            reasonMessage,
-            reasonStack: reasonStack.substring(0, 200),
-          }
-        );
         event.preventDefault();
         return;
       }
-      // Para outras rejeições, usar o handler original se existir
       if (originalUnhandledRejection) {
         originalUnhandledRejection.call(window, event);
       }
@@ -2215,47 +2035,29 @@ export function MapComponent({
     window.addEventListener("unhandledrejection", unhandledRejectionHandler);
 
     return () => {
-      console.log("🟢 [MAP] useEffect cleanup - INICIANDO");
-
-      // PRIMEIRO: Desabilitar o DrawingManager IMEDIATAMENTE
-      // Isso previne que ele tente limpar overlays automaticamente
+      // Desabilitar DrawingManager
       try {
         if (drawingManager) {
-          console.log(
-            "🟢 [MAP] useEffect cleanup - Desabilitando DrawingManager"
-          );
-          // Desabilitar modo de desenho primeiro - CRÍTICO para evitar erros
           drawingManager.setDrawingMode(null);
-          console.log(
-            "🟢 [MAP] useEffect cleanup - DrawingManager desabilitado"
-          );
 
-          // Tentar limpar overlays internos do DrawingManager ANTES de qualquer outra coisa
           const manager = drawingManager as unknown as {
             overlays?: Array<{
               overlay?: {
-                remove?: () => void;
                 setMap?: (map: google.maps.Map | null) => void;
               };
             }>;
           };
 
-          // Remover overlays do DrawingManager usando setMap(null)
-          // Isso remove as referências antes que o DrawingManager tente limpá-las
           if (Array.isArray(manager.overlays)) {
             manager.overlays.forEach((item) => {
-              if (item?.overlay) {
+              if (item?.overlay?.setMap) {
                 try {
-                  // Usar setMap(null) ao invés de remove() para evitar erros
-                  if (typeof item.overlay.setMap === "function") {
-                    item.overlay.setMap(null);
-                  }
+                  item.overlay.setMap(null);
                 } catch {
-                  // Ignorar erros silenciosamente
+                  // Ignorar erros
                 }
               }
             });
-            // Limpar array de overlays do manager para evitar que ele tente limpá-los
             manager.overlays = [];
           }
         }
@@ -2263,39 +2065,16 @@ export function MapComponent({
         // Ignorar erros
       }
 
-      // SEGUNDO: Remover todos os overlays do mapa
-      // Isso limpa qualquer overlay restante que não foi gerenciado pelo DrawingManager
-      console.log(
-        "🟢 [MAP] useEffect cleanup - Limpando drawnOverlays:",
-        drawnOverlays.length
-      );
-      drawnOverlays.forEach((overlay, index) => {
-        if (overlay?.overlay) {
+      // Remover overlays desenhados
+      drawnOverlays.forEach((overlay) => {
+        if (overlay?.overlay?.setMap) {
           try {
-            console.log(
-              `🟢 [MAP] useEffect cleanup - Removendo overlay ${index}`
-            );
-            // Verificar se o overlay tem o método setMap antes de usar
-            if (typeof overlay.overlay.setMap === "function") {
-              overlay.overlay.setMap(null);
-              console.log(
-                `🟢 [MAP] useEffect cleanup - Overlay ${index} removido com sucesso`
-              );
-            } else {
-              console.warn(
-                `🟢 [MAP] useEffect cleanup - Overlay ${index} não tem setMap`
-              );
-            }
-            // Não tentar usar remove() pois nem todos os overlays têm esse método
-          } catch (error) {
-            console.error(
-              `🟢 [MAP] useEffect cleanup - Erro ao remover overlay ${index}:`,
-              error
-            );
+            overlay.overlay.setMap(null);
+          } catch {
+            // Ignorar erros
           }
         }
       });
-      console.log("🟢 [MAP] useEffect cleanup - drawnOverlays limpos");
 
       // Pequeno delay para garantir que o DrawingManager foi desabilitado
       // e que ele não tentará limpar overlays automaticamente
@@ -2490,13 +2269,11 @@ export function MapComponent({
           ],
         }}
       >
-        {/* DrawingManager - Sempre renderizado quando o mapa está disponível */}
         {map && (
           <DrawingManager
             key="drawing-manager"
             onOverlayComplete={onDrawingCompleteCallback}
             onLoad={(manager) => {
-              console.log("🟣 [MAP] DrawingManager onLoad - Manager carregado");
               setDrawingManager(manager);
             }}
             options={{
