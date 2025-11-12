@@ -330,12 +330,13 @@ export function MapComponent({
       // Só fazer busca se houver pelo menos um bairro selecionado OU desenho no mapa OU busca por endereço
       const hasNeighborhoods =
         filters?.neighborhoods && filters.neighborhoods.length > 0;
-      const hasDrawingGeometry = filters?.drawingGeometry !== undefined;
+      const hasDrawingGeometries =
+        filters?.drawingGeometries && filters.drawingGeometries.length > 0;
       const hasAddressCoordinates = filters?.addressCoordinates !== undefined;
 
       if (
         !filters ||
-        (!hasNeighborhoods && !hasDrawingGeometry && !hasAddressCoordinates)
+        (!hasNeighborhoods && !hasDrawingGeometries && !hasAddressCoordinates)
       ) {
         // Limpar dados do mapa se não há bairros selecionados nem desenho nem busca por endereço
         setMapClusters([]);
@@ -351,48 +352,57 @@ export function MapComponent({
       // Debounce de 500ms para evitar muitas requisições
       searchTimeoutRef.current = setTimeout(async () => {
         try {
-          // Se há desenho no mapa, calcular bbox a partir da geometria do desenho
+          // Se há desenho no mapa, calcular bbox a partir das geometrias dos desenhos
           // Se há busca por endereço (sem desenho), calcular bbox a partir do círculo do endereço
           let bbox: [number, number, number, number];
-          if (filters?.drawingGeometry) {
-            if (filters.drawingGeometry.type === "Polygon") {
-              // Calcular bbox a partir das coordenadas do polígono
-              const allCoords = filters.drawingGeometry.coordinates[0];
-              if (allCoords.length === 0) {
-                bbox = calculateLimitedBbox(bounds, zoomLevel);
-              } else {
-                let minLng = allCoords[0][0];
-                let maxLng = allCoords[0][0];
-                let minLat = allCoords[0][1];
-                let maxLat = allCoords[0][1];
+          if (
+            filters?.drawingGeometries &&
+            filters.drawingGeometries.length > 0
+          ) {
+            // Calcular bbox combinado de todas as geometrias
+            let minLng = Infinity;
+            let maxLng = -Infinity;
+            let minLat = Infinity;
+            let maxLat = -Infinity;
+            let hasValidGeometry = false;
 
-                allCoords.forEach((coord) => {
-                  const [lng, lat] = coord;
-                  if (lng < minLng) minLng = lng;
-                  if (lng > maxLng) maxLng = lng;
-                  if (lat < minLat) minLat = lat;
-                  if (lat > maxLat) maxLat = lat;
-                });
+            filters.drawingGeometries.forEach((geom) => {
+              if (geom.type === "Polygon") {
+                const allCoords = geom.coordinates[0];
+                if (allCoords.length > 0) {
+                  hasValidGeometry = true;
+                  allCoords.forEach((coord) => {
+                    const [lng, lat] = coord;
+                    if (lng < minLng) minLng = lng;
+                    if (lng > maxLng) maxLng = lng;
+                    if (lat < minLat) minLat = lat;
+                    if (lat > maxLat) maxLat = lat;
+                  });
+                }
+              } else if (geom.type === "circle") {
+                const [centerLng, centerLat] = geom.coordinates[0];
+                const radius = parseFloat(geom.radius); // em metros
 
-                bbox = [minLng, minLat, maxLng, maxLat];
+                // Converter raio de metros para graus (aproximação)
+                const latDiff = radius / 111000; // metros para graus
+                const lngDiff =
+                  radius / (111000 * Math.cos((centerLat * Math.PI) / 180));
+
+                hasValidGeometry = true;
+                const circleMinLng = centerLng - lngDiff;
+                const circleMaxLng = centerLng + lngDiff;
+                const circleMinLat = centerLat - latDiff;
+                const circleMaxLat = centerLat + latDiff;
+
+                if (circleMinLng < minLng) minLng = circleMinLng;
+                if (circleMaxLng > maxLng) maxLng = circleMaxLng;
+                if (circleMinLat < minLat) minLat = circleMinLat;
+                if (circleMaxLat > maxLat) maxLat = circleMaxLat;
               }
-            } else if (filters.drawingGeometry.type === "circle") {
-              // Calcular bbox a partir do círculo
-              const [centerLng, centerLat] =
-                filters.drawingGeometry.coordinates[0];
-              const radius = parseFloat(filters.drawingGeometry.radius); // em metros
+            });
 
-              // Converter raio de metros para graus (aproximação)
-              const latDiff = radius / 111000; // metros para graus
-              const lngDiff =
-                radius / (111000 * Math.cos((centerLat * Math.PI) / 180));
-
-              bbox = [
-                centerLng - lngDiff,
-                centerLat - latDiff,
-                centerLng + lngDiff,
-                centerLat + latDiff,
-              ];
+            if (hasValidGeometry) {
+              bbox = [minLng, minLat, maxLng, maxLat];
             } else {
               bbox = calculateLimitedBbox(bounds, zoomLevel);
             }
@@ -427,7 +437,7 @@ export function MapComponent({
                 cities: filters.cities?.sort(),
                 neighborhoods: filters.neighborhoods?.sort(),
                 addressCoordinates: filters.addressCoordinates,
-                drawingGeometry: filters.drawingGeometry,
+                drawingGeometries: filters.drawingGeometries,
                 venda: filters.venda,
                 aluguel: filters.aluguel,
               })
@@ -601,7 +611,7 @@ export function MapComponent({
       neighborhoods: filters.neighborhoods?.sort(),
       search: filters.search,
       addressCoordinates: filters.addressCoordinates, // Incluir coordenadas do endereço
-      drawingGeometry: filters.drawingGeometry, // Incluir geometria do desenho
+      drawingGeometries: filters.drawingGeometries, // Incluir geometrias dos desenhos
       venda: filters.venda,
       aluguel: filters.aluguel,
       residencial: filters.residencial,
@@ -1647,9 +1657,13 @@ export function MapComponent({
     }
   }, [filters]);
 
-  // Limpar todos os desenhos quando os filtros são completamente limpos (sem drawingGeometry e sem addressCoordinates)
+  // Limpar todos os desenhos quando os filtros são completamente limpos (sem drawingGeometries e sem addressCoordinates)
   useEffect(() => {
-    if (filters && !filters.drawingGeometry && !filters.addressCoordinates) {
+    if (
+      filters &&
+      (!filters.drawingGeometries || filters.drawingGeometries.length === 0) &&
+      !filters.addressCoordinates
+    ) {
       // Se não há desenho nos filtros e não há busca por endereço, limpar todos os desenhos
       // Mas só se houver desenhos para evitar loops
       if (drawnOverlays.length > 0 || addressCircleOverlayRef.current) {
@@ -1681,7 +1695,7 @@ export function MapComponent({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters?.drawingGeometry, filters?.addressCoordinates]);
+  }, [filters?.drawingGeometries, filters?.addressCoordinates]);
 
   // Criar círculo automaticamente quando há busca por endereço (como desenho editável)
   useEffect(() => {
@@ -2308,7 +2322,8 @@ export function MapComponent({
         {/* Usar allNeighborhoodsForCityBounds como fonte principal (sempre tem todos os bairros) */}
         {/* Se não houver, usar neighborhoods como fallback */}
         {/* Ocultar quando há um desenho ativo para não poluir o mapa */}
-        {!filters?.drawingGeometry &&
+        {(!filters?.drawingGeometries ||
+          filters.drawingGeometries.length === 0) &&
           (() => {
             // Priorizar allNeighborhoodsForCityBounds (sempre tem todos os bairros)
             // Se não houver, usar neighborhoods como fallback

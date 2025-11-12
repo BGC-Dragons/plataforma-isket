@@ -88,10 +88,11 @@ interface FilterState {
   // Coordenadas do endereço selecionado (quando há busca por endereço)
   addressCoordinates?: { lat: number; lng: number };
   addressZoom?: number;
-  // Geometria do desenho no mapa (quando há desenho)
-  drawingGeometry?:
+  // Geometrias dos desenhos no mapa (quando há desenhos)
+  drawingGeometries?: Array<
     | { type: "Polygon"; coordinates: number[][][] }
-    | { type: "circle"; coordinates: [[number, number]]; radius: string };
+    | { type: "circle"; coordinates: [[number, number]]; radius: string }
+  >;
   // Negócio
   venda: boolean;
   aluguel: boolean;
@@ -708,7 +709,10 @@ export function SearchComponent() {
     }
 
     // Se há desenho no mapa, não calcular bounds de cidades/bairros (prioridade do desenho)
-    if (currentFilters?.drawingGeometry) {
+    if (
+      currentFilters?.drawingGeometries &&
+      currentFilters.drawingGeometries.length > 0
+    ) {
       return;
     }
 
@@ -751,7 +755,7 @@ export function SearchComponent() {
     calculateMapBounds,
     isCityOnlySearch, // Usar o valor memoizado
     currentFilters?.addressCoordinates, // Adicionar dependência para reagir quando endereço é removido
-    currentFilters?.drawingGeometry, // Adicionar dependência para reagir quando desenho é adicionado/removido
+    currentFilters?.drawingGeometries, // Adicionar dependência para reagir quando desenho é adicionado/removido
   ]);
 
   // Função para aplicar filtros e buscar da API
@@ -771,7 +775,8 @@ export function SearchComponent() {
         if (
           filtersForApi.cities.length === 0 &&
           !filtersForApi.addressCoordinates &&
-          !filtersForApi.drawingGeometry &&
+          (!filtersForApi.drawingGeometries ||
+            filtersForApi.drawingGeometries.length === 0) &&
           defaultCity &&
           cityToCodeMap[defaultCity]
         ) {
@@ -840,7 +845,8 @@ export function SearchComponent() {
         if (
           filtersForApi.cities.length === 0 &&
           !filtersForApi.addressCoordinates &&
-          !filtersForApi.drawingGeometry &&
+          (!filtersForApi.drawingGeometries ||
+            filtersForApi.drawingGeometries.length === 0) &&
           defaultCity &&
           cityToCodeMap[defaultCity]
         ) {
@@ -1301,7 +1307,8 @@ export function SearchComponent() {
         return;
       }
 
-      // Criar novos filtros com a geometria do desenho
+      // Criar novos filtros adicionando a geometria do desenho à lista existente
+      const existingGeometries = currentFilters?.drawingGeometries || [];
       const newFilters: FilterState = {
         ...(currentFilters || {
           search: "",
@@ -1360,7 +1367,7 @@ export function SearchComponent() {
           lancamento: false,
           palavras_chave: "",
         }),
-        drawingGeometry: geometry,
+        drawingGeometries: [...existingGeometries, geometry],
       };
 
       // Aplicar filtros com a geometria (isso vai buscar na API)
@@ -1376,7 +1383,7 @@ export function SearchComponent() {
       // Remover a geometria do desenho e as coordenadas do endereço dos filtros
       const filtersWithoutDrawing: FilterState = {
         ...currentFilters,
-        drawingGeometry: undefined,
+        drawingGeometries: undefined,
         addressCoordinates: undefined,
         addressZoom: undefined,
         search: currentFilters.addressCoordinates ? "" : currentFilters.search, // Limpar busca se havia endereço
@@ -1462,8 +1469,8 @@ export function SearchComponent() {
       // Opcionais
       lancamento: false,
       palavras_chave: "",
-      // Geometria do desenho
-      drawingGeometry: undefined,
+      // Geometrias dos desenhos
+      drawingGeometries: undefined,
     };
     applyFilters(clearedFilters);
   }, [applyFilters]);

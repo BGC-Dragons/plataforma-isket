@@ -15,10 +15,11 @@ export interface ILocalFilterState {
   // Coordenadas do endereço selecionado (quando há busca por endereço)
   addressCoordinates?: { lat: number; lng: number };
   addressZoom?: number;
-  // Geometria do desenho no mapa (quando há desenho)
-  drawingGeometry?:
+  // Geometrias dos desenhos no mapa (quando há desenhos)
+  drawingGeometries?: Array<
     | { type: "Polygon"; coordinates: number[][][] }
-    | { type: "circle"; coordinates: [[number, number]]; radius: string };
+    | { type: "circle"; coordinates: [[number, number]]; radius: string }
+  >;
   // Negócio
   venda: boolean;
   aluguel: boolean;
@@ -299,24 +300,27 @@ export const mapFiltersToApi = (
     request.advertiserTypes = advertiserTypes as any[];
   }
 
-  // Geometria do desenho (quando há desenho no mapa)
-  if (filters.drawingGeometry) {
-    if (filters.drawingGeometry.type === "Polygon") {
-      request.geometry = [
-        {
-          type: "Polygon",
-          coordinates: filters.drawingGeometry.coordinates,
-        },
-      ];
-    } else if (filters.drawingGeometry.type === "circle") {
-      request.geometry = [
-        {
-          type: "circle",
-          coordinates: filters.drawingGeometry.coordinates,
-          radius: filters.drawingGeometry.radius,
-        },
-      ];
-    }
+  // Geometrias dos desenhos (quando há desenhos no mapa)
+  if (filters.drawingGeometries && filters.drawingGeometries.length > 0) {
+    request.geometry = filters.drawingGeometries.map((geom) => {
+      if (geom.type === "Polygon") {
+        return {
+          type: "Polygon" as const,
+          coordinates: geom.coordinates,
+        };
+      } else if (geom.type === "circle") {
+        return {
+          type: "circle" as const,
+          coordinates: geom.coordinates,
+          radius: geom.radius,
+        };
+      }
+      // Fallback (não deveria acontecer)
+      return {
+        type: "Polygon" as const,
+        coordinates: geom.coordinates,
+      };
+    });
     request.requireAreaInfo = false;
   }
 
