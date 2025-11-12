@@ -1,6 +1,5 @@
-import React from "react";
 import { Box, Typography, Container, useTheme } from "@mui/material";
-import { MapComponent } from "../../modules/search/map";
+import MapComponent from "../../../modules/search/map/map";
 
 // Interface para os dados das propriedades
 interface PropertyData {

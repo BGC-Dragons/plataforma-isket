@@ -1,6 +1,6 @@
 import { getHeader } from "./helpers/get-header-function";
-import { endpoints } from "./helpers/endpoint.constant";
 import { isketApiClient } from "./clients/isket-api.client";
+import axios from "axios";
 
 export interface IPostAuthGoogleParams {
   code: string;

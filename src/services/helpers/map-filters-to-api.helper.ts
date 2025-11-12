@@ -5,6 +5,7 @@ import type {
   SortBy,
   SortOrder,
   AreaType,
+  AdvertiserType,
 } from "../post-property-ad-search.service";
 
 // Interface local de filtros (do FilterState)
@@ -170,7 +171,9 @@ export const mapFiltersToApi = (
       request.geometry = [
         {
           type: "circle",
-          coordinates: [[filters.addressCoordinates.lng, filters.addressCoordinates.lat]],
+          coordinates: [
+            [filters.addressCoordinates.lng, filters.addressCoordinates.lat],
+          ],
           radius: "1000", // 1000 metros conforme exemplo do payload esperado
         },
       ];
@@ -265,7 +268,10 @@ export const mapFiltersToApi = (
 
   // Preços
   const prices = [];
-  if (filters.venda && (filters.preco_min > 0 || filters.preco_max < 100000000)) {
+  if (
+    filters.venda &&
+    (filters.preco_min > 0 || filters.preco_max < 100000000)
+  ) {
     prices.push({
       businessModel: "SALE" as BusinessModel,
       type: "total" as const,
@@ -273,7 +279,10 @@ export const mapFiltersToApi = (
       max: filters.preco_max,
     });
   }
-  if (filters.aluguel && (filters.preco_min > 0 || filters.preco_max < 100000000)) {
+  if (
+    filters.aluguel &&
+    (filters.preco_min > 0 || filters.preco_max < 100000000)
+  ) {
     prices.push({
       businessModel: "RENTAL" as BusinessModel,
       type: "total" as const,
@@ -286,7 +295,7 @@ export const mapFiltersToApi = (
   }
 
   // Advertiser Types
-  const advertiserTypes = [];
+  const advertiserTypes: AdvertiserType[] = [];
   if (filters.proprietario_direto) {
     advertiserTypes.push("INDIVIDUAL");
   }
@@ -297,7 +306,7 @@ export const mapFiltersToApi = (
     advertiserTypes.push("PORTAL");
   }
   if (advertiserTypes.length > 0) {
-    request.advertiserTypes = advertiserTypes as any[];
+    request.advertiserTypes = advertiserTypes;
   }
 
   // Geometrias dos desenhos (quando há desenhos no mapa)
@@ -316,9 +325,14 @@ export const mapFiltersToApi = (
         };
       }
       // Fallback (não deveria acontecer)
+      // Type assertion necessário porque TypeScript não consegue inferir o tipo no else
+      const fallbackGeom = geom as {
+        type: "Polygon";
+        coordinates: number[][][];
+      };
       return {
         type: "Polygon" as const,
-        coordinates: geom.coordinates,
+        coordinates: fallbackGeom.coordinates,
       };
     });
     request.requireAreaInfo = false;
@@ -330,4 +344,3 @@ export const mapFiltersToApi = (
 
   return request;
 };
-

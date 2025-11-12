@@ -193,16 +193,20 @@ export function FilterBar({
   const [neighborhoods, setNeighborhoods] = useState<string[]>([]);
   const [isLoadingNeighborhoods, setIsLoadingNeighborhoods] = useState(false);
   const [neighborhoodsLoaded, setNeighborhoodsLoaded] = useState(false);
-  
+
   // Estados para controlar abertura dos selects
   const [isCitySelectOpen, setIsCitySelectOpen] = useState(false);
-  const [isNeighborhoodSelectOpen, setIsNeighborhoodSelectOpen] = useState(false);
-  
+  const [isNeighborhoodSelectOpen, setIsNeighborhoodSelectOpen] =
+    useState(false);
+
   // Google Places Autocomplete
   const [isGoogleLoaded, setIsGoogleLoaded] = useState(false);
-  const [autocompleteOptions, setAutocompleteOptions] = useState<google.maps.places.AutocompletePrediction[]>([]);
+  const [autocompleteOptions, setAutocompleteOptions] = useState<
+    google.maps.places.AutocompletePrediction[]
+  >([]);
   const [searchInputValue, setSearchInputValue] = useState("");
-  const autocompleteService = useRef<google.maps.places.AutocompleteService | null>(null);
+  const autocompleteService =
+    useRef<google.maps.places.AutocompleteService | null>(null);
   const placesService = useRef<google.maps.places.PlacesService | null>(null);
   const autocompleteInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -212,35 +216,50 @@ export function FilterBar({
   }, []);
 
   // Resetar bairros quando as cidades mudarem
-  const handleCityChange = useCallback((cities: string[]) => {
-    const updatedFilters = {
-      ...tempFilters,
-      cities,
-      // Limpar bairros quando as cidades mudarem (serão recarregados)
-      neighborhoods: [],
-      // Preservar drawingGeometries e addressCoordinates
-      drawingGeometries: tempFilters.drawingGeometries || appliedFilters.drawingGeometries || externalFilters?.drawingGeometries,
-      addressCoordinates: tempFilters.addressCoordinates || appliedFilters.addressCoordinates || externalFilters?.addressCoordinates,
-      addressZoom: tempFilters.addressZoom || appliedFilters.addressZoom || externalFilters?.addressZoom,
-    };
-    setTempFilters(updatedFilters);
-    setNeighborhoods([]);
-    setNeighborhoodsLoaded(false);
-    
-    // Fechar o select após seleção
-    setIsCitySelectOpen(false);
-    
-    // Notificar mudança imediatamente para centralizar o mapa
-    onFiltersChange(updatedFilters);
-  }, [tempFilters, appliedFilters, externalFilters, onFiltersChange]);
+  const handleCityChange = useCallback(
+    (cities: string[]) => {
+      const updatedFilters = {
+        ...tempFilters,
+        cities,
+        // Limpar bairros quando as cidades mudarem (serão recarregados)
+        neighborhoods: [],
+        // Preservar drawingGeometries e addressCoordinates
+        drawingGeometries:
+          tempFilters.drawingGeometries ||
+          appliedFilters.drawingGeometries ||
+          externalFilters?.drawingGeometries,
+        addressCoordinates:
+          tempFilters.addressCoordinates ||
+          appliedFilters.addressCoordinates ||
+          externalFilters?.addressCoordinates,
+        addressZoom:
+          tempFilters.addressZoom ||
+          appliedFilters.addressZoom ||
+          externalFilters?.addressZoom,
+      };
+      setTempFilters(updatedFilters);
+      setNeighborhoods([]);
+      setNeighborhoodsLoaded(false);
+
+      // Fechar o select após seleção
+      setIsCitySelectOpen(false);
+
+      // Notificar mudança imediatamente para centralizar o mapa
+      onFiltersChange(updatedFilters);
+    },
+    [tempFilters, appliedFilters, externalFilters, onFiltersChange]
+  );
 
   // Função para limpar todas as cidades selecionadas
-  const handleClearCities = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    // Limpar todas as cidades (deixar vazio para que o select fique disabled)
-    handleCityChange([]);
-  }, [handleCityChange]);
+  const handleClearCities = useCallback(
+    (e: React.MouseEvent<HTMLButtonElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+      // Limpar todas as cidades (deixar vazio para que o select fique disabled)
+      handleCityChange([]);
+    },
+    [handleCityChange]
+  );
 
   // Função para buscar bairros da API
   const loadNeighborhoods = useCallback(async () => {
@@ -266,11 +285,13 @@ export function FilterBar({
       );
 
       // Extrair nomes dos bairros da resposta
-      const neighborhoodNames = response.data.map((neighborhood: INeighborhood) => neighborhood.name);
-      
+      const neighborhoodNames = response.data.map(
+        (neighborhood: INeighborhood) => neighborhood.name
+      );
+
       // Remover duplicatas e ordenar
-      const uniqueNeighborhoods = Array.from(new Set(neighborhoodNames)).sort((a, b) =>
-        a.localeCompare(b, "pt-BR")
+      const uniqueNeighborhoods = Array.from(new Set(neighborhoodNames)).sort(
+        (a, b) => a.localeCompare(b, "pt-BR")
       );
 
       setNeighborhoods(uniqueNeighborhoods);
@@ -294,26 +315,27 @@ export function FilterBar({
   const handleApplyFilters = useCallback(
     (filters: FilterState) => {
       // Preservar a cidade atual se não estiver nos filtros aplicados
-      const currentCity = tempFilters.cities.length > 0 
-        ? tempFilters.cities 
-        : appliedFilters.cities.length > 0 
-        ? appliedFilters.cities 
-        : [defaultCity];
-      
+      const currentCity =
+        tempFilters.cities.length > 0
+          ? tempFilters.cities
+          : appliedFilters.cities.length > 0
+          ? appliedFilters.cities
+          : [defaultCity];
+
       // Preservar drawingGeometries e addressCoordinates dos filtros externos ou aplicados
-      const preservedDrawingGeometries = 
-        filters.drawingGeometries || 
-        externalFilters?.drawingGeometries || 
+      const preservedDrawingGeometries =
+        filters.drawingGeometries ||
+        externalFilters?.drawingGeometries ||
         appliedFilters.drawingGeometries;
-      const preservedAddressCoordinates = 
-        filters.addressCoordinates || 
-        externalFilters?.addressCoordinates || 
+      const preservedAddressCoordinates =
+        filters.addressCoordinates ||
+        externalFilters?.addressCoordinates ||
         appliedFilters.addressCoordinates;
-      const preservedAddressZoom = 
-        filters.addressZoom || 
-        externalFilters?.addressZoom || 
+      const preservedAddressZoom =
+        filters.addressZoom ||
+        externalFilters?.addressZoom ||
         appliedFilters.addressZoom;
-      
+
       const filtersWithCity = {
         ...filters,
         cities: filters.cities.length > 0 ? filters.cities : currentCity,
@@ -326,72 +348,77 @@ export function FilterBar({
       setTempFilters(filtersWithCity);
       onFiltersChange(filtersWithCity);
     },
-    [onFiltersChange, tempFilters.cities, appliedFilters, externalFilters, defaultCity]
+    [
+      onFiltersChange,
+      tempFilters.cities,
+      appliedFilters,
+      externalFilters,
+      defaultCity,
+    ]
   );
-
-  // Função para toggle de checkboxes
-  const handleCheckboxChange = useCallback((filterType: keyof FilterState) => {
-    const updatedAppliedFilters = {
-      ...appliedFilters,
-      [filterType]: !appliedFilters[filterType],
-      // Preservar drawingGeometries e addressCoordinates
-      drawingGeometries: appliedFilters.drawingGeometries || externalFilters?.drawingGeometries,
-      addressCoordinates: appliedFilters.addressCoordinates || externalFilters?.addressCoordinates,
-      addressZoom: appliedFilters.addressZoom || externalFilters?.addressZoom,
-    };
-    const updatedTempFilters = {
-      ...tempFilters,
-      [filterType]: !tempFilters[filterType],
-      // Preservar drawingGeometries e addressCoordinates
-      drawingGeometries: tempFilters.drawingGeometries || externalFilters?.drawingGeometries,
-      addressCoordinates: tempFilters.addressCoordinates || externalFilters?.addressCoordinates,
-      addressZoom: tempFilters.addressZoom || externalFilters?.addressZoom,
-    };
-    
-    setAppliedFilters(updatedAppliedFilters);
-    setTempFilters(updatedTempFilters);
-    // Aplicar filtros automaticamente quando um checkbox é alterado
-    onFiltersChange(updatedAppliedFilters);
-  }, [appliedFilters, tempFilters, externalFilters, onFiltersChange]);
 
   // Função para pesquisar
   const handleSearch = useCallback(() => {
     // Preservar drawingGeometries e addressCoordinates dos filtros aplicados ou externos
     const filtersWithPreserved = {
       ...tempFilters,
-      drawingGeometries: tempFilters.drawingGeometries || appliedFilters.drawingGeometries || externalFilters?.drawingGeometries,
-      addressCoordinates: tempFilters.addressCoordinates || appliedFilters.addressCoordinates || externalFilters?.addressCoordinates,
-      addressZoom: tempFilters.addressZoom || appliedFilters.addressZoom || externalFilters?.addressZoom,
+      drawingGeometries:
+        tempFilters.drawingGeometries ||
+        appliedFilters.drawingGeometries ||
+        externalFilters?.drawingGeometries,
+      addressCoordinates:
+        tempFilters.addressCoordinates ||
+        appliedFilters.addressCoordinates ||
+        externalFilters?.addressCoordinates,
+      addressZoom:
+        tempFilters.addressZoom ||
+        appliedFilters.addressZoom ||
+        externalFilters?.addressZoom,
     };
     setAppliedFilters(filtersWithPreserved);
     onFiltersChange(filtersWithPreserved);
   }, [tempFilters, appliedFilters, externalFilters, onFiltersChange]);
 
   // Função para lidar com mudança de bairros
-  const handleNeighborhoodChange = useCallback((neighborhoods: string[]) => {
-    const updatedFilters = {
-      ...tempFilters,
-      neighborhoods,
-      // Preservar drawingGeometries e addressCoordinates
-      drawingGeometries: tempFilters.drawingGeometries || appliedFilters.drawingGeometries || externalFilters?.drawingGeometries,
-      addressCoordinates: tempFilters.addressCoordinates || appliedFilters.addressCoordinates || externalFilters?.addressCoordinates,
-      addressZoom: tempFilters.addressZoom || appliedFilters.addressZoom || externalFilters?.addressZoom,
-    };
-    setTempFilters(updatedFilters);
-    
-    // Fechar o select após seleção
-    setIsNeighborhoodSelectOpen(false);
-    
-    // Aplicar filtros automaticamente quando um bairro for selecionado para centralizar o mapa
-    onFiltersChange(updatedFilters);
-  }, [tempFilters, appliedFilters, externalFilters, onFiltersChange]);
+  const handleNeighborhoodChange = useCallback(
+    (neighborhoods: string[]) => {
+      const updatedFilters = {
+        ...tempFilters,
+        neighborhoods,
+        // Preservar drawingGeometries e addressCoordinates
+        drawingGeometries:
+          tempFilters.drawingGeometries ||
+          appliedFilters.drawingGeometries ||
+          externalFilters?.drawingGeometries,
+        addressCoordinates:
+          tempFilters.addressCoordinates ||
+          appliedFilters.addressCoordinates ||
+          externalFilters?.addressCoordinates,
+        addressZoom:
+          tempFilters.addressZoom ||
+          appliedFilters.addressZoom ||
+          externalFilters?.addressZoom,
+      };
+      setTempFilters(updatedFilters);
+
+      // Fechar o select após seleção
+      setIsNeighborhoodSelectOpen(false);
+
+      // Aplicar filtros automaticamente quando um bairro for selecionado para centralizar o mapa
+      onFiltersChange(updatedFilters);
+    },
+    [tempFilters, appliedFilters, externalFilters, onFiltersChange]
+  );
 
   // Função para limpar todos os bairros selecionados
-  const handleClearNeighborhoods = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    handleNeighborhoodChange([]);
-  }, [handleNeighborhoodChange]);
+  const handleClearNeighborhoods = useCallback(
+    (e: React.MouseEvent<HTMLButtonElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+      handleNeighborhoodChange([]);
+    },
+    [handleNeighborhoodChange]
+  );
 
   // Carregar Google Maps API para autocomplete de endereços
   // NOTA: Não carregamos o Places aqui porque já é carregado pelo MapComponent
@@ -408,7 +435,8 @@ export function FilterBar({
         if (!window.google.maps.places) return false;
 
         // Verificar se os construtores estão disponíveis e são funções
-        const AutocompleteService = window.google.maps.places.AutocompleteService;
+        const AutocompleteService =
+          window.google.maps.places.AutocompleteService;
         const PlacesService = window.google.maps.places.PlacesService;
 
         if (
@@ -450,8 +478,8 @@ export function FilterBar({
 
     if (existingScript) {
       // Script já existe (carregado pelo MapComponent), aguardar que Places esteja pronto
-      let intervalId: NodeJS.Timeout | null = null;
-      let timeoutId: NodeJS.Timeout | null = null;
+      let intervalId: ReturnType<typeof setInterval> | null = null;
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
       let attempts = 0;
       const maxAttempts = 100; // 10 segundos (100 * 100ms)
 
@@ -481,7 +509,9 @@ export function FilterBar({
       // Se não existe script, aguardar um pouco e tentar novamente
       // (pode ser que o script ainda não tenha sido adicionado ao DOM)
       const checkInterval = setInterval(() => {
-        const script = document.querySelector('script[src*="maps.googleapis.com"]');
+        const script = document.querySelector(
+          'script[src*="maps.googleapis.com"]'
+        );
         if (script) {
           clearInterval(checkInterval);
           // Recursivamente chamar o useEffect aguardando o script
@@ -512,41 +542,44 @@ export function FilterBar({
   }, []);
 
   // Buscar endereços quando o usuário digita
-  const searchAddresses = useCallback((query: string) => {
-    if (!isGoogleLoaded || !autocompleteService.current || query.length < 3) {
-      setAutocompleteOptions([]);
-      return;
-    }
+  const searchAddresses = useCallback(
+    (query: string) => {
+      if (!isGoogleLoaded || !autocompleteService.current || query.length < 3) {
+        setAutocompleteOptions([]);
+        return;
+      }
 
-    try {
-      const request: google.maps.places.AutocompletionRequest = {
-        input: query,
-        types: ["address"],
-        componentRestrictions: { country: "br" },
-        language: "pt-BR",
-      };
+      try {
+        const request: google.maps.places.AutocompletionRequest = {
+          input: query,
+          types: ["address"],
+          componentRestrictions: { country: "br" },
+          language: "pt-BR",
+        };
 
-      autocompleteService.current.getPlacePredictions(
-        request,
-        (
-          predictions: google.maps.places.AutocompletePrediction[] | null,
-          status: google.maps.places.PlacesServiceStatus
-        ) => {
-          if (
-            status === google.maps.places.PlacesServiceStatus.OK &&
-            predictions
-          ) {
-            setAutocompleteOptions(predictions);
-          } else {
-            setAutocompleteOptions([]);
+        autocompleteService.current.getPlacePredictions(
+          request,
+          (
+            predictions: google.maps.places.AutocompletePrediction[] | null,
+            status: google.maps.places.PlacesServiceStatus
+          ) => {
+            if (
+              status === google.maps.places.PlacesServiceStatus.OK &&
+              predictions
+            ) {
+              setAutocompleteOptions(predictions);
+            } else {
+              setAutocompleteOptions([]);
+            }
           }
-        }
-      );
-    } catch (error) {
-      console.error("Erro ao buscar endereços:", error);
-      setAutocompleteOptions([]);
-    }
-  }, [isGoogleLoaded]);
+        );
+      } catch (error) {
+        console.error("Erro ao buscar endereços:", error);
+        setAutocompleteOptions([]);
+      }
+    },
+    [isGoogleLoaded]
+  );
 
   // Debounce para busca de endereços
   useEffect(() => {
@@ -647,12 +680,15 @@ export function FilterBar({
                   addressCoordinates: coordinatesToStore,
                   addressZoom: zoomToStore,
                   // Preservar drawingGeometries
-                  drawingGeometries: tempFilters.drawingGeometries || appliedFilters.drawingGeometries || externalFilters?.drawingGeometries,
+                  drawingGeometries:
+                    tempFilters.drawingGeometries ||
+                    appliedFilters.drawingGeometries ||
+                    externalFilters?.drawingGeometries,
                 };
                 setTempFilters(updatedFilters);
                 onFiltersChange(updatedFilters);
               }
-              
+
               // Limpar bairro pendente já que não estamos setando cidade automaticamente
               pendingNeighborhoodRef.current = null;
             }
@@ -664,7 +700,13 @@ export function FilterBar({
         console.error("Erro ao buscar detalhes do lugar:", error);
       }
     },
-    [isGoogleLoaded, availableCities, handleCityChange, loadNeighborhoods, handleFilterChange]
+    [
+      isGoogleLoaded,
+      tempFilters,
+      appliedFilters,
+      externalFilters,
+      onFiltersChange,
+    ]
   );
 
   // Quando os bairros forem carregados, tentar selecionar o bairro pendente
@@ -715,7 +757,7 @@ export function FilterBar({
       } else if (typeof value === "string") {
         setSearchInputValue(value);
         // Limpar coordenadas quando o usuário digita uma string (não seleciona do autocomplete)
-        handleFilterChange({ 
+        handleFilterChange({
           search: value,
           addressCoordinates: undefined,
           addressZoom: undefined,
@@ -728,7 +770,10 @@ export function FilterBar({
   // Sincronizar searchInputValue com tempFilters.search quando mudar externamente (apenas se não for mudança manual)
   useEffect(() => {
     // Só atualizar se o usuário não estiver digitando
-    if (tempFilters.search !== searchInputValue && !autocompleteInputRef.current?.matches(':focus')) {
+    if (
+      tempFilters.search !== searchInputValue &&
+      !autocompleteInputRef.current?.matches(":focus")
+    ) {
       setSearchInputValue(tempFilters.search);
     }
   }, [tempFilters.search, searchInputValue]);
@@ -739,7 +784,7 @@ export function FilterBar({
   // Sincronizar filtros quando externalFilters mudar (ex: quando limpa todos os filtros)
   useEffect(() => {
     if (!externalFilters) return;
-    
+
     // Criar uma chave única baseada nos filtros externos
     const externalKey = JSON.stringify({
       search: externalFilters.search,
@@ -793,12 +838,21 @@ export function FilterBar({
       addressCoordinates: undefined,
       addressZoom: undefined,
       // Preservar drawingGeometries
-      drawingGeometries: tempFilters.drawingGeometries || appliedFilters.drawingGeometries || externalFilters?.drawingGeometries,
+      drawingGeometries:
+        tempFilters.drawingGeometries ||
+        appliedFilters.drawingGeometries ||
+        externalFilters?.drawingGeometries,
     };
     setTempFilters(updatedFilters);
     setAppliedFilters(updatedFilters);
     onFiltersChange(updatedFilters);
-  }, [tempFilters, appliedFilters, externalFilters, handleFilterChange, onFiltersChange]);
+  }, [
+    tempFilters,
+    appliedFilters,
+    externalFilters,
+    handleFilterChange,
+    onFiltersChange,
+  ]);
 
   // Função para limpar todos os filtros
   const clearAllFilters = useCallback(() => {
@@ -1002,7 +1056,7 @@ export function FilterBar({
           onInputChange={(_, newValue) => {
             setSearchInputValue(newValue);
             // Limpar coordenadas quando o usuário digita manualmente (não seleciona do autocomplete)
-            handleFilterChange({ 
+            handleFilterChange({
               search: newValue,
               addressCoordinates: undefined,
               addressZoom: undefined,
@@ -1042,24 +1096,25 @@ export function FilterBar({
                     <Search sx={{ color: theme.palette.text.secondary }} />
                   </InputAdornment>
                 ),
-                endAdornment: tempFilters.search || tempFilters.addressCoordinates ? (
-                  <InputAdornment position="end">
-                    <IconButton
-                      size="small"
-                      onClick={handleClearAddressSearch}
-                      sx={{
-                        p: 0.5,
-                        color: theme.palette.text.secondary,
-                        "&:hover": {
-                          color: theme.palette.error.main,
-                          backgroundColor: theme.palette.error.light,
-                        },
-                      }}
-                    >
-                      <Close fontSize="small" />
-                    </IconButton>
-                  </InputAdornment>
-                ) : null,
+                endAdornment:
+                  tempFilters.search || tempFilters.addressCoordinates ? (
+                    <InputAdornment position="end">
+                      <IconButton
+                        size="small"
+                        onClick={handleClearAddressSearch}
+                        sx={{
+                          p: 0.5,
+                          color: theme.palette.text.secondary,
+                          "&:hover": {
+                            color: theme.palette.error.main,
+                            backgroundColor: theme.palette.error.light,
+                          },
+                        }}
+                      >
+                        <Close fontSize="small" />
+                      </IconButton>
+                    </InputAdornment>
+                  ) : null,
               }}
               onKeyPress={(e) => {
                 if (e.key === "Enter") {
@@ -1078,7 +1133,9 @@ export function FilterBar({
           )}
           renderOption={(props, option) => (
             <li {...props} key={option.place_id}>
-              <Box sx={{ display: "flex", flexDirection: "column", width: "100%" }}>
+              <Box
+                sx={{ display: "flex", flexDirection: "column", width: "100%" }}
+              >
                 <Typography variant="body2" sx={{ fontWeight: 500 }}>
                   {option.structured_formatting.main_text}
                 </Typography>
@@ -1110,7 +1167,13 @@ export function FilterBar({
           <Select
             multiple
             value={tempFilters.cities}
-            onChange={(e) => handleCityChange(typeof e.target.value === 'string' ? [e.target.value] : e.target.value)}
+            onChange={(e) =>
+              handleCityChange(
+                typeof e.target.value === "string"
+                  ? [e.target.value]
+                  : e.target.value
+              )
+            }
             open={isCitySelectOpen}
             onOpen={() => setIsCitySelectOpen(true)}
             onClose={() => setIsCitySelectOpen(false)}
@@ -1120,24 +1183,38 @@ export function FilterBar({
               const selectedArray = selected as string[];
               // Mostrar botão de limpar se houver cidades selecionadas
               const showClearButton = selectedArray.length > 0;
-              
+
               if (selectedArray.length === 0) {
                 return <em>Selecione cidades</em>;
               }
-              
+
               return (
-                <Box 
-                  sx={{ display: 'flex', alignItems: 'center', gap: 0.5, width: '100%', position: 'relative' }}
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.5,
+                    width: "100%",
+                    position: "relative",
+                  }}
                   onMouseDown={(e) => {
                     // Prevenir que o select abra quando clicar no botão de limpar
                     const target = e.target as HTMLElement;
-                    if (target.closest('button')) {
+                    if (target.closest("button")) {
                       e.preventDefault();
                       e.stopPropagation();
                     }
                   }}
                 >
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, flex: 1, minWidth: 0 }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 0.5,
+                      flex: 1,
+                      minWidth: 0,
+                    }}
+                  >
                     {selectedArray.length <= 2 ? (
                       selectedArray.map((city) => (
                         <Chip key={city} label={city} size="small" />
@@ -1147,7 +1224,10 @@ export function FilterBar({
                         {selectedArray.slice(0, 2).map((city) => (
                           <Chip key={city} label={city} size="small" />
                         ))}
-                        <Chip label={`+${selectedArray.length - 2}`} size="small" />
+                        <Chip
+                          label={`+${selectedArray.length - 2}`}
+                          size="small"
+                        />
                       </>
                     )}
                   </Box>
@@ -1163,8 +1243,8 @@ export function FilterBar({
                         flexShrink: 0,
                         p: 0.25,
                         color: theme.palette.text.secondary,
-                        pointerEvents: 'auto',
-                        '&:hover': {
+                        pointerEvents: "auto",
+                        "&:hover": {
                           color: theme.palette.error.main,
                           backgroundColor: theme.palette.error.light,
                         },
@@ -1213,7 +1293,13 @@ export function FilterBar({
           <Select
             multiple
             value={tempFilters.neighborhoods}
-            onChange={(e) => handleNeighborhoodChange(typeof e.target.value === 'string' ? [e.target.value] : e.target.value)}
+            onChange={(e) =>
+              handleNeighborhoodChange(
+                typeof e.target.value === "string"
+                  ? [e.target.value]
+                  : e.target.value
+              )
+            }
             open={isNeighborhoodSelectOpen}
             onOpen={() => {
               setIsNeighborhoodSelectOpen(true);
@@ -1222,41 +1308,63 @@ export function FilterBar({
             onClose={() => setIsNeighborhoodSelectOpen(false)}
             displayEmpty
             size="small"
-            disabled={
-              tempFilters.cities.length === 0 ||
-              isLoadingNeighborhoods
-            }
+            disabled={tempFilters.cities.length === 0 || isLoadingNeighborhoods}
             renderValue={(selected) => {
               const selectedArray = selected as string[];
               const showClearButton = selectedArray.length > 0;
-              
+
               if (selectedArray.length === 0) {
                 return <em>Todos os bairros</em>;
               }
-              
+
               return (
-                <Box 
-                  sx={{ display: 'flex', alignItems: 'center', gap: 0.5, width: '100%', position: 'relative' }}
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.5,
+                    width: "100%",
+                    position: "relative",
+                  }}
                   onMouseDown={(e) => {
                     // Prevenir que o select abra quando clicar no botão de limpar
                     const target = e.target as HTMLElement;
-                    if (target.closest('button')) {
+                    if (target.closest("button")) {
                       e.preventDefault();
                       e.stopPropagation();
                     }
                   }}
                 >
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, flex: 1, minWidth: 0 }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 0.5,
+                      flex: 1,
+                      minWidth: 0,
+                    }}
+                  >
                     {selectedArray.length <= 2 ? (
                       selectedArray.map((neighborhood) => (
-                        <Chip key={neighborhood} label={neighborhood} size="small" />
+                        <Chip
+                          key={neighborhood}
+                          label={neighborhood}
+                          size="small"
+                        />
                       ))
                     ) : (
                       <>
                         {selectedArray.slice(0, 2).map((neighborhood) => (
-                          <Chip key={neighborhood} label={neighborhood} size="small" />
+                          <Chip
+                            key={neighborhood}
+                            label={neighborhood}
+                            size="small"
+                          />
                         ))}
-                        <Chip label={`+${selectedArray.length - 2}`} size="small" />
+                        <Chip
+                          label={`+${selectedArray.length - 2}`}
+                          size="small"
+                        />
                       </>
                     )}
                   </Box>
@@ -1272,8 +1380,8 @@ export function FilterBar({
                         flexShrink: 0,
                         p: 0.25,
                         color: theme.palette.text.secondary,
-                        pointerEvents: 'auto',
-                        '&:hover': {
+                        pointerEvents: "auto",
+                        "&:hover": {
                           color: theme.palette.error.main,
                           backgroundColor: theme.palette.error.light,
                         },

@@ -93,7 +93,9 @@ export const mapFiltersToSearchMap = (
       request.geometry = [
         {
           type: "circle",
-          coordinates: [[filters.addressCoordinates.lng, filters.addressCoordinates.lat]],
+          coordinates: [
+            [filters.addressCoordinates.lng, filters.addressCoordinates.lat],
+          ],
           radius: "1000", // 1000 metros conforme exemplo do payload esperado
         },
       ];
@@ -188,7 +190,10 @@ export const mapFiltersToSearchMap = (
 
   // Preços
   const prices = [];
-  if (filters.venda && (filters.preco_min > 0 || filters.preco_max < 100000000)) {
+  if (
+    filters.venda &&
+    (filters.preco_min > 0 || filters.preco_max < 100000000)
+  ) {
     prices.push({
       businessModel: "SALE",
       type: "total" as const,
@@ -196,7 +201,10 @@ export const mapFiltersToSearchMap = (
       max: filters.preco_max,
     });
   }
-  if (filters.aluguel && (filters.preco_min > 0 || filters.preco_max < 100000000)) {
+  if (
+    filters.aluguel &&
+    (filters.preco_min > 0 || filters.preco_max < 100000000)
+  ) {
     prices.push({
       businessModel: "RENTAL",
       type: "total" as const,
@@ -239,9 +247,14 @@ export const mapFiltersToSearchMap = (
         };
       }
       // Fallback (não deveria acontecer)
+      // Type assertion necessário porque TypeScript não consegue inferir o tipo no else
+      const fallbackGeom = geom as {
+        type: "Polygon";
+        coordinates: number[][][];
+      };
       return {
         type: "Polygon" as const,
-        coordinates: geom.coordinates,
+        coordinates: fallbackGeom.coordinates,
       };
     });
     request.requireAreaInfo = false;
@@ -252,6 +265,3 @@ export const mapFiltersToSearchMap = (
 
   return request;
 };
-
-
-

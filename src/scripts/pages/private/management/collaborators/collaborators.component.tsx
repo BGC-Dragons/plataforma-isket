@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -33,6 +33,7 @@ import { useAuth } from "../../../../modules/access-manager/auth.hook";
 import {
   useGetUsers,
   type IGetUsersResponseSuccess,
+  clearUsersCache,
 } from "../../../../../services/get-users.service";
 import {
   patchUser,
@@ -96,7 +97,11 @@ export function CollaboratorsSection() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   // Data via SWR
-  const { data: usersData, error: usersError, isLoading: isLoadingSWR } = useGetUsers();
+  const {
+    data: usersData,
+    error: usersError,
+    isLoading: isLoadingSWR,
+  } = useGetUsers();
 
   useEffect(() => {
     if (usersData) {
@@ -190,7 +195,7 @@ export function CollaboratorsSection() {
 
       // Recarregar lista após 2 segundos
       setTimeout(() => {
-        loadCollaborators();
+        clearUsersCache();
         setSuccess(null);
       }, 2000);
     } catch (err) {
@@ -229,7 +234,7 @@ export function CollaboratorsSection() {
 
       // Recarregar lista após 1 segundo
       setTimeout(() => {
-        loadCollaborators();
+        clearUsersCache();
         setSuccess(null);
       }, 1000);
     } catch (err) {

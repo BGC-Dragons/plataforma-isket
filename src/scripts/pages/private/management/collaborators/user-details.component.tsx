@@ -35,10 +35,12 @@ import {
 import { useAuth } from "../../../../modules/access-manager/auth.hook";
 import {
   useGetUser,
+  clearUserCache,
 } from "../../../../../services/get-user.service";
 import {
   useGetDashboardUser,
   type IGetDashboardUserResponseSuccess,
+  clearDashboardUserCache,
 } from "../../../../../services/get-dashboard-user.service";
 import type { IGetUsersResponseSuccess } from "../../../../../services/get-users.service";
 import {
@@ -203,7 +205,8 @@ export function UserDetailsComponent({ userId, onBack }: UserDetailsProps) {
       await patchUser(store.token, user.id, updateData);
 
       // Recarregar dados
-      await loadUserData();
+      clearUserCache(user.id);
+      clearDashboardUserCache(user.id);
       setIsEditModalOpen(false);
     } catch (err) {
       setError("Erro ao atualizar dados do usuário. Tente novamente.");

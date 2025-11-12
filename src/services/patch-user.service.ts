@@ -1,7 +1,6 @@
 import { type AxiosResponse } from "axios";
 import { useCallback } from "react";
 import { useAuth } from "../scripts/modules/access-manager/auth.hook";
-import { endpoints } from "./helpers/endpoint.constant";
 import { isketApiClient } from "./clients/isket-api.client";
 import { getHeader } from "./helpers/get-header-function";
 import type { IGetUsersResponseSuccess } from "./get-users.service";
