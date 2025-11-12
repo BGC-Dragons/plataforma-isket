@@ -107,7 +107,9 @@ const defaultCenter = {
   lng: -49.2733,
 };
 
-const defaultZoom = 12;
+// Zoom padrão mais baixo para mostrar uma área maior na inicialização
+// Isso evita que o mapa apareça com zoom máximo quando não há dados
+const defaultZoom = 8;
 
 // Helper function to validate coordinates
 const isValidCoordinate = (
@@ -503,8 +505,10 @@ export function MapComponent({
       setMap(loadedMap);
       // Definir centro e zoom iniciais
       previousCenterRef.current = center;
-      previousZoomRef.current = zoom;
-      setCurrentZoom(zoom);
+      // Se zoom é undefined, usar o zoom atual do mapa (que pode ser defaultZoom)
+      // Isso garante que quando o zoom calculado chegar, será detectado como mudança
+      previousZoomRef.current = zoom !== undefined ? zoom : loadedMap.getZoom();
+      setCurrentZoom(zoom !== undefined ? zoom : loadedMap.getZoom() || defaultZoom);
 
       // Obter bounds iniciais - usar setTimeout para garantir que o mapa está totalmente renderizado
       setTimeout(() => {
@@ -627,21 +631,28 @@ export function MapComponent({
 
   // Efeito para animar o mapa quando center ou zoom mudarem
   useEffect(() => {
-    if (!map || !center || zoom === undefined) return;
+    // Usar valores padrão se center ou zoom forem undefined
+    const effectiveCenter = center || defaultCenter;
+    const effectiveZoom = zoom !== undefined ? zoom : defaultZoom;
+    
+    if (!map) return;
 
     // Validar coordenadas antes de usar
-    if (!isValidCoordinate(center)) {
-      console.warn("Invalid center coordinates:", center);
+    if (!isValidCoordinate(effectiveCenter)) {
+      console.warn("Invalid center coordinates:", effectiveCenter);
       return;
     }
 
     // Verificar se o centro ou zoom realmente mudaram
     const centerChanged =
       !previousCenterRef.current ||
-      previousCenterRef.current.lat !== center.lat ||
-      previousCenterRef.current.lng !== center.lng;
+      previousCenterRef.current.lat !== effectiveCenter.lat ||
+      previousCenterRef.current.lng !== effectiveCenter.lng;
 
-    const zoomChanged = previousZoomRef.current !== zoom;
+    // Detectar mudança de zoom, considerando que undefined significa que ainda não foi setado
+    const zoomChanged = 
+      previousZoomRef.current === undefined && effectiveZoom !== undefined ||
+      previousZoomRef.current !== undefined && previousZoomRef.current !== effectiveZoom;
 
     // Se não houve mudança, não fazer nada
     if (!centerChanged && !zoomChanged) return;
@@ -747,6 +758,8 @@ export function MapComponent({
     // EXCETO quando for busca apenas por cidade (sem bairros) - nesse caso usar zoom calculado
     const isCityOnlySearch = hasSelectedCities && !hasSelectedNeighborhoods;
 
+    // Quando é busca apenas por cidade, SEMPRE usar o zoom calculado (não usar fitBounds)
+    // Isso garante que o zoom calculado em calculateMapBounds seja respeitado
     if (allCoordinates.length > 0 && !isCityOnlySearch) {
       // Quando há bairros selecionados, usar fitBounds para mostrar todos os bairros
       try {
@@ -774,22 +787,49 @@ export function MapComponent({
 
         if (bounds && bounds.getNorthEast() && bounds.getSouthWest()) {
           isAnimatingRef.current = true;
+          
+          // Usar fitBounds mas limitar o zoom máximo após o fitBounds
           map.fitBounds(bounds, {
             top: 50,
             right: 50,
             bottom: 50,
             left: 50,
           });
+          
+          // Limitar o zoom após fitBounds para evitar zoom máximo
           setTimeout(() => {
+            const currentZoom = map.getZoom();
+            if (currentZoom && currentZoom > 13) {
+              map.setZoom(13);
+            }
             isAnimatingRef.current = false;
-          }, 500);
-          previousCenterRef.current = center;
-          previousZoomRef.current = zoom;
+          }, 600); // Aumentar timeout para garantir que fitBounds terminou
+          
+          previousCenterRef.current = effectiveCenter;
+          previousZoomRef.current = effectiveZoom;
           return;
         }
       } catch {
         // Fallback para panTo
       }
+    }
+    
+    // Quando é busca apenas por cidade (isCityOnlySearch = true), 
+    // garantir que o zoom calculado seja aplicado mesmo se não houver mudança de centro
+    if (isCityOnlySearch && zoomChanged) {
+      // Forçar atualização do zoom mesmo que o centro não tenha mudado
+      isAnimatingRef.current = true;
+      map.setZoom(effectiveZoom);
+      setTimeout(() => {
+        isAnimatingRef.current = false;
+      }, 500);
+      previousZoomRef.current = effectiveZoom;
+      // Se o centro também mudou, aplicar panTo também
+      if (centerChanged && isValidCoordinate(effectiveCenter)) {
+        map.panTo(new google.maps.LatLng(effectiveCenter.lat, effectiveCenter.lng));
+      }
+      previousCenterRef.current = effectiveCenter;
+      return;
     }
 
     // Se não há coordenadas ou fitBounds falhou, usar panTo e setZoom diretamente
@@ -799,11 +839,11 @@ export function MapComponent({
     try {
       if (centerChanged && zoomChanged) {
         // Validar novamente antes de usar (defesa em profundidade)
-        if (isValidCoordinate(center)) {
-          map.panTo(new google.maps.LatLng(center.lat, center.lng));
+        if (isValidCoordinate(effectiveCenter)) {
+          map.panTo(new google.maps.LatLng(effectiveCenter.lat, effectiveCenter.lng));
           setTimeout(() => {
             if (map) {
-              map.setZoom(zoom);
+              map.setZoom(effectiveZoom);
             }
             setTimeout(() => {
               isAnimatingRef.current = false;
@@ -814,8 +854,8 @@ export function MapComponent({
         }
       } else if (centerChanged) {
         // Validar novamente antes de usar (defesa em profundidade)
-        if (isValidCoordinate(center)) {
-          map.panTo(new google.maps.LatLng(center.lat, center.lng));
+        if (isValidCoordinate(effectiveCenter)) {
+          map.panTo(new google.maps.LatLng(effectiveCenter.lat, effectiveCenter.lng));
           setTimeout(() => {
             isAnimatingRef.current = false;
           }, 500);
@@ -823,7 +863,7 @@ export function MapComponent({
           isAnimatingRef.current = false;
         }
       } else if (zoomChanged) {
-        map.setZoom(zoom);
+        map.setZoom(effectiveZoom);
         setTimeout(() => {
           isAnimatingRef.current = false;
         }, 500);
@@ -834,8 +874,8 @@ export function MapComponent({
     }
 
     // Atualizar refs
-    previousCenterRef.current = center;
-    previousZoomRef.current = zoom;
+    previousCenterRef.current = effectiveCenter;
+    previousZoomRef.current = effectiveZoom;
   }, [
     map,
     center,
@@ -1008,6 +1048,14 @@ export function MapComponent({
             bottom: 50,
             left: 50,
           });
+          
+          // Limitar o zoom após fitBounds para evitar zoom máximo
+          setTimeout(() => {
+            const currentZoom = map.getZoom();
+            if (currentZoom && currentZoom > 13) {
+              map.setZoom(13);
+            }
+          }, 600);
         }
       } catch (error) {
         console.error("Error fitting bounds to neighborhood:", error);
@@ -1491,11 +1539,19 @@ export function MapComponent({
   // Calcular center e zoom a serem usados
   // Prioridade: 1) addressCenter/addressZoom da resposta da API (searchMap), 2) center/zoom das props (search normal)
   const mapCenter = useMemo(() => {
-    return addressCenter || center;
+    // Priorizar addressCenter, depois center, depois defaultCenter
+    return addressCenter || center || defaultCenter;
   }, [addressCenter, center]);
 
   const mapZoom = useMemo(() => {
-    return addressZoom !== null ? addressZoom : zoom;
+    // Priorizar addressZoom, depois zoom, depois defaultZoom
+    // Garantir que nunca seja undefined para evitar zoom máximo do Google Maps
+    const calculatedZoom = addressZoom !== null ? addressZoom : (zoom !== undefined ? zoom : defaultZoom);
+    
+    // Garantir que o zoom nunca ultrapasse 13 (limite máximo)
+    const finalZoom = Math.min(calculatedZoom, 13);
+    
+    return finalZoom;
   }, [addressZoom, zoom]);
 
   // Efeito para centralizar o mapa quando há informações de endereço
@@ -2061,6 +2117,8 @@ export function MapComponent({
           mapTypeControl: true,
           fullscreenControl: true,
           gestureHandling: "greedy", // Permite zoom com scroll sem precisar de Ctrl
+          minZoom: 3, // Zoom mínimo (mostra continente)
+          maxZoom: 20, // Zoom máximo (evita zoom extremo)
           styles: [
             {
               featureType: "poi",
