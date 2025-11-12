@@ -231,6 +231,10 @@ export function MapComponent({
   const overlayUpdateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
+  // Ref para rastrear polígonos dos bairros para cleanup seguro
+  const neighborhoodPolygonsRef = useRef<Map<string, google.maps.Polygon>>(
+    new Map()
+  );
 
   // Carrega o script do Google Maps
   const { isLoaded, loadError } = useLoadScript({
@@ -1771,11 +1775,73 @@ export function MapComponent({
     drawingManagerRef.current = drawingManager;
   }, [drawingManager]);
 
+  // Limpar polígonos dos bairros quando os bairros mudarem
+  // Isso previne que polígonos antigos fiquem no mapa quando os bairros são atualizados
+  useEffect(() => {
+    // Criar uma chave única baseada nos IDs dos bairros
+    const neighborhoodsKey = [
+      ...(allNeighborhoodsForCityBounds.length > 0
+        ? allNeighborhoodsForCityBounds
+        : neighborhoods
+      ),
+    ]
+      .map((n) => n.id)
+      .sort()
+      .join(",");
+
+    // Limpar polígonos antigos que não estão mais na lista atual
+    const currentNeighborhoodIds = new Set(
+      (allNeighborhoodsForCityBounds.length > 0
+        ? allNeighborhoodsForCityBounds
+        : neighborhoods
+      ).map((n) => n.id)
+    );
+
+    neighborhoodPolygonsRef.current.forEach((polygon, id) => {
+      if (!currentNeighborhoodIds.has(id)) {
+        // Remover polígono que não está mais na lista
+        try {
+          if (polygon && typeof polygon.setMap === "function") {
+            // Verificar se o polígono ainda está no mapa antes de remover
+            const map = polygon.getMap();
+            if (map) {
+              polygon.setMap(null);
+            }
+          }
+        } catch {
+          // Ignorar erros durante cleanup
+        }
+        neighborhoodPolygonsRef.current.delete(id);
+      }
+    });
+  }, [
+    neighborhoods,
+    allNeighborhoodsForCityBounds,
+    selectedNeighborhoodNames,
+  ]);
+
   // useLayoutEffect para desabilitar DrawingManager ANTES da desmontagem visual
   // Isso previne que a biblioteca tente limpar overlays automaticamente
   useLayoutEffect(() => {
     return () => {
-      // PRIMEIRO: Remover todos os overlays do mapa ANTES de desabilitar o DrawingManager
+      // PRIMEIRO: Limpar polígonos dos bairros ANTES de qualquer outra coisa
+      // Isso previne que o Google Maps tente remover polígonos que já foram removidos
+      try {
+        neighborhoodPolygonsRef.current.forEach((polygon) => {
+          if (polygon && typeof polygon.setMap === "function") {
+            try {
+              polygon.setMap(null);
+            } catch {
+              // Ignorar erros durante cleanup
+            }
+          }
+        });
+        neighborhoodPolygonsRef.current.clear();
+      } catch {
+        // Ignorar erros silenciosamente
+      }
+
+      // SEGUNDO: Remover todos os overlays do mapa ANTES de desabilitar o DrawingManager
       // Isso evita que o DrawingManager tente limpá-los automaticamente
       drawnOverlaysRef.current.forEach((overlay) => {
         if (overlay?.overlay) {
@@ -2042,6 +2108,22 @@ export function MapComponent({
           // Ignorar erros silenciosamente durante cleanup
         }
 
+        // Limpar polígonos dos bairros de forma segura
+        try {
+          neighborhoodPolygonsRef.current.forEach((polygon) => {
+            if (polygon && typeof polygon.setMap === "function") {
+              try {
+                polygon.setMap(null);
+              } catch {
+                // Ignorar erros durante cleanup
+              }
+            }
+          });
+          neighborhoodPolygonsRef.current.clear();
+        } catch {
+          // Ignorar erros silenciosamente durante cleanup
+        }
+
         // Restaurar handlers de erro originais
         window.onerror = originalErrorHandler || null;
         window.removeEventListener(
@@ -2235,7 +2317,7 @@ export function MapComponent({
 
               return (
                 <Polygon
-                  key={neighborhood.id}
+                  key={`neighborhood-${neighborhood.id}`}
                   paths={paths}
                   options={{
                     fillColor: theme.palette.primary.main,
