@@ -512,7 +512,9 @@ export function MapComponent({
       // Se zoom é undefined, usar o zoom atual do mapa (que pode ser defaultZoom)
       // Isso garante que quando o zoom calculado chegar, será detectado como mudança
       previousZoomRef.current = zoom !== undefined ? zoom : loadedMap.getZoom();
-      setCurrentZoom(zoom !== undefined ? zoom : loadedMap.getZoom() || defaultZoom);
+      setCurrentZoom(
+        zoom !== undefined ? zoom : loadedMap.getZoom() || defaultZoom
+      );
 
       // Obter bounds iniciais - usar setTimeout para garantir que o mapa está totalmente renderizado
       setTimeout(() => {
@@ -638,7 +640,7 @@ export function MapComponent({
     // Usar valores padrão se center ou zoom forem undefined
     const effectiveCenter = center || defaultCenter;
     const effectiveZoom = zoom !== undefined ? zoom : defaultZoom;
-    
+
     if (!map) return;
 
     // Validar coordenadas antes de usar
@@ -654,9 +656,10 @@ export function MapComponent({
       previousCenterRef.current.lng !== effectiveCenter.lng;
 
     // Detectar mudança de zoom, considerando que undefined significa que ainda não foi setado
-    const zoomChanged = 
-      previousZoomRef.current === undefined && effectiveZoom !== undefined ||
-      previousZoomRef.current !== undefined && previousZoomRef.current !== effectiveZoom;
+    const zoomChanged =
+      (previousZoomRef.current === undefined && effectiveZoom !== undefined) ||
+      (previousZoomRef.current !== undefined &&
+        previousZoomRef.current !== effectiveZoom);
 
     // Se não houve mudança, não fazer nada
     if (!centerChanged && !zoomChanged) return;
@@ -791,7 +794,7 @@ export function MapComponent({
 
         if (bounds && bounds.getNorthEast() && bounds.getSouthWest()) {
           isAnimatingRef.current = true;
-          
+
           // Usar fitBounds mas limitar o zoom máximo após o fitBounds
           map.fitBounds(bounds, {
             top: 50,
@@ -799,7 +802,7 @@ export function MapComponent({
             bottom: 50,
             left: 50,
           });
-          
+
           // Limitar o zoom após fitBounds para evitar zoom máximo
           setTimeout(() => {
             const currentZoom = map.getZoom();
@@ -808,7 +811,7 @@ export function MapComponent({
             }
             isAnimatingRef.current = false;
           }, 600); // Aumentar timeout para garantir que fitBounds terminou
-          
+
           previousCenterRef.current = effectiveCenter;
           previousZoomRef.current = effectiveZoom;
           return;
@@ -817,8 +820,8 @@ export function MapComponent({
         // Fallback para panTo
       }
     }
-    
-    // Quando é busca apenas por cidade (isCityOnlySearch = true), 
+
+    // Quando é busca apenas por cidade (isCityOnlySearch = true),
     // garantir que o zoom calculado seja aplicado mesmo se não houver mudança de centro
     if (isCityOnlySearch && zoomChanged) {
       // Forçar atualização do zoom mesmo que o centro não tenha mudado
@@ -830,7 +833,9 @@ export function MapComponent({
       previousZoomRef.current = effectiveZoom;
       // Se o centro também mudou, aplicar panTo também
       if (centerChanged && isValidCoordinate(effectiveCenter)) {
-        map.panTo(new google.maps.LatLng(effectiveCenter.lat, effectiveCenter.lng));
+        map.panTo(
+          new google.maps.LatLng(effectiveCenter.lat, effectiveCenter.lng)
+        );
       }
       previousCenterRef.current = effectiveCenter;
       return;
@@ -844,7 +849,9 @@ export function MapComponent({
       if (centerChanged && zoomChanged) {
         // Validar novamente antes de usar (defesa em profundidade)
         if (isValidCoordinate(effectiveCenter)) {
-          map.panTo(new google.maps.LatLng(effectiveCenter.lat, effectiveCenter.lng));
+          map.panTo(
+            new google.maps.LatLng(effectiveCenter.lat, effectiveCenter.lng)
+          );
           setTimeout(() => {
             if (map) {
               map.setZoom(effectiveZoom);
@@ -859,7 +866,9 @@ export function MapComponent({
       } else if (centerChanged) {
         // Validar novamente antes de usar (defesa em profundidade)
         if (isValidCoordinate(effectiveCenter)) {
-          map.panTo(new google.maps.LatLng(effectiveCenter.lat, effectiveCenter.lng));
+          map.panTo(
+            new google.maps.LatLng(effectiveCenter.lat, effectiveCenter.lng)
+          );
           setTimeout(() => {
             isAnimatingRef.current = false;
           }, 500);
@@ -1052,7 +1061,7 @@ export function MapComponent({
             bottom: 50,
             left: 50,
           });
-          
+
           // Limitar o zoom após fitBounds para evitar zoom máximo
           setTimeout(() => {
             const currentZoom = map.getZoom();
@@ -1550,11 +1559,16 @@ export function MapComponent({
   const mapZoom = useMemo(() => {
     // Priorizar addressZoom, depois zoom, depois defaultZoom
     // Garantir que nunca seja undefined para evitar zoom máximo do Google Maps
-    const calculatedZoom = addressZoom !== null ? addressZoom : (zoom !== undefined ? zoom : defaultZoom);
-    
+    const calculatedZoom =
+      addressZoom !== null
+        ? addressZoom
+        : zoom !== undefined
+        ? zoom
+        : defaultZoom;
+
     // Garantir que o zoom nunca ultrapasse 13 (limite máximo)
     const finalZoom = Math.min(calculatedZoom, 13);
-    
+
     return finalZoom;
   }, [addressZoom, zoom]);
 
@@ -1778,17 +1792,6 @@ export function MapComponent({
   // Limpar polígonos dos bairros quando os bairros mudarem
   // Isso previne que polígonos antigos fiquem no mapa quando os bairros são atualizados
   useEffect(() => {
-    // Criar uma chave única baseada nos IDs dos bairros
-    const neighborhoodsKey = [
-      ...(allNeighborhoodsForCityBounds.length > 0
-        ? allNeighborhoodsForCityBounds
-        : neighborhoods
-      ),
-    ]
-      .map((n) => n.id)
-      .sort()
-      .join(",");
-
     // Limpar polígonos antigos que não estão mais na lista atual
     const currentNeighborhoodIds = new Set(
       (allNeighborhoodsForCityBounds.length > 0
@@ -1814,20 +1817,21 @@ export function MapComponent({
         neighborhoodPolygonsRef.current.delete(id);
       }
     });
-  }, [
-    neighborhoods,
-    allNeighborhoodsForCityBounds,
-    selectedNeighborhoodNames,
-  ]);
+  }, [neighborhoods, allNeighborhoodsForCityBounds, selectedNeighborhoodNames]);
 
   // useLayoutEffect para desabilitar DrawingManager ANTES da desmontagem visual
   // Isso previne que a biblioteca tente limpar overlays automaticamente
   useLayoutEffect(() => {
+    // Copiar referências para evitar problemas de stale closures no cleanup
+    const neighborhoodPolygons = neighborhoodPolygonsRef.current;
+    const drawnOverlays = drawnOverlaysRef.current;
+    const drawingManager = drawingManagerRef.current;
+
     return () => {
       // PRIMEIRO: Limpar polígonos dos bairros ANTES de qualquer outra coisa
       // Isso previne que o Google Maps tente remover polígonos que já foram removidos
       try {
-        neighborhoodPolygonsRef.current.forEach((polygon) => {
+        neighborhoodPolygons.forEach((polygon) => {
           if (polygon && typeof polygon.setMap === "function") {
             try {
               polygon.setMap(null);
@@ -1836,14 +1840,14 @@ export function MapComponent({
             }
           }
         });
-        neighborhoodPolygonsRef.current.clear();
+        neighborhoodPolygons.clear();
       } catch {
         // Ignorar erros silenciosamente
       }
 
       // SEGUNDO: Remover todos os overlays do mapa ANTES de desabilitar o DrawingManager
       // Isso evita que o DrawingManager tente limpá-los automaticamente
-      drawnOverlaysRef.current.forEach((overlay) => {
+      drawnOverlays.forEach((overlay) => {
         if (overlay?.overlay) {
           try {
             if (typeof overlay.overlay.setMap === "function") {
@@ -1858,12 +1862,12 @@ export function MapComponent({
       // SEGUNDO: Desabilitar o DrawingManager DEPOIS de remover todos os overlays
       // Isso garante que o DrawingManager não tente limpar overlays que já foram removidos
       try {
-        if (drawingManagerRef.current) {
+        if (drawingManager) {
           // Desabilitar modo de desenho primeiro
-          drawingManagerRef.current.setDrawingMode(null);
+          drawingManager.setDrawingMode(null);
 
           // Tentar acessar e limpar overlays internos do DrawingManager se possível
-          const manager = drawingManagerRef.current as unknown as {
+          const manager = drawingManager as unknown as {
             overlays?: Array<{
               overlay?: {
                 remove?: () => void;
@@ -1898,6 +1902,12 @@ export function MapComponent({
 
   // Cleanup quando o componente é desmontado (navegação para outra página)
   useEffect(() => {
+    // Copiar referências para evitar problemas de stale closures no cleanup
+    const overlayListeners = overlayListenersRef.current;
+    const neighborhoodPolygons = neighborhoodPolygonsRef.current;
+    const drawnOverlays = drawnOverlaysRef.current;
+    const drawingManager = drawingManagerRef.current;
+
     // Handler de erro global para capturar erros durante cleanup
     const originalErrorHandler = window.onerror;
     const originalUnhandledRejection = window.onunhandledrejection;
@@ -1962,7 +1972,7 @@ export function MapComponent({
       // PRIMEIRO: Remover todos os overlays do mapa ANTES de desabilitar o DrawingManager
       // Isso evita que o DrawingManager tente limpá-los automaticamente
       // Limpar todos os overlays de forma segura
-      drawnOverlaysRef.current.forEach((overlay) => {
+      drawnOverlays.forEach((overlay) => {
         if (overlay?.overlay) {
           try {
             // Verificar se o overlay tem o método setMap antes de usar
@@ -1979,12 +1989,12 @@ export function MapComponent({
       // SEGUNDO: Desabilitar o DrawingManager DEPOIS de remover todos os overlays
       // Isso garante que o DrawingManager não tente limpar overlays que já foram removidos
       try {
-        if (drawingManagerRef.current) {
+        if (drawingManager) {
           // Desabilitar modo de desenho primeiro
-          drawingManagerRef.current.setDrawingMode(null);
+          drawingManager.setDrawingMode(null);
 
           // Tentar acessar e limpar overlays internos do DrawingManager se possível
-          const manager = drawingManagerRef.current as unknown as {
+          const manager = drawingManager as unknown as {
             overlays?: Array<{
               overlay?: {
                 remove?: () => void;
@@ -2019,7 +2029,6 @@ export function MapComponent({
       // Pequeno delay para garantir que o DrawingManager foi desabilitado
       // e que ele não tentará limpar overlays automaticamente
       setTimeout(() => {
-
         // Limpar círculo de endereço se existir
         if (addressCircleOverlayRef.current) {
           try {
@@ -2080,14 +2089,14 @@ export function MapComponent({
         }
 
         // Limpar listeners de overlays
-        // Copiar referência para evitar problemas com cleanup
-        const listenersToClean = new Map(overlayListenersRef.current);
+        // Usar a cópia feita no início do useEffect
+        const listenersToClean = new Map(overlayListeners);
         listenersToClean.forEach((listeners) => {
           listeners.forEach((listener) => {
             google.maps.event.removeListener(listener);
           });
         });
-        overlayListenersRef.current.clear();
+        overlayListeners.clear();
 
         // Limpar timeout de atualização de overlay
         if (overlayUpdateTimeoutRef.current) {
@@ -2110,7 +2119,7 @@ export function MapComponent({
 
         // Limpar polígonos dos bairros de forma segura
         try {
-          neighborhoodPolygonsRef.current.forEach((polygon) => {
+          neighborhoodPolygons.forEach((polygon) => {
             if (polygon && typeof polygon.setMap === "function") {
               try {
                 polygon.setMap(null);
@@ -2119,7 +2128,7 @@ export function MapComponent({
               }
             }
           });
-          neighborhoodPolygonsRef.current.clear();
+          neighborhoodPolygons.clear();
         } catch {
           // Ignorar erros silenciosamente durante cleanup
         }
@@ -2300,52 +2309,53 @@ export function MapComponent({
                         lng,
                       };
                     })
-                    .filter((coord): coord is { lat: number; lng: number } =>
-                      coord !== null
+                    .filter(
+                      (coord): coord is { lat: number; lng: number } =>
+                        coord !== null
                     ) || [];
 
                 // Se não há paths válidos após a filtragem, não renderizar
                 if (paths.length === 0) return null;
 
-              // Verificar se o bairro está selecionado
-              const isSelected = selectedNeighborhoodNames.includes(
-                neighborhood.name
-              );
+                // Verificar se o bairro está selecionado
+                const isSelected = selectedNeighborhoodNames.includes(
+                  neighborhood.name
+                );
 
-              // Desabilitar cliques e hovers quando um modo de desenho estiver ativo
-              const isDrawingActive = drawingMode !== null || freehandActive;
+                // Desabilitar cliques e hovers quando um modo de desenho estiver ativo
+                const isDrawingActive = drawingMode !== null || freehandActive;
 
-              return (
-                <Polygon
-                  key={`neighborhood-${neighborhood.id}`}
-                  paths={paths}
-                  options={{
-                    fillColor: theme.palette.primary.main,
-                    fillOpacity: isSelected ? 0.3 : 0.15, // Mais opaco se selecionado
-                    strokeColor: theme.palette.primary.main,
-                    strokeOpacity: isSelected ? 1 : 0.8, // Mais visível se selecionado
-                    strokeWeight: isSelected ? 3 : 2, // Mais espesso se selecionado
-                    clickable: !isDrawingActive, // Desabilitar cliques quando desenhando
-                    editable: false,
-                    draggable: false,
-                    zIndex: isSelected ? 2 : 1, // Bairros selecionados ficam na frente
-                  }}
-                  onMouseOver={
-                    !isDrawingActive
-                      ? (e) => handleNeighborhoodMouseOver(neighborhood, e)
-                      : undefined
-                  }
-                  onMouseOut={
-                    !isDrawingActive ? handleNeighborhoodMouseOut : undefined
-                  }
-                  onClick={
-                    !isDrawingActive
-                      ? () => handleNeighborhoodClick(neighborhood)
-                      : undefined
-                  }
-                />
-              );
-            });
+                return (
+                  <Polygon
+                    key={`neighborhood-${neighborhood.id}`}
+                    paths={paths}
+                    options={{
+                      fillColor: theme.palette.primary.main,
+                      fillOpacity: isSelected ? 0.3 : 0.15, // Mais opaco se selecionado
+                      strokeColor: theme.palette.primary.main,
+                      strokeOpacity: isSelected ? 1 : 0.8, // Mais visível se selecionado
+                      strokeWeight: isSelected ? 3 : 2, // Mais espesso se selecionado
+                      clickable: !isDrawingActive, // Desabilitar cliques quando desenhando
+                      editable: false,
+                      draggable: false,
+                      zIndex: isSelected ? 2 : 1, // Bairros selecionados ficam na frente
+                    }}
+                    onMouseOver={
+                      !isDrawingActive
+                        ? (e) => handleNeighborhoodMouseOver(neighborhood, e)
+                        : undefined
+                    }
+                    onMouseOut={
+                      !isDrawingActive ? handleNeighborhoodMouseOut : undefined
+                    }
+                    onClick={
+                      !isDrawingActive
+                        ? () => handleNeighborhoodClick(neighborhood)
+                        : undefined
+                    }
+                  />
+                );
+              });
           })()}
 
         {/* Marcador do endereço (quando há busca por endereço) */}

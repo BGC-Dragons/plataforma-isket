@@ -54,7 +54,6 @@ export function ProfileSection() {
 
   useEffect(() => {
     if (profileDataSWR) {
-      console.log(profileDataSWR.profile);
       setProfileInfo(profileDataSWR);
       setProfileData({
         email: profileDataSWR.profile.email || "",
@@ -62,7 +61,9 @@ export function ProfileSection() {
           ? formatPhoneNumber(profileDataSWR.profile.phoneNumber)
           : "",
         address: profileDataSWR.profile.formattedAddress || "",
-        cpf: profileDataSWR.personalId ? formatCPF(profileDataSWR.personalId) : "",
+        cpf: profileDataSWR.personalId
+          ? formatCPF(profileDataSWR.personalId)
+          : "",
       });
       setIsLoadingProfile(false);
     }
