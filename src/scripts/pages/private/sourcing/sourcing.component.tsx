@@ -1,0 +1,360 @@
+import { useState } from "react";
+import { Box, useTheme } from "@mui/material";
+import { Home, Person, TrendingUp, LocationOn } from "@mui/icons-material";
+import {
+  ButtonsBar,
+  type ViewMode,
+} from "../../../modules/sourcing/buttons-bar";
+import {
+  Kanban,
+  type KanbanColumn,
+  type ColumnId,
+} from "../../../modules/sourcing/kanban.component";
+import { SourcingTypeModal } from "../../../modules/sourcing/sourcing-type-modal";
+import {
+  PropertySourcingModal,
+  type PropertySourcingData,
+} from "../../../modules/sourcing/property-sourcing-modal";
+import {
+  ContactSourcingModal,
+  type ContactSourcingData,
+} from "../../../modules/sourcing/contact-sourcing-modal";
+import { PropertySourcingDetails } from "../../../modules/sourcing/property-sourcing-details.component";
+import { ContactSourcingDetails } from "../../../modules/sourcing/contact-sourcing-details";
+
+export function SourcingComponent() {
+  const theme = useTheme();
+  const [searchValue, setSearchValue] = useState("");
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPropertyModalOpen, setIsPropertyModalOpen] = useState(false);
+  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+  const [isPropertyDetailsOpen, setIsPropertyDetailsOpen] = useState(false);
+  const [isContactDetailsOpen, setIsContactDetailsOpen] = useState(false);
+  const [propertyData, setPropertyData] = useState<PropertySourcingData | null>(null);
+  const [contactData, setContactData] = useState<ContactSourcingData | null>(null);
+
+  // Dados iniciais do Kanban (exemplo)
+  const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>([
+    {
+      id: "property-sourcing",
+      title: "Captação por imóvel",
+      icon: <Home />,
+      color: "#C8E6C9",
+      cards: [
+        {
+          id: "1",
+          type: "property",
+          title: "APT - COUNTRY",
+          address: "Rua Para, 1462, Country...",
+        },
+      ],
+    },
+    {
+      id: "contact-sourcing",
+      title: "Captação por contato",
+      icon: <Person />,
+      color: "#BBDEFB",
+      cards: [
+        {
+          id: "2",
+          type: "contact",
+          title: "LUCIMAR CASAGRANDE",
+          subtitle: "COIFFURES - 05.525.906 / 0001-43",
+          contact: "Lucimar Casagrande",
+        },
+        {
+          id: "3",
+          type: "contact",
+          title: "LUCIMAR CASAGRANDE",
+          subtitle: "COIFFURES - 05.525.906 / 0001-43",
+          contact: "Lucimar Casagrande",
+        },
+        {
+          id: "4",
+          type: "contact",
+          title: "LUCIMAR CASAGRANDE",
+          subtitle: "COIFFURES - 05.525.906 / 0001-43",
+          contact: "Lucimar Casagrande",
+        },
+      ],
+    },
+    {
+      id: "prospecting",
+      title: "Prospecção",
+      icon: <TrendingUp />,
+      color: "#F8BBD0",
+      cards: [
+        {
+          id: "5",
+          type: "property",
+          title: "APT - COUNTRY",
+          address: "Rua Para, 1462, Country...",
+        },
+        {
+          id: "6",
+          type: "contact",
+          title: "LUCIMAR CA GIDE",
+          subtitle: "COIFFURES 25.906 / 00...",
+          contact: "Lucimar Casagrande",
+        },
+      ],
+    },
+    {
+      id: "visit",
+      title: "Visita",
+      icon: <LocationOn />,
+      color: "#FFE0B2",
+      cards: [
+        {
+          id: "7",
+          type: "property",
+          title: "APT - COUNTRY",
+          address: "Rua Para, 1462, Country...",
+        },
+      ],
+    },
+  ]);
+
+  const handleAddCapture = () => {
+    setIsModalOpen(true);
+  };
+
+  const handleSelectProperty = () => {
+    setIsPropertyModalOpen(true);
+  };
+
+  const handleSaveProperty = (data: PropertySourcingData) => {
+    console.log("Dados da captação de imóvel:", data);
+    setPropertyData(data);
+    setIsPropertyModalOpen(false);
+    setIsPropertyDetailsOpen(true);
+    // TODO: Implementar lógica de salvar captação de imóvel
+  };
+
+  const handleSelectContact = () => {
+    setIsContactModalOpen(true);
+  };
+
+  const handleSaveContact = (data: ContactSourcingData) => {
+    console.log("Dados da captação de contato:", data);
+    setContactData(data);
+    setIsContactModalOpen(false);
+    setIsContactDetailsOpen(true);
+    // TODO: Implementar lógica de salvar captação de contato
+  };
+
+  const handleSearchResidents = () => {
+    console.log("Pesquisar moradores");
+    // TODO: Implementar lógica de pesquisar moradores
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearchValue(value);
+    // TODO: Implementar lógica de pesquisa
+  };
+
+  const handleViewModeChange = (mode: ViewMode) => {
+    setViewMode(mode);
+    // TODO: Implementar mudança de visualização
+  };
+
+  const handleCardMove = (
+    cardId: string,
+    sourceColumnId: ColumnId,
+    destinationColumnId: ColumnId
+  ) => {
+    setKanbanColumns((prev) => {
+      const sourceColumn = prev.find((col) => col.id === sourceColumnId);
+      const destinationColumn = prev.find(
+        (col) => col.id === destinationColumnId
+      );
+
+      if (!sourceColumn || !destinationColumn) return prev;
+
+      const card = sourceColumn.cards.find((c) => c.id === cardId);
+      if (!card) return prev;
+
+      return prev.map((col) => {
+        if (col.id === sourceColumnId) {
+          return {
+            ...col,
+            cards: col.cards.filter((c) => c.id !== cardId),
+          };
+        }
+        if (col.id === destinationColumnId) {
+          return {
+            ...col,
+            cards: [...col.cards, card],
+          };
+        }
+        return col;
+      });
+    });
+  };
+
+  const handleCardDelete = (cardId: string, columnId: ColumnId) => {
+    setKanbanColumns((prev) =>
+      prev.map((col) =>
+        col.id === columnId
+          ? { ...col, cards: col.cards.filter((c) => c.id !== cardId) }
+          : col
+      )
+    );
+  };
+
+  const handleAddColumn = (columnData: {
+    title: string;
+    icon: React.ReactNode;
+    color: string;
+  }) => {
+    // Gerar um ID único para a nova coluna
+    const newId = `column-${Date.now()}` as ColumnId;
+
+    setKanbanColumns((prev) => [
+      ...prev,
+      {
+        id: newId,
+        title: columnData.title,
+        icon: columnData.icon,
+        color: columnData.color,
+        cards: [],
+      },
+    ]);
+  };
+
+  return (
+    <Box
+      sx={{
+        backgroundColor: theme.palette.background.default,
+        px: { xs: 0, sm: 2 },
+        position: "relative",
+        overflow: { xs: "hidden", sm: "visible" },
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+      }}
+    >
+      <Box
+        sx={{
+          width: "100%",
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          minHeight: 0,
+          overflow: "hidden",
+        }}
+      >
+        <ButtonsBar
+          onAddCapture={handleAddCapture}
+          onSearchResidents={handleSearchResidents}
+          onSearchChange={handleSearchChange}
+          onViewModeChange={handleViewModeChange}
+          searchValue={searchValue}
+          viewMode={viewMode}
+        />
+
+        {/* Conteúdo principal */}
+        <Box
+          sx={{
+            flex: 1,
+            width: "100%",
+            minHeight: 0,
+            backgroundColor: theme.palette.background.default,
+            overflow: "hidden",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          {viewMode === "grid" ? (
+            <Kanban
+              columns={kanbanColumns}
+              onCardMove={handleCardMove}
+              onCardDelete={handleCardDelete}
+              onAddColumn={handleAddColumn}
+            />
+          ) : (
+            <Box sx={{ p: 3 }}>
+              {/* TODO: Implementar visualização em lista */}
+              <Box
+                sx={{
+                  textAlign: "center",
+                  py: 8,
+                  color: theme.palette.text.secondary,
+                }}
+              >
+                Visualização em lista será implementada aqui
+              </Box>
+            </Box>
+          )}
+        </Box>
+      </Box>
+
+      {/* Modal de seleção de tipo de captação */}
+      <SourcingTypeModal
+        open={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSelectProperty={handleSelectProperty}
+        onSelectContact={handleSelectContact}
+      />
+
+      {/* Modal de captação de imóvel */}
+      <PropertySourcingModal
+        open={isPropertyModalOpen}
+        onClose={() => setIsPropertyModalOpen(false)}
+        onSave={handleSaveProperty}
+      />
+
+      {/* Modal de captação de contato */}
+      <ContactSourcingModal
+        open={isContactModalOpen}
+        onClose={() => setIsContactModalOpen(false)}
+        onSave={handleSaveContact}
+      />
+
+      {/* Modal de detalhes de captação de imóvel */}
+      {propertyData && (
+        <PropertySourcingDetails
+          open={isPropertyDetailsOpen}
+          onClose={() => setIsPropertyDetailsOpen(false)}
+          data={propertyData}
+          onReject={() => {
+            console.log("Captação de imóvel recusada");
+            setIsPropertyDetailsOpen(false);
+            // TODO: Implementar lógica de recusar
+          }}
+          onCapture={() => {
+            console.log("Captação de imóvel confirmada");
+            setIsPropertyDetailsOpen(false);
+            // TODO: Implementar lógica de captar
+          }}
+          onTitleChange={(title) => {
+            setPropertyData({ ...propertyData, title });
+          }}
+        />
+      )}
+
+      {/* Modal de detalhes de captação de contato */}
+      {contactData && (
+        <ContactSourcingDetails
+          open={isContactDetailsOpen}
+          onClose={() => setIsContactDetailsOpen(false)}
+          data={contactData}
+          onReject={() => {
+            console.log("Captação de contato recusada");
+            setIsContactDetailsOpen(false);
+            // TODO: Implementar lógica de recusar
+          }}
+          onCapture={() => {
+            console.log("Captação de contato confirmada");
+            setIsContactDetailsOpen(false);
+            // TODO: Implementar lógica de captar
+          }}
+          onTitleChange={(title) => {
+            setContactData({ ...contactData, title });
+          }}
+        />
+      )}
+    </Box>
+  );
+}

@@ -1590,7 +1590,7 @@ export function SearchComponent() {
       sx={{
         minHeight: "100vh",
         backgroundColor: theme.palette.background.default,
-        py: { xs: 0, sm: 3 },
+        py: { xs: 0, sm: 1 },
         px: { xs: 0, sm: 2 },
         position: "relative",
         overflow: { xs: "hidden", sm: "visible" },

@@ -12,8 +12,11 @@ export function PrivateLayout({ children }: PrivateLayoutProps) {
   return (
     <Box
       sx={{
-        minHeight: "100vh",
+        height: "100vh",
+        display: "flex",
+        flexDirection: "column",
         backgroundColor: theme.palette.background.default,
+        overflow: "hidden",
       }}
     >
       <FloatingTopMenu />
@@ -22,11 +25,17 @@ export function PrivateLayout({ children }: PrivateLayoutProps) {
         component="main"
         sx={{
           width: "100%",
-          minHeight: "100vh",
+          flex: 1,
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
           backgroundColor: theme.palette.background.default,
+          overflow: "hidden",
         }}
       >
-        <Box>{children}</Box>
+        <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          {children}
+        </Box>
       </Box>
     </Box>
   );
