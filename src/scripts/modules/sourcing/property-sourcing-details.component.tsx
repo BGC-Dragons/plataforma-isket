@@ -204,7 +204,7 @@ export function PropertySourcingDetails({
             sx={{
               backgroundColor: "#e8f5e9",
               borderRadius: 3,
-              p: 3,
+              p: 2,
             }}
           >
             {/* Title with edit capability */}
@@ -212,7 +212,7 @@ export function PropertySourcingDetails({
               sx={{
                 display: "flex",
                 alignItems: "center",
-                gap: 1,
+                gap: 0.5,
                 mb: 1,
               }}
             >
@@ -240,7 +240,7 @@ export function PropertySourcingDetails({
                       flex: 1,
                       "& .MuiInputBase-input": {
                         fontWeight: 700,
-                        fontSize: "1.25rem",
+                        fontSize: "1rem",
                         color: theme.palette.text.primary,
                       },
                     }}
@@ -268,9 +268,10 @@ export function PropertySourcingDetails({
                     onClick={() => setIsEditingTitle(true)}
                     sx={{
                       fontWeight: 700,
-                      fontSize: "1.25rem",
+                      fontSize: "1rem",
                       color: theme.palette.text.primary,
                       cursor: "pointer",
+                      lineHeight: 1.2,
                       "&:hover": {
                         textDecoration: "underline",
                       },
@@ -286,7 +287,7 @@ export function PropertySourcingDetails({
                     onClick={() => setIsEditingTitle(true)}
                     sx={{
                       color: theme.palette.text.secondary,
-                      p: 0.5,
+                      p: 0.25,
                       "&:hover": {
                         backgroundColor: "rgba(0, 0, 0, 0.04)",
                       },
@@ -303,7 +304,8 @@ export function PropertySourcingDetails({
               variant="body2"
               sx={{
                 color: theme.palette.text.secondary,
-                fontSize: "0.875rem",
+                fontSize: "0.75rem",
+                lineHeight: 1.2,
               }}
             >
               {formatAddress() || "Endereço não informado"}
