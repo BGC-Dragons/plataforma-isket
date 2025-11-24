@@ -98,7 +98,14 @@ export function PropertySourcingDetails({
         },
       }}
     >
-      <DialogContent sx={{ p: 0 }}>
+      <DialogContent
+        sx={{
+          p: 0,
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
         {/* Header */}
         <Box
           sx={{
@@ -183,7 +190,15 @@ export function PropertySourcingDetails({
         </Box>
 
         {/* Content */}
-        <Box sx={{ p: 3 }}>
+        <Box
+          sx={{
+            p: 3,
+            flex: 1,
+            overflow: "hidden",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
           {/* Property Info Box */}
           <Box
             sx={{
@@ -198,7 +213,7 @@ export function PropertySourcingDetails({
                 display: "flex",
                 alignItems: "center",
                 gap: 1,
-                mb: 2,
+                mb: 1,
               }}
             >
               {isEditingTitle ? (
@@ -302,6 +317,9 @@ export function PropertySourcingDetails({
               gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
               gap: 3,
               mt: 3,
+              flex: 1,
+              minHeight: 0,
+              overflow: "hidden",
             }}
           >
             {/* Left Box: Possíveis moradores */}
@@ -311,6 +329,25 @@ export function PropertySourcingDetails({
                 border: `2px solid ${theme.palette.divider}`,
                 borderRadius: 3,
                 p: 3,
+                pr: 1,
+                display: "flex",
+                flexDirection: "column",
+                overflowY: "auto",
+                height: "100%",
+                "&::-webkit-scrollbar": {
+                  width: "4px",
+                },
+                "&::-webkit-scrollbar-track": {
+                  background: "transparent",
+                  margin: "8px 0",
+                },
+                "&::-webkit-scrollbar-thumb": {
+                  background: theme.palette.divider,
+                  borderRadius: "2px",
+                  "&:hover": {
+                    background: theme.palette.text.secondary,
+                  },
+                },
               }}
             >
               <Typography
@@ -467,8 +504,6 @@ export function PropertySourcingDetails({
               <Box
                 sx={{
                   mt: 2,
-                  maxHeight: 400,
-                  overflowY: "auto",
                   display: "flex",
                   flexDirection: "column",
                   gap: 1,
@@ -743,6 +778,25 @@ export function PropertySourcingDetails({
                 border: `2px solid ${theme.palette.divider}`,
                 borderRadius: 3,
                 p: 3,
+                pr: 1,
+                display: "flex",
+                flexDirection: "column",
+                overflowY: "auto",
+                height: "100%",
+                "&::-webkit-scrollbar": {
+                  width: "4px",
+                },
+                "&::-webkit-scrollbar-track": {
+                  background: "transparent",
+                  margin: "8px 0",
+                },
+                "&::-webkit-scrollbar-thumb": {
+                  background: theme.palette.divider,
+                  borderRadius: "2px",
+                  "&:hover": {
+                    background: theme.palette.text.secondary,
+                  },
+                },
               }}
             >
               <Box
