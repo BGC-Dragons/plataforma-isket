@@ -21,6 +21,14 @@ import {
 } from "../../../modules/sourcing/contact-sourcing-modal";
 import { PropertySourcingDetails } from "../../../modules/sourcing/property-sourcing-details.component";
 import { ContactSourcingDetails } from "../../../modules/sourcing/contact-sourcing-details";
+import {
+  ResidentSearchModal,
+  type ResidentSearchData,
+} from "../../../modules/sourcing/resident-search-modal";
+import {
+  SearchResidentResultModal,
+  type ResidentResult,
+} from "../../../modules/sourcing/search-resident-result-modal";
 
 export function SourcingComponent() {
   const theme = useTheme();
@@ -31,6 +39,8 @@ export function SourcingComponent() {
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [isPropertyDetailsOpen, setIsPropertyDetailsOpen] = useState(false);
   const [isContactDetailsOpen, setIsContactDetailsOpen] = useState(false);
+  const [isResidentSearchModalOpen, setIsResidentSearchModalOpen] = useState(false);
+  const [isResidentResultModalOpen, setIsResidentResultModalOpen] = useState(false);
   const [propertyData, setPropertyData] = useState<PropertySourcingData | null>(null);
   const [contactData, setContactData] = useState<ContactSourcingData | null>(null);
 
@@ -145,8 +155,30 @@ export function SourcingComponent() {
   };
 
   const handleSearchResidents = () => {
-    console.log("Pesquisar moradores");
-    // TODO: Implementar lógica de pesquisar moradores
+    setIsResidentSearchModalOpen(true);
+  };
+
+  const handleResidentSearch = (data: ResidentSearchData) => {
+    console.log("Dados da pesquisa de moradores:", data);
+    // Fecha o modal de pesquisa e abre o modal de resultados
+    setIsResidentSearchModalOpen(false);
+    setIsResidentResultModalOpen(true);
+    // TODO: Implementar lógica de pesquisar moradores e passar resultados
+  };
+
+  const handleBackToSearch = () => {
+    setIsResidentResultModalOpen(false);
+    setIsResidentSearchModalOpen(true);
+  };
+
+  const handleCreateCapture = (resident: ResidentResult) => {
+    console.log("Criar captação para:", resident);
+    // TODO: Implementar lógica de criar captação
+  };
+
+  const handleReveal = (resident: ResidentResult) => {
+    console.log("Revelar dados de:", resident);
+    // TODO: Implementar lógica de revelar
   };
 
   const handleSearchChange = (value: string) => {
@@ -355,6 +387,23 @@ export function SourcingComponent() {
           }}
         />
       )}
+
+      {/* Modal de pesquisa de moradores */}
+      <ResidentSearchModal
+        open={isResidentSearchModalOpen}
+        onClose={() => setIsResidentSearchModalOpen(false)}
+        onSearch={handleResidentSearch}
+        onSearchComplete={handleResidentSearch}
+      />
+
+      {/* Modal de resultados de pesquisa de moradores */}
+      <SearchResidentResultModal
+        open={isResidentResultModalOpen}
+        onClose={() => setIsResidentResultModalOpen(false)}
+        onBack={handleBackToSearch}
+        onCreateCapture={handleCreateCapture}
+        onReveal={handleReveal}
+      />
     </Box>
   );
 }
