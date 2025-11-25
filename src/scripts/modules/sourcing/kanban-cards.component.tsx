@@ -28,37 +28,21 @@ interface KanbanCardProps {
 export function KanbanCard({ card, columnId, onDelete }: KanbanCardProps) {
   const theme = useTheme();
 
-  const getColumnIcon = () => {
-    if (!columnId) return null;
-
-    switch (columnId) {
-      case "property-sourcing":
-        return <Home sx={{ fontSize: 100 }} />;
-      case "contact-sourcing":
-        return <Person sx={{ fontSize: 100 }} />;
-      case "prospecting":
-        return <TrendingUp sx={{ fontSize: 100 }} />;
-      case "visit":
-        return <LocationOn sx={{ fontSize: 100 }} />;
-      default:
-        return null;
+  const getCardIcon = () => {
+    // Usa o tipo do card para determinar o ícone
+    if (card.type === "property") {
+      return <Home sx={{ fontSize: 100 }} />;
+    } else {
+      return <Person sx={{ fontSize: 100 }} />;
     }
   };
 
-  const getColumnColor = () => {
-    if (!columnId) return theme.palette.grey[300];
-
-    switch (columnId) {
-      case "property-sourcing":
-        return "#C8E6C9"; // Verde claro
-      case "contact-sourcing":
-        return "#BBDEFB"; // Azul claro
-      case "prospecting":
-        return "#F8BBD0"; // Rosa claro
-      case "visit":
-        return "#FFE0B2"; // Laranja claro
-      default:
-        return theme.palette.grey[300];
+  const getCardColor = () => {
+    // Usa o tipo do card para determinar a cor
+    if (card.type === "property") {
+      return "#C8E6C9"; // Verde claro
+    } else {
+      return "#BBDEFB"; // Azul claro
     }
   };
 
@@ -70,6 +54,10 @@ export function KanbanCard({ card, columnId, onDelete }: KanbanCardProps) {
         borderRadius: 2,
         p: 2,
         mb: 2,
+        minHeight: 100,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
         boxShadow: theme.shadows[2],
         cursor: "grab",
         "&:active": {
@@ -82,95 +70,22 @@ export function KanbanCard({ card, columnId, onDelete }: KanbanCardProps) {
         },
       }}
     >
-      {/* Ícone de fundo */}
-      {getColumnIcon() && (
-        <Box
-          sx={{
-            position: "absolute",
-            top: "50%",
-            transform: "translateY(-50%) rotate(-15deg)",
-            color: getColumnColor(),
-            opacity: 0.2,
-            zIndex: 0,
-          }}
-        >
-          {getColumnIcon()}
-        </Box>
-      )}
-
-      {/* Conteúdo do card */}
-      <Box sx={{ position: "relative", zIndex: 1 }}>
-        {/* Label do tipo */}
-        <Chip
-          label={card.type === "property" ? "Imóvel" : "Contato"}
-          size="small"
-          sx={{
-            mb: 1.5,
-            backgroundColor:
-              card.type === "property"
-                ? theme.palette.success.main
-                : theme.palette.info.main,
-            color: theme.palette.common.white,
-            fontWeight: 600,
-            fontSize: "0.7rem",
-            height: 20,
-          }}
-        />
-
-        {/* Título */}
-        <Typography
-          variant="body1"
-          sx={{
-            fontWeight: 600,
-            mb: 0.5,
-            color: theme.palette.text.primary,
-            fontSize: "0.9rem",
-          }}
-        >
-          {card.title}
-        </Typography>
-
-        {/* Subtítulo */}
-        {card.subtitle && (
-          <Typography
-            variant="body2"
-            sx={{
-              color: theme.palette.text.secondary,
-              mb: 0.5,
-              fontSize: "0.8rem",
-            }}
-          >
-            {card.subtitle}
-          </Typography>
-        )}
-
-        {/* Endereço ou Contato */}
-        {card.address && (
-          <Typography
-            variant="body2"
-            sx={{
-              color: theme.palette.text.secondary,
-              fontSize: "0.8rem",
-            }}
-          >
-            Endereço: {card.address}
-          </Typography>
-        )}
-
-        {card.contact && (
-          <Typography
-            variant="body2"
-            sx={{
-              color: theme.palette.text.secondary,
-              fontSize: "0.8rem",
-            }}
-          >
-            Contato: {card.contact}
-          </Typography>
-        )}
+      {/* Ícone de fundo - alinhado à esquerda */}
+      <Box
+        sx={{
+          position: "absolute",
+          top: "50%",
+          left: 16,
+          transform: "translateY(-50%) rotate(-15deg)",
+          color: getCardColor(),
+          opacity: 0.2,
+          zIndex: 0,
+        }}
+      >
+        {getCardIcon()}
       </Box>
 
-      {/* Botão de deletar */}
+      {/* Botão de deletar - topo direito */}
       <IconButton
         size="small"
         onClick={(e) => {
@@ -182,18 +97,89 @@ export function KanbanCard({ card, columnId, onDelete }: KanbanCardProps) {
           top: 8,
           right: 8,
           zIndex: 2,
-          backgroundColor: theme.palette.common.white,
-          boxShadow: theme.shadows[2],
+          color: theme.palette.text.secondary,
           "&:hover": {
             backgroundColor: theme.palette.error.light,
             color: theme.palette.common.white,
           },
-          width: 28,
-          height: 28,
+          width: 24,
+          height: 24,
+          padding: 0.5,
         }}
       >
-        <Delete fontSize="small" />
+        <Delete sx={{ fontSize: 18 }} />
       </IconButton>
+
+      {/* Conteúdo do card - centralizado verticalmente */}
+      <Box sx={{ position: "relative", zIndex: 1 }}>
+        {/* Label do tipo - topo esquerdo */}
+        <Chip
+          label={card.type === "property" ? "Imóvel" : "Contato"}
+          size="small"
+          sx={{
+            mb: 1,
+            backgroundColor:
+              card.type === "property"
+                ? "#C8E6C9"
+                : "#BBDEFB",
+            color: theme.palette.text.primary,
+            fontWeight: 600,
+            fontSize: "0.7rem",
+            height: 20,
+          }}
+        />
+
+        {/* Título - uma linha com truncamento */}
+        <Typography
+          variant="body1"
+          sx={{
+            fontWeight: 600,
+            mb: 0.5,
+            color: theme.palette.text.primary,
+            fontSize: "0.9rem",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            lineHeight: 1.2,
+          }}
+        >
+          {card.title}
+        </Typography>
+
+        {/* Endereço - uma linha com truncamento */}
+        {card.address && (
+          <Typography
+            variant="body2"
+            sx={{
+              color: theme.palette.text.secondary,
+              fontSize: "0.8rem",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              lineHeight: 1.2,
+            }}
+          >
+            {card.address}
+          </Typography>
+        )}
+
+        {/* Contato - uma linha com truncamento */}
+        {card.contact && (
+          <Typography
+            variant="body2"
+            sx={{
+              color: theme.palette.text.secondary,
+              fontSize: "0.8rem",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              lineHeight: 1.2,
+            }}
+          >
+            {card.contact}
+          </Typography>
+        )}
+      </Box>
     </Box>
   );
 }

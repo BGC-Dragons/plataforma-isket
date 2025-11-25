@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Box,
   Typography,
@@ -16,6 +16,8 @@ import {
   FormControl,
   InputLabel,
   Select,
+  CircularProgress,
+  Alert,
 } from "@mui/material";
 import {
   Home,
@@ -27,6 +29,14 @@ import {
   Close,
 } from "@mui/icons-material";
 import { KanbanCard, type KanbanCardData } from "./kanban-cards.component";
+import { useAuth } from "../access-manager/auth.hook";
+import {
+  useGetPropertyListingAcquisitionsStages,
+  clearPropertyListingAcquisitionsStagesCache,
+  type IPropertyListingAcquisitionStage,
+} from "../../../services/get-property-listing-acquisitions-stages.service";
+import { postPropertyListingAcquisitionStage } from "../../../services/post-property-listing-acquisitions-stage.service";
+import { deletePropertyListingAcquisitionStage } from "../../../services/delete-property-listing-acquisitions-stage.service";
 
 import {
   DndContext,
@@ -153,24 +163,22 @@ function SortableColumn({
           position: "relative",
         }}
       >
-        {/* Menu de ações (apenas para algumas colunas) */}
-        {(column.id === "prospecting" || column.id === "visit") && (
-          <IconButton
-            size="small"
-            onClick={(e) => onMenuOpen?.(e, column.id)}
-            sx={{
-              position: "absolute",
-              top: 8,
-              right: 8,
-              color: theme.palette.text.secondary,
-              "&:hover": {
-                backgroundColor: "rgba(0, 0, 0, 0.05)",
-              },
-            }}
-          >
-            <MoreVert fontSize="small" />
-          </IconButton>
-        )}
+        {/* Menu de ações (para todas as colunas) */}
+        <IconButton
+          size="small"
+          onClick={(e) => onMenuOpen?.(e, column.id)}
+          sx={{
+            position: "absolute",
+            top: 8,
+            right: 8,
+            color: theme.palette.text.secondary,
+            "&:hover": {
+              backgroundColor: "rgba(0, 0, 0, 0.05)",
+            },
+          }}
+        >
+          <MoreVert fontSize="small" />
+        </IconButton>
 
         <Box
           sx={{
@@ -302,32 +310,90 @@ function getTotalLabel(column: KanbanColumn) {
   ).length;
   const contactCount = column.cards.filter((c) => c.type === "contact").length;
 
+  // Corrigindo plural de imóvel para "imóveis" corretamente
   if (propertyCount > 0 && contactCount > 0) {
-    return `Total: ${propertyCount} imóvel${
-      propertyCount > 1 ? "eis" : ""
+    return `Total: ${propertyCount} ${
+      propertyCount === 1 ? "imóvel" : "imóveis"
     }, ${contactCount} contato${contactCount > 1 ? "s" : ""}`;
   } else if (propertyCount > 0) {
-    return `Total: ${propertyCount} imóvel${propertyCount > 1 ? "eis" : ""}`;
+    return `Total: ${propertyCount} ${
+      propertyCount === 1 ? "imóvel" : "imóveis"
+    }`;
   } else if (contactCount > 0) {
     return `Total: ${contactCount} contato${contactCount > 1 ? "s" : ""}`;
   }
   return "Total: 0";
 }
 
+// Função para mapear listing da API para KanbanCardData
+function mapListingToCard(
+  listing: IPropertyListingAcquisitionStage["listings"][0]
+): KanbanCardData {
+  return {
+    id: listing.id,
+    type: listing.captureType === "PROPERTY" ? "property" : "contact",
+    title: listing.title,
+    address: listing.formattedAddress,
+    subtitle: listing.status,
+  };
+}
+
+// Função para mapear stage da API para KanbanColumn
+function mapStageToColumn(
+  stage: IPropertyListingAcquisitionStage
+): KanbanColumn {
+  const defaultColors = [
+    "#C8E6C9",
+    "#BBDEFB",
+    "#F8BBD0",
+    "#FFE0B2",
+    "#E1BEE7",
+    "#FFF9C4",
+  ];
+  const icons = [<Home />, <Person />, <TrendingUp />, <LocationOn />];
+  const iconIndex = (stage.order - 1) % icons.length;
+  const colorIndex = (stage.order - 1) % defaultColors.length;
+
+  return {
+    id: stage.id,
+    title: stage.title,
+    icon: icons[iconIndex],
+    color: defaultColors[colorIndex],
+    cards: stage.listings.map(mapListingToCard),
+  };
+}
+
+// Função para mapear array de stages para array de columns
+function mapStagesToColumns(
+  stages: IPropertyListingAcquisitionStage[]
+): KanbanColumn[] {
+  // Ordenar por order antes de mapear
+  const sortedStages = [...stages].sort((a, b) => a.order - b.order);
+  return sortedStages.map(mapStageToColumn);
+}
+
 export function Kanban({
-  columns = defaultColumns,
+  columns: propsColumns,
   onCardMove,
   onCardDelete,
-  onAddColumn,
 }: KanbanProps) {
   const theme = useTheme();
-  const [localColumns, setLocalColumns] = useState<KanbanColumn[]>(columns);
+  const auth = useAuth();
+  const {
+    data: stages,
+    error,
+    isLoading,
+    mutate,
+  } = useGetPropertyListingAcquisitionsStages();
+  const [localColumns, setLocalColumns] = useState<KanbanColumn[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [menuAnchor, setMenuAnchor] = useState<{
     element: HTMLElement;
     columnId: ColumnId;
   } | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
   const [newColumnTitle, setNewColumnTitle] = useState("");
   const [newColumnColor, setNewColumnColor] = useState("#C8E6C9");
   const [newColumnFontColor, setNewColumnFontColor] = useState("#000000");
@@ -335,10 +401,18 @@ export function Kanban({
     "home" | "person" | "trending" | "location"
   >("home");
 
-  // Sincronizar colunas quando props mudarem
+  // Mapear stages da API para columns
   useEffect(() => {
-    setLocalColumns(columns);
-  }, [columns]);
+    if (stages && stages.length > 0) {
+      const mappedColumns = mapStagesToColumns(stages);
+      setLocalColumns(mappedColumns);
+    } else if (propsColumns) {
+      // Fallback para props se não houver dados da API
+      setLocalColumns(propsColumns);
+    } else {
+      setLocalColumns(defaultColumns);
+    }
+  }, [stages, propsColumns]);
 
   // Configurar sensores para drag and drop
   const sensors = useSensors(
@@ -433,9 +507,101 @@ export function Kanban({
     setMenuAnchor(null);
   };
 
+  const handleDeleteStage = useCallback(async () => {
+    if (!menuAnchor) return;
+
+    const columnId = menuAnchor.columnId;
+    const column = localColumns.find((col) => col.id === columnId);
+
+    if (!column || !auth.store.token) return;
+
+    // Não permitir deletar se tiver cards
+    if (column.cards.length > 0) {
+      alert("Não é possível deletar uma etapa que contém captações.");
+      handleMenuClose();
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      await deletePropertyListingAcquisitionStage(
+        auth.store.token,
+        columnId as string
+      );
+      clearPropertyListingAcquisitionsStagesCache();
+      await mutate();
+      handleMenuClose();
+    } catch (error) {
+      console.error("Erro ao deletar etapa:", error);
+      alert("Erro ao deletar etapa. Tente novamente.");
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [menuAnchor, localColumns, auth.store.token, mutate]);
+
+  const handleCreateStage = useCallback(async () => {
+    if (!newColumnTitle.trim() || !auth.store.token) return;
+
+    setIsCreating(true);
+    try {
+      // Calcular a ordem (última ordem + 1)
+      const maxOrder =
+        stages && stages.length > 0
+          ? Math.max(...stages.map((s) => s.order)) + 1
+          : 1;
+
+      await postPropertyListingAcquisitionStage(auth.store.token, {
+        title: newColumnTitle.trim(),
+        order: maxOrder,
+      });
+
+      clearPropertyListingAcquisitionsStagesCache();
+      await mutate();
+
+      // Reset form
+      setNewColumnTitle("");
+      setNewColumnColor("#C8E6C9");
+      setNewColumnFontColor("#000000");
+      setNewColumnIcon("home");
+      setIsCreateModalOpen(false);
+    } catch (error) {
+      console.error("Erro ao criar etapa:", error);
+      alert("Erro ao criar etapa. Tente novamente.");
+    } finally {
+      setIsCreating(false);
+    }
+  }, [newColumnTitle, auth.store.token, stages, mutate]);
+
   const activeCard = localColumns
     .flatMap((col) => col.cards)
     .find((card) => card.id === activeId);
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100%",
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error">
+          Erro ao carregar etapas. Tente recarregar a página.
+        </Alert>
+      </Box>
+    );
+  }
 
   return (
     <DndContext
@@ -527,7 +693,9 @@ export function Kanban({
         open={Boolean(menuAnchor)}
         onClose={handleMenuClose}
       >
-        <MenuItem onClick={handleMenuClose}>Excluir etapa</MenuItem>
+        <MenuItem onClick={handleDeleteStage} disabled={isDeleting}>
+          {isDeleting ? "Excluindo..." : "Excluir etapa"}
+        </MenuItem>
       </Menu>
 
       {/* Modal de criar etapa */}
@@ -662,32 +830,12 @@ export function Kanban({
             Cancelar
           </Button>
           <Button
-            onClick={() => {
-              const iconMap = {
-                home: <Home />,
-                person: <Person />,
-                trending: <TrendingUp />,
-                location: <LocationOn />,
-              };
-
-              onAddColumn?.({
-                title: newColumnTitle,
-                icon: iconMap[newColumnIcon],
-                color: newColumnColor,
-              });
-
-              // Reset form
-              setNewColumnTitle("");
-              setNewColumnColor("#C8E6C9");
-              setNewColumnFontColor("#000000");
-              setNewColumnIcon("home");
-              setIsCreateModalOpen(false);
-            }}
+            onClick={handleCreateStage}
             variant="contained"
-            disabled={!newColumnTitle.trim()}
+            disabled={!newColumnTitle.trim() || isCreating}
             sx={{ textTransform: "none" }}
           >
-            Criar
+            {isCreating ? "Criando..." : "Criar"}
           </Button>
         </DialogActions>
       </Dialog>
