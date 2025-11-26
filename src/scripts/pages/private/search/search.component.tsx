@@ -1720,6 +1720,20 @@ export function SearchComponent() {
                 overflow: "auto",
                 px: 2,
                 pb: 2,
+                "&::-webkit-scrollbar": {
+                  width: 6,
+                },
+                "&::-webkit-scrollbar-track": {
+                  backgroundColor: theme.palette.grey[200],
+                  borderRadius: 3,
+                },
+                "&::-webkit-scrollbar-thumb": {
+                  backgroundColor: theme.palette.grey[400],
+                  borderRadius: 3,
+                  "&:hover": {
+                    backgroundColor: theme.palette.grey[600],
+                  },
+                },
               }}
             >
               {/* Contador e Controles */}
@@ -2148,6 +2162,20 @@ export function SearchComponent() {
                     flex: 1,
                     overflow: "auto",
                     pr: 1, // Padding para scrollbar
+                    "&::-webkit-scrollbar": {
+                      width: 6,
+                    },
+                    "&::-webkit-scrollbar-track": {
+                      backgroundColor: theme.palette.grey[200],
+                      borderRadius: 3,
+                    },
+                    "&::-webkit-scrollbar-thumb": {
+                      backgroundColor: theme.palette.grey[400],
+                      borderRadius: 3,
+                      "&:hover": {
+                        backgroundColor: theme.palette.grey[600],
+                      },
+                    },
                   }}
                 >
                   {error ? (

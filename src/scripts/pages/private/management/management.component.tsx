@@ -544,7 +544,22 @@ export function ManagementComponent() {
       sx={{
         display: "flex",
         flexDirection: "column",
-        minHeight: "100vh",
+        height: "100%",
+        overflowY: "auto",
+        "&::-webkit-scrollbar": {
+          width: 6,
+        },
+        "&::-webkit-scrollbar-track": {
+          backgroundColor: theme.palette.grey[200],
+          borderRadius: 3,
+        },
+        "&::-webkit-scrollbar-thumb": {
+          backgroundColor: theme.palette.grey[400],
+          borderRadius: 3,
+          "&:hover": {
+            backgroundColor: theme.palette.grey[600],
+          },
+        },
       }}
     >
       <Box
@@ -605,6 +620,7 @@ export function ManagementComponent() {
         sx={{
           display: "flex",
           flex: 1,
+          minHeight: 0,
           backgroundColor: theme.palette.background.default,
         }}
       >
@@ -613,12 +629,27 @@ export function ManagementComponent() {
           <Box
             sx={{
               width: { md: 280, lg: 320 },
-              minHeight: "calc(100vh - 64px)",
+              height: "100%",
               backgroundColor: theme.palette.background.paper,
               display: { xs: "none", md: "flex" },
               flexDirection: "column",
               position: "relative",
               borderRight: `1px solid ${theme.palette.divider}`,
+              overflowY: "auto",
+              "&::-webkit-scrollbar": {
+                width: 6,
+              },
+              "&::-webkit-scrollbar-track": {
+                backgroundColor: theme.palette.grey[200],
+                borderRadius: 3,
+              },
+              "&::-webkit-scrollbar-thumb": {
+                backgroundColor: theme.palette.grey[400],
+                borderRadius: 3,
+                "&:hover": {
+                  backgroundColor: theme.palette.grey[600],
+                },
+              },
             }}
           >
             {renderSidebar()}
@@ -648,9 +679,24 @@ export function ManagementComponent() {
             minWidth: 0, // Prevents overflow
             backgroundColor: theme.palette.background.default,
             position: "relative",
+            overflowY: "auto",
             borderLeft: {
               xs: "none",
               md: `1px solid ${theme.palette.divider}`,
+            },
+            "&::-webkit-scrollbar": {
+              width: 6,
+            },
+            "&::-webkit-scrollbar-track": {
+              backgroundColor: theme.palette.grey[200],
+              borderRadius: 3,
+            },
+            "&::-webkit-scrollbar-thumb": {
+              backgroundColor: theme.palette.grey[400],
+              borderRadius: 3,
+              "&:hover": {
+                backgroundColor: theme.palette.grey[600],
+              },
             },
           }}
         >
