@@ -37,6 +37,7 @@ import {
 } from "../../../services/get-property-listing-acquisitions-stages.service";
 import { postPropertyListingAcquisitionStage } from "../../../services/post-property-listing-acquisitions-stage.service";
 import { deletePropertyListingAcquisitionStage } from "../../../services/delete-property-listing-acquisitions-stage.service";
+import { patchPropertyListingAcquisitionStage } from "../../../services/patch-property-listing-acquisitions-stage.service";
 
 import {
   DndContext,
@@ -52,6 +53,7 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
+  rectSortingStrategy,
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -113,8 +115,8 @@ const defaultColumns: KanbanColumn[] = [
   },
 ];
 
-// Componente de coluna sortable
-function SortableColumn({
+// Componente wrapper para tornar coluna arrastável
+function SortableColumnWrapper({
   column,
   onCardDelete,
   onMenuOpen,
@@ -125,6 +127,55 @@ function SortableColumn({
     event: React.MouseEvent<HTMLElement>,
     columnId: ColumnId
   ) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: column.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <Box 
+      ref={setNodeRef} 
+      style={style}
+      sx={{
+        flexShrink: 0,
+        minWidth: 300,
+      }}
+    >
+      <SortableColumn
+        column={column}
+        onCardDelete={onCardDelete}
+        onMenuOpen={onMenuOpen}
+        dragHandleProps={{ ...attributes, ...listeners }}
+      />
+    </Box>
+  );
+}
+
+// Componente de coluna sortable
+function SortableColumn({
+  column,
+  onCardDelete,
+  onMenuOpen,
+  dragHandleProps,
+}: {
+  column: KanbanColumn;
+  onCardDelete: (cardId: string, columnId: ColumnId) => void;
+  onMenuOpen?: (
+    event: React.MouseEvent<HTMLElement>,
+    columnId: ColumnId
+  ) => void;
+  dragHandleProps?: React.HTMLAttributes<HTMLElement>;
 }) {
   const theme = useTheme();
   const cardIds = column.cards.map((card) => card.id);
@@ -137,8 +188,7 @@ function SortableColumn({
     <Box
       ref={setDroppableRef}
       sx={{
-        flex: 1,
-        minWidth: 300,
+        width: 300,
         display: "flex",
         flexDirection: "column",
         height: "100%",
@@ -151,6 +201,7 @@ function SortableColumn({
       {/* Header da coluna */}
       <Paper
         elevation={2}
+        {...dragHandleProps}
         sx={{
           p: 2,
           mb: 2,
@@ -161,6 +212,10 @@ function SortableColumn({
           alignItems: "center",
           justifyContent: "center",
           position: "relative",
+          cursor: dragHandleProps ? "grab" : "default",
+          "&:active": {
+            cursor: dragHandleProps ? "grabbing" : "default",
+          },
         }}
       >
         {/* Menu de ações (para todas as colunas) */}
@@ -439,7 +494,7 @@ export function Kanban({
     setActiveId(event.active.id as string);
   };
 
-  const handleDragEnd: Parameters<typeof DndContext>[0]["onDragEnd"] = (
+  const handleDragEnd: Parameters<typeof DndContext>[0]["onDragEnd"] = async (
     event
   ) => {
     const { active, over } = event;
@@ -450,40 +505,91 @@ export function Kanban({
     const activeId = active.id as string;
     const overId = over.id as string;
 
-    // Encontrar coluna de origem
-    const sourceColumn = localColumns.find((col) =>
+    // Verificar se é uma coluna sendo arrastada
+    const sourceColumn = localColumns.find((col) => col.id === activeId);
+    const destinationColumn = localColumns.find((col) => col.id === overId);
+
+    if (sourceColumn && destinationColumn && sourceColumn.id !== destinationColumn.id) {
+      // Reordenar colunas
+      const sourceIndex = localColumns.findIndex((col) => col.id === activeId);
+      const destinationIndex = localColumns.findIndex((col) => col.id === overId);
+
+      // Salvar estado anterior para possível reversão
+      const previousColumns = [...localColumns];
+      
+      const newColumns = [...localColumns];
+      const [removed] = newColumns.splice(sourceIndex, 1);
+      newColumns.splice(destinationIndex, 0, removed);
+
+      // Atualizar estado local
+      setLocalColumns(newColumns);
+
+      // Atualizar ordem na API
+      if (auth.store.token && stages) {
+        try {
+          // Criar um mapa de IDs para stages
+          const stageMap = new Map(stages.map((s) => [s.id, s]));
+
+          // Atualizar a ordem de todas as colunas afetadas
+          const updatePromises = newColumns.map((col, index) => {
+            const stage = stageMap.get(col.id);
+            if (stage && stage.order !== index + 1) {
+              return patchPropertyListingAcquisitionStage(
+                auth.store.token as string,
+                col.id as string,
+                { order: index + 1 }
+              );
+            }
+            return Promise.resolve();
+          });
+
+          await Promise.all(updatePromises);
+          clearPropertyListingAcquisitionsStagesCache();
+          await mutate();
+        } catch (error) {
+          console.error("Erro ao atualizar ordem das colunas:", error);
+          // Reverter mudanças locais em caso de erro
+          setLocalColumns(previousColumns);
+          alert("Erro ao atualizar ordem das colunas. Tente novamente.");
+        }
+      }
+      return;
+    }
+
+    // Lógica original para mover cards
+    const sourceCardColumn = localColumns.find((col) =>
       col.cards.some((card) => card.id === activeId)
     );
 
-    if (!sourceColumn) return;
+    if (!sourceCardColumn) return;
 
     // Encontrar coluna de destino
     // Pode ser o ID da coluna diretamente ou um card dentro de uma coluna
-    let destinationColumn = localColumns.find((col) => col.id === overId);
+    let destinationCardColumn = localColumns.find((col) => col.id === overId);
 
     // Se não encontrou pela coluna, procura pelo card
-    if (!destinationColumn) {
-      destinationColumn = localColumns.find((col) =>
+    if (!destinationCardColumn) {
+      destinationCardColumn = localColumns.find((col) =>
         col.cards.some((card) => card.id === overId)
       );
     }
 
-    if (!destinationColumn) return;
-    if (sourceColumn.id === destinationColumn.id) return;
+    if (!destinationCardColumn) return;
+    if (sourceCardColumn.id === destinationCardColumn.id) return;
 
     // Mover card
-    const card = sourceColumn.cards.find((c) => c.id === activeId);
+    const card = sourceCardColumn.cards.find((c) => c.id === activeId);
     if (!card) return;
 
     setLocalColumns((prev) =>
       prev.map((col) => {
-        if (col.id === sourceColumn.id) {
+        if (col.id === sourceCardColumn.id) {
           return {
             ...col,
             cards: col.cards.filter((c) => c.id !== activeId),
           };
         }
-        if (col.id === destinationColumn.id) {
+        if (col.id === destinationCardColumn.id) {
           return {
             ...col,
             cards: [...col.cards, card],
@@ -493,7 +599,7 @@ export function Kanban({
       })
     );
 
-    onCardMove?.(activeId, sourceColumn.id, destinationColumn.id);
+    onCardMove?.(activeId, sourceCardColumn.id, destinationCardColumn.id);
   };
 
   const handleMenuOpen = (
@@ -575,6 +681,8 @@ export function Kanban({
   const activeCard = localColumns
     .flatMap((col) => col.cards)
     .find((card) => card.id === activeId);
+  
+  const activeColumn = localColumns.find((col) => col.id === activeId);
 
   // Loading state
   if (isLoading) {
@@ -638,14 +746,19 @@ export function Kanban({
           },
         }}
       >
-        {localColumns.map((column) => (
-          <SortableColumn
-            key={column.id}
-            column={column}
-            onCardDelete={handleCardDelete}
-            onMenuOpen={handleMenuOpen}
-          />
-        ))}
+        <SortableContext
+          items={localColumns.map((col) => col.id)}
+          strategy={rectSortingStrategy}
+        >
+          {localColumns.map((column) => (
+            <SortableColumnWrapper
+              key={column.id}
+              column={column}
+              onCardDelete={handleCardDelete}
+              onMenuOpen={handleMenuOpen}
+            />
+          ))}
+        </SortableContext>
 
         {/* Botão de adicionar coluna */}
         <Box
@@ -683,6 +796,20 @@ export function Kanban({
         {activeCard ? (
           <Box sx={{ opacity: 0.8, transform: "rotate(5deg)" }}>
             <KanbanCard card={activeCard} />
+          </Box>
+        ) : activeColumn ? (
+          <Box
+            sx={{
+              minWidth: 300,
+              opacity: 0.8,
+              transform: "rotate(5deg)",
+            }}
+          >
+            <SortableColumn
+              column={activeColumn}
+              onCardDelete={handleCardDelete}
+              onMenuOpen={handleMenuOpen}
+            />
           </Box>
         ) : null}
       </DragOverlay>
