@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { useNavigate } from "react-router";
+import { Loader } from "@googlemaps/js-api-loader";
 import {
   Dialog,
   DialogContent,
@@ -13,8 +15,16 @@ import {
   InputLabel,
   Button,
   useTheme,
+  Autocomplete,
+  InputAdornment,
+  CircularProgress,
+  Alert,
 } from "@mui/material";
-import { Close } from "@mui/icons-material";
+import { Close, Search } from "@mui/icons-material";
+import { useAuth } from "../access-manager/auth.hook";
+import { postProperties } from "../../../services/post-properties.service";
+import { mapPropertyTypeToApi } from "../../../services/helpers/map-property-type-to-api.helper";
+import { GOOGLE_CONFIG } from "../../config/google.constant";
 
 interface PropertySourcingModalProps {
   open: boolean;
@@ -34,10 +44,44 @@ const propertyTypes = [
   "Apartamento",
   "Casa",
   "Terreno",
-  "Sala Comercial",
-  "Loja",
+  "Sobrado",
+  "Sala",
+  "Cobertura",
+  "Chácara",
   "Galpão",
-  "Outro",
+  "Ponto",
+  "Predio",
+  "Loja",
+  "Fazenda",
+  "Sitio",
+  "Flat",
+  "Conjunto",
+  "Kitnet",
+  "Studio",
+  "Garagem",
+  "Andar",
+  "Garden",
+  "Loft",
+  "Industrial",
+  "Granja",
+  "Duplex",
+  "Geminado",
+  "Haras",
+  "Clinica",
+  "Pousada",
+  "Sobreloja",
+  "Chale",
+  "Quarto",
+  "Resort",
+  "Comercial",
+  "Triplex",
+  "Republica",
+  "Coworking",
+  "Box",
+  "Edicula",
+  "Tombado",
+  "Casa Comercial",
+  "Outros",
 ];
 
 export function PropertySourcingModal({
@@ -46,6 +90,8 @@ export function PropertySourcingModal({
   onSave,
 }: PropertySourcingModalProps) {
   const theme = useTheme();
+  const navigate = useNavigate();
+  const auth = useAuth();
   const [formData, setFormData] = useState<PropertySourcingData>({
     address: "",
     number: "",
@@ -54,12 +100,324 @@ export function PropertySourcingModal({
     title: "",
   });
 
+  // Estados para autocomplete de endereço
+  const [isGoogleLoaded, setIsGoogleLoaded] = useState(false);
+  const [autocompleteOptions, setAutocompleteOptions] = useState<
+    google.maps.places.AutocompletePrediction[]
+  >([]);
+  const [searchInputValue, setSearchInputValue] = useState("");
+  const [addressDetails, setAddressDetails] = useState<{
+    placeId?: string;
+    formattedAddress?: string;
+    street?: string;
+    neighborhood?: string;
+    city?: string;
+    state?: string;
+    postalCode?: string;
+    coordinates?: { lat: number; lng: number };
+    addressComponents?: google.maps.places.PlaceResult["address_components"];
+  } | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const autocompleteInputRef = useRef<HTMLInputElement | null>(null);
+  const autocompleteService =
+    useRef<google.maps.places.AutocompleteService | null>(null);
+  const placesService = useRef<google.maps.places.PlacesService | null>(null);
+
+  // Carregar Google Maps API para autocomplete de endereços
+  useEffect(() => {
+    if (!open) return; // Só carregar quando o modal estiver aberto
+
+    // Verificar se já está carregado
+    if (
+      typeof window !== "undefined" &&
+      window.google &&
+      window.google.maps &&
+      window.google.maps.places
+    ) {
+      const AutocompleteService = window.google.maps.places.AutocompleteService;
+      const PlacesService = window.google.maps.places.PlacesService;
+
+      if (
+        typeof AutocompleteService === "function" &&
+        typeof PlacesService === "function"
+      ) {
+        if (!autocompleteService.current) {
+          autocompleteService.current = new AutocompleteService();
+        }
+        if (!placesService.current) {
+          placesService.current = new PlacesService(
+            document.createElement("div")
+          );
+        }
+        setIsGoogleLoaded(true);
+        return;
+      }
+    }
+
+    // Carregar usando Loader do @react-google-maps/api
+    const loader = new Loader({
+      apiKey: GOOGLE_CONFIG.MAPS_API_KEY,
+      version: "weekly",
+      libraries: ["places"],
+    });
+
+    loader
+      .load()
+      .then(() => {
+        if (
+          typeof window !== "undefined" &&
+          window.google &&
+          window.google.maps &&
+          window.google.maps.places
+        ) {
+          const AutocompleteService =
+            window.google.maps.places.AutocompleteService;
+          const PlacesService = window.google.maps.places.PlacesService;
+
+          if (
+            typeof AutocompleteService === "function" &&
+            typeof PlacesService === "function"
+          ) {
+            autocompleteService.current = new AutocompleteService();
+            placesService.current = new PlacesService(
+              document.createElement("div")
+            );
+            setIsGoogleLoaded(true);
+          }
+        }
+      })
+      .catch((error) => {
+        console.error("Erro ao carregar Google Maps API:", error);
+      });
+  }, [open]);
+
+  // Buscar endereços quando o usuário digita
+  const searchAddresses = useCallback(
+    (query: string) => {
+      if (!isGoogleLoaded || !autocompleteService.current) {
+        setAutocompleteOptions([]);
+        return;
+      }
+
+      if (query.length < 3) {
+        setAutocompleteOptions([]);
+        return;
+      }
+
+      try {
+        const request: google.maps.places.AutocompletionRequest = {
+          input: query,
+          types: ["address"],
+          componentRestrictions: { country: "br" },
+          language: "pt-BR",
+        };
+
+        autocompleteService.current.getPlacePredictions(
+          request,
+          (
+            predictions: google.maps.places.AutocompletePrediction[] | null,
+            status: google.maps.places.PlacesServiceStatus
+          ) => {
+            if (
+              status === google.maps.places.PlacesServiceStatus.OK &&
+              predictions
+            ) {
+              setAutocompleteOptions(predictions);
+            } else {
+              setAutocompleteOptions([]);
+            }
+          }
+        );
+      } catch (error) {
+        console.error("Erro ao buscar endereços:", error);
+        setAutocompleteOptions([]);
+      }
+    },
+    [isGoogleLoaded]
+  );
+
+  // Debounce para busca de endereços
+  useEffect(() => {
+    if (searchInputValue.length < 3) {
+      setAutocompleteOptions([]);
+      return;
+    }
+
+    if (!isGoogleLoaded) {
+      // Se o Google não está carregado, limpar opções mas não buscar
+      setAutocompleteOptions([]);
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      searchAddresses(searchInputValue);
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchInputValue, isGoogleLoaded, searchAddresses]);
+
   const handleChange = (field: keyof PropertySourcingData, value: string) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
     }));
   };
+
+  // Função para obter detalhes do endereço selecionado
+  const getAddressDetails = useCallback(
+    (placeId: string, fallbackDescription?: string) => {
+      if (!isGoogleLoaded || !placesService.current) {
+        console.warn("Places Service não está disponível");
+        return;
+      }
+
+      try {
+        const request: google.maps.places.PlaceDetailsRequest = {
+          placeId,
+          fields: [
+            "formatted_address",
+            "address_components",
+            "geometry",
+            "place_id",
+          ],
+        };
+
+        placesService.current.getDetails(request, (place, status) => {
+          try {
+            if (status === google.maps.places.PlacesServiceStatus.OK && place) {
+              // Extrair informações do endereço
+              const formattedAddress =
+                place.formatted_address || fallbackDescription || "";
+
+              let street = "";
+              let neighborhood = "";
+              let city = "";
+              let state = "";
+              let postalCode = "";
+              let coordinates: { lat: number; lng: number } | undefined;
+
+              if (place.address_components) {
+                place.address_components.forEach((component) => {
+                  const types = component.types;
+
+                  if (types.includes("street_number")) {
+                    // Número já está no campo separado
+                  } else if (types.includes("route")) {
+                    street = component.long_name;
+                  } else if (
+                    types.includes("sublocality") ||
+                    types.includes("sublocality_level_1") ||
+                    types.includes("neighborhood")
+                  ) {
+                    neighborhood = component.long_name;
+                  } else if (
+                    types.includes("locality") ||
+                    types.includes("administrative_area_level_2")
+                  ) {
+                    city = component.long_name;
+                  } else if (types.includes("administrative_area_level_1")) {
+                    state = component.short_name;
+                  } else if (types.includes("postal_code")) {
+                    postalCode = component.long_name;
+                  }
+                });
+              }
+
+              if (place.geometry?.location) {
+                coordinates = {
+                  lat: place.geometry.location.lat(),
+                  lng: place.geometry.location.lng(),
+                };
+              }
+
+              // Armazenar detalhes do endereço
+              setAddressDetails({
+                placeId: place.place_id,
+                formattedAddress,
+                street,
+                neighborhood,
+                city,
+                state,
+                postalCode,
+                coordinates,
+                addressComponents: place.address_components,
+              });
+
+              setSearchInputValue(formattedAddress);
+              handleChange("address", formattedAddress);
+            } else if (fallbackDescription) {
+              // Fallback: usar o description se não conseguir buscar detalhes
+              setSearchInputValue(fallbackDescription);
+              handleChange("address", fallbackDescription);
+              setAddressDetails(null);
+            }
+          } catch (error) {
+            console.error("Erro ao processar detalhes do lugar:", error);
+            // Fallback em caso de erro
+            if (fallbackDescription) {
+              setSearchInputValue(fallbackDescription);
+              handleChange("address", fallbackDescription);
+              setAddressDetails(null);
+            }
+          }
+        });
+      } catch (error) {
+        console.error("Erro ao buscar detalhes do lugar:", error);
+        // Fallback em caso de erro
+        if (fallbackDescription) {
+          setSearchInputValue(fallbackDescription);
+          handleChange("address", fallbackDescription);
+          setAddressDetails(null);
+        }
+      }
+    },
+    [isGoogleLoaded]
+  );
+
+  // Handler para quando um endereço é selecionado no autocomplete
+  const handleAddressSelect = useCallback(
+    (
+      _: React.SyntheticEvent,
+      value: google.maps.places.AutocompletePrediction | string | null
+    ) => {
+      if (value && typeof value !== "string" && value.place_id) {
+        // Definir o description temporariamente para melhor UX
+        // O getAddressDetails vai atualizar com o formatted_address completo depois
+        setSearchInputValue(value.description);
+        // Passar o description como fallback caso não haja formatted_address
+        getAddressDetails(value.place_id, value.description);
+      } else if (typeof value === "string") {
+        setSearchInputValue(value);
+        handleChange("address", value);
+      } else {
+        // Quando limpar o campo
+        setSearchInputValue("");
+        handleChange("address", "");
+      }
+    },
+    [getAddressDetails]
+  );
+
+  // Função para limpar busca de endereço
+  const handleClearAddressSearch = useCallback(() => {
+    setSearchInputValue("");
+    setAutocompleteOptions([]);
+    handleChange("address", "");
+    setAddressDetails(null);
+  }, []);
+
+  // Limpar estados quando o modal fechar
+  useEffect(() => {
+    if (!open) {
+      setSearchInputValue("");
+      setAutocompleteOptions([]);
+      setAddressDetails(null);
+    } else {
+      // Quando o modal abrir, sincronizar searchInputValue com formData.address
+      setSearchInputValue(formData.address || "");
+    }
+  }, [open, formData.address]);
 
   const handleClear = () => {
     setFormData({
@@ -69,12 +427,115 @@ export function PropertySourcingModal({
       propertyType: "",
       title: "",
     });
+    setSearchInputValue("");
+    setAutocompleteOptions([]);
+    setAddressDetails(null);
+    setSaveError(null);
   };
 
-  const handleSave = () => {
-    onSave?.(formData);
-    handleClear();
-    onClose();
+  const handleSave = async () => {
+    if (!auth.store.token) {
+      setSaveError("Você precisa estar autenticado para captar um imóvel");
+      return;
+    }
+
+    if (!formData.propertyType) {
+      setSaveError("Por favor, selecione o tipo do imóvel");
+      return;
+    }
+
+    if (!formData.address) {
+      setSaveError("Por favor, informe o endereço");
+      return;
+    }
+
+    if (!formData.number) {
+      setSaveError("Por favor, informe o número do endereço");
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveError(null);
+
+    try {
+      // Mapear tipo de imóvel
+      const propertyType = mapPropertyTypeToApi(formData.propertyType);
+
+      // Preparar dados do endereço
+      const streetNumber = parseInt(formData.number, 10);
+      if (isNaN(streetNumber)) {
+        throw new Error("Número do endereço inválido");
+      }
+
+      // Construir payload da API
+      const payload: Parameters<typeof postProperties>[1] = {
+        type: propertyType,
+        streetNumber,
+        formattedAddress: formData.address,
+        description: formData.title || undefined,
+        acquisitionStatus: "IN_ACQUISITION",
+      };
+
+      // Adicionar informações do endereço se disponíveis
+      if (addressDetails) {
+        if (addressDetails.street) {
+          payload.street = addressDetails.street;
+        }
+        if (addressDetails.neighborhood) {
+          payload.neighborhood = addressDetails.neighborhood;
+        }
+        if (addressDetails.city) {
+          payload.city = addressDetails.city;
+        }
+        if (addressDetails.state) {
+          payload.stateAcronym = addressDetails.state;
+        }
+        if (addressDetails.postalCode) {
+          payload.postalCode = parseInt(
+            addressDetails.postalCode.replace(/\D/g, ""),
+            10
+          );
+        }
+        if (addressDetails.coordinates) {
+          payload.streetGeo = {
+            lat: addressDetails.coordinates.lat,
+            lon: addressDetails.coordinates.lng,
+          };
+        }
+      }
+
+      // Fazer POST
+      await postProperties(auth.store.token, payload);
+
+      // Chamar callback se existir
+      onSave?.(formData);
+
+      // Limpar formulário
+      handleClear();
+
+      // Fechar modal
+      onClose();
+
+      // Navegar para a página de captação (a página pode usar o ID da propriedade se necessário)
+      navigate("/captacao");
+    } catch (error: unknown) {
+      console.error("Erro ao criar propriedade:", error);
+      if (error && typeof error === "object" && "response" in error) {
+        const axiosError = error as {
+          response?: { status?: number; data?: { message?: string } };
+        };
+        const errorMessage =
+          axiosError.response?.data?.message ||
+          "Erro ao criar propriedade. Tente novamente.";
+        setSaveError(errorMessage);
+      } else if (error instanceof Error) {
+        setSaveError(error.message);
+      } else {
+        setSaveError("Erro inesperado ao criar propriedade. Tente novamente.");
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleClose = () => {
@@ -150,17 +611,103 @@ export function PropertySourcingModal({
 
           {/* Form Fields */}
           <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-            {/* Endereço */}
-            <TextField
-              label="Endereço"
+            {/* Mensagem de erro */}
+            {saveError && (
+              <Alert severity="error" onClose={() => setSaveError(null)}>
+                {saveError}
+              </Alert>
+            )}
+            {/* Endereço com Busca (igual ao search) */}
+            <Autocomplete
+              freeSolo
+              options={autocompleteOptions}
               value={formData.address}
-              onChange={(e) => handleChange("address", e.target.value)}
-              fullWidth
-              sx={{
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: 2,
-                },
+              inputValue={searchInputValue}
+              onInputChange={(_, newValue) => {
+                setSearchInputValue(newValue);
+                // Atualizar formData.address quando o usuário digita
+                handleChange("address", newValue);
+                // Limpar addressDetails quando o usuário digita manualmente
+                setAddressDetails(null);
               }}
+              onChange={handleAddressSelect}
+              getOptionLabel={(option) => {
+                if (typeof option === "string") return option;
+                return option.description;
+              }}
+              isOptionEqualToValue={(option, value) => {
+                if (typeof value === "string") {
+                  return option.description === value;
+                }
+                return option.place_id === value.place_id;
+              }}
+              filterOptions={(x) => x}
+              fullWidth
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Endereço"
+                  placeholder="Buscar por endereço"
+                  inputRef={autocompleteInputRef}
+                  InputProps={{
+                    ...params.InputProps,
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Search sx={{ color: theme.palette.text.secondary }} />
+                      </InputAdornment>
+                    ),
+                    endAdornment: formData.address ? (
+                      <InputAdornment position="end">
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleClearAddressSearch();
+                          }}
+                          sx={{
+                            p: 0.5,
+                            color: theme.palette.text.secondary,
+                            "&:hover": {
+                              color: theme.palette.error.main,
+                              backgroundColor: theme.palette.error.light,
+                            },
+                          }}
+                        >
+                          <Close fontSize="small" />
+                        </IconButton>
+                      </InputAdornment>
+                    ) : null,
+                  }}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      borderRadius: 2,
+                    },
+                  }}
+                />
+              )}
+              renderOption={(props, option) => (
+                <li {...props} key={option.place_id}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      flexDirection: "column",
+                      width: "100%",
+                    }}
+                  >
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                      {option.structured_formatting.main_text}
+                    </Typography>
+                    {option.structured_formatting.secondary_text && (
+                      <Typography
+                        variant="caption"
+                        sx={{ color: theme.palette.text.secondary }}
+                      >
+                        {option.structured_formatting.secondary_text}
+                      </Typography>
+                    )}
+                  </Box>
+                </li>
+              )}
             />
 
             {/* Número, Complemento e Tipo do Imóvel */}
@@ -264,6 +811,7 @@ export function PropertySourcingModal({
           <Button
             onClick={handleSave}
             variant="contained"
+            disabled={isSaving}
             sx={{
               textTransform: "none",
               borderRadius: 2,
@@ -272,9 +820,13 @@ export function PropertySourcingModal({
               "&:hover": {
                 backgroundColor: theme.palette.primary.dark,
               },
+              "&:disabled": {
+                backgroundColor: theme.palette.action.disabledBackground,
+              },
             }}
+            startIcon={isSaving ? <CircularProgress size={16} /> : null}
           >
-            Captar imóvel
+            {isSaving ? "Captando..." : "Captar imóvel"}
           </Button>
         </Box>
       </DialogActions>
