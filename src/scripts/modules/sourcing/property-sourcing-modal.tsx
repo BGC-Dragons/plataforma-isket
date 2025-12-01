@@ -23,6 +23,8 @@ import {
 import { Close, Search } from "@mui/icons-material";
 import { useAuth } from "../access-manager/auth.hook";
 import { postProperties } from "../../../services/post-properties.service";
+import { postPropertyListingAcquisition } from "../../../services/post-property-listing-acquisition.service";
+import { useGetPropertyListingAcquisitionsStages } from "../../../services/get-property-listing-acquisitions-stages.service";
 import { mapPropertyTypeToApi } from "../../../services/helpers/map-property-type-to-api.helper";
 import { GOOGLE_CONFIG } from "../../config/google.constant";
 
@@ -92,6 +94,7 @@ export function PropertySourcingModal({
   const theme = useTheme();
   const navigate = useNavigate();
   const auth = useAuth();
+  const { data: stages } = useGetPropertyListingAcquisitionsStages();
   const [formData, setFormData] = useState<PropertySourcingData>({
     address: "",
     number: "",
@@ -504,8 +507,44 @@ export function PropertySourcingModal({
         }
       }
 
-      // Fazer POST
-      await postProperties(auth.store.token, payload);
+      // 1. Criar a propriedade (POST /properties)
+      const propertyResponse = await postProperties(auth.store.token, payload);
+      const propertyId = propertyResponse.data.id;
+
+      // 2. Obter o primeiro estágio (estágio inicial)
+      if (!stages || stages.length === 0) {
+        throw new Error(
+          "Nenhum estágio de captação encontrado. Por favor, crie um estágio primeiro."
+        );
+      }
+
+      // Ordenar estágios por ordem e pegar o primeiro (estágio inicial)
+      const sortedStages = [...stages].sort((a, b) => a.order - b.order);
+      const firstStage = sortedStages[0];
+      const stageId = firstStage.id;
+
+      // 3. Criar a captação (POST /property-listing-acquisitions/acquisitions)
+      const acquisitionPayload = {
+        title: formData.title || formData.address || "Captação de Imóvel",
+        description: formData.title || undefined,
+        formattedAddress: formData.address,
+        addressNumber: streetNumber,
+        addressComplement: formData.complement || undefined,
+        addressGeo: addressDetails?.coordinates
+          ? {
+              lat: addressDetails.coordinates.lat,
+              lon: addressDetails.coordinates.lng,
+            }
+          : undefined,
+        propertyId: propertyId,
+        stageId: stageId,
+        captureType: "property" as const,
+      };
+
+      await postPropertyListingAcquisition(
+        auth.store.token,
+        acquisitionPayload
+      );
 
       // Chamar callback se existir
       onSave?.(formData);
@@ -516,7 +555,7 @@ export function PropertySourcingModal({
       // Fechar modal
       onClose();
 
-      // Navegar para a página de captação (a página pode usar o ID da propriedade se necessário)
+      // Navegar para a página de captação
       navigate("/captacao");
     } catch (error: unknown) {
       console.error("Erro ao criar propriedade:", error);
