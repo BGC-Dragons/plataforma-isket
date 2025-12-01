@@ -51,3 +51,4 @@ export const mapPropertyTypeToApi = (propertyType: string): PropertyType => {
   return typeMap[propertyType] || "OTHERS";
 };
 
+
