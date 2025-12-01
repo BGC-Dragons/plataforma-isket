@@ -46,6 +46,8 @@ import { getPropertyListingAcquisitionsContactHistory } from "../../../services/
 import { patchPropertyListingAcquisitionContactHistory } from "../../../services/patch-property-listing-acquisition-contact-history.service";
 import { deletePropertyListingAcquisitionContactHistory } from "../../../services/delete-property-listing-acquisition-contact-history.service";
 import { postPropertyListingAcquisitionContactHistoryNote } from "../../../services/post-property-listing-acquisition-contact-history-note.service";
+import { patchPropertyListingAcquisition } from "../../../services/patch-property-listing-acquisition.service";
+import { clearPropertyListingAcquisitionsStagesCache } from "../../../services/get-property-listing-acquisitions-stages.service";
 import type {
   IPropertyListingAcquisitionContactHistory,
   ContactStatus,
@@ -56,6 +58,7 @@ interface PropertySourcingDetailsProps {
   onClose: () => void;
   data: PropertySourcingData;
   acquisitionProcessId?: string; // ID da captação para buscar histórico de contatos
+  acquisitionStatus?: "IN_ACQUISITION" | "DECLINED" | "ACQUIRED"; // Status atual da captação
   onReject?: () => void;
   onCapture?: () => void;
   onTitleChange?: (title: string) => void;
@@ -66,12 +69,16 @@ export function PropertySourcingDetails({
   onClose,
   data,
   acquisitionProcessId,
+  acquisitionStatus,
   onReject,
   onCapture,
   onTitleChange,
 }: PropertySourcingDetailsProps) {
   const theme = useTheme();
   const auth = useAuth();
+  const [currentStatus, setCurrentStatus] = useState<
+    "IN_ACQUISITION" | "DECLINED" | "ACQUIRED"
+  >(acquisitionStatus || "IN_ACQUISITION");
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(data.title);
   const [owners, setOwners] = useState<IPropertyOwner[]>([]);
@@ -93,10 +100,18 @@ export function PropertySourcingDetails({
   const [emailsDialogOpen, setEmailsDialogOpen] = useState(false);
   const [selectedContact, setSelectedContact] =
     useState<IPropertyListingAcquisitionContactHistory | null>(null);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   useEffect(() => {
     setEditedTitle(data.title);
   }, [data.title]);
+
+  // Atualizar status quando acquisitionStatus mudar
+  useEffect(() => {
+    if (acquisitionStatus) {
+      setCurrentStatus(acquisitionStatus);
+    }
+  }, [acquisitionStatus]);
 
   // Limpar resultados de moradores quando o modal abrir ou os dados mudarem
   useEffect(() => {
@@ -384,6 +399,71 @@ export function PropertySourcingDetails({
     setEmailsDialogOpen(true);
   };
 
+  const handleCapture = async () => {
+    if (!acquisitionProcessId || !auth.store.token) {
+      return;
+    }
+
+    setIsUpdatingStatus(true);
+    try {
+      await patchPropertyListingAcquisition(
+        acquisitionProcessId,
+        auth.store.token,
+        {
+          status: "ACQUIRED",
+        }
+      );
+
+      // Limpar cache e atualizar o Kanban
+      clearPropertyListingAcquisitionsStagesCache();
+
+      // Chamar callback se existir
+      onCapture?.();
+
+      // Fechar modal
+      onClose();
+    } catch (error) {
+      console.error("Erro ao atualizar status para captado:", error);
+      alert("Erro ao atualizar status. Tente novamente.");
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!acquisitionProcessId || !auth.store.token) {
+      return;
+    }
+
+    setIsUpdatingStatus(true);
+    try {
+      await patchPropertyListingAcquisition(
+        acquisitionProcessId,
+        auth.store.token,
+        {
+          status: "DECLINED",
+        }
+      );
+
+      // Atualizar status local
+      setCurrentStatus("DECLINED");
+
+      // Limpar cache e atualizar o Kanban
+      clearPropertyListingAcquisitionsStagesCache();
+
+      // Chamar callback se existir
+      onReject?.();
+
+      // Fechar modal
+      onClose();
+    } catch (error) {
+      console.error("Erro ao atualizar status para recusado:", error);
+      alert("Erro ao atualizar status. Tente novamente.");
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
   return (
     <Dialog
       open={open}
@@ -433,10 +513,29 @@ export function PropertySourcingDetails({
               Captação por imóvel
             </Typography>
             <Chip
-              icon={<AccessTime sx={{ fontSize: "1rem" }} />}
-              label="Em processo"
+              icon={
+                currentStatus === "ACQUIRED" ? (
+                  <CheckCircle sx={{ fontSize: "1rem" }} />
+                ) : currentStatus === "DECLINED" ? (
+                  <Cancel sx={{ fontSize: "1rem" }} />
+                ) : (
+                  <AccessTime sx={{ fontSize: "1rem" }} />
+                )
+              }
+              label={
+                currentStatus === "ACQUIRED"
+                  ? "Captado"
+                  : currentStatus === "DECLINED"
+                  ? "Recusado"
+                  : "Em processo"
+              }
               sx={{
-                backgroundColor: "#ff9800",
+                backgroundColor:
+                  currentStatus === "ACQUIRED"
+                    ? "#4caf50"
+                    : currentStatus === "DECLINED"
+                    ? "#f44336"
+                    : "#ff9800",
                 color: "#fff",
                 fontWeight: 500,
                 "& .MuiChip-icon": {
@@ -446,40 +545,46 @@ export function PropertySourcingDetails({
             />
           </Box>
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-            <Button
-              onClick={onReject}
-              variant="contained"
-              startIcon={<Cancel />}
-              sx={{
-                textTransform: "none",
-                borderRadius: 2,
-                px: 2,
-                backgroundColor: theme.palette.error.main,
-                color: theme.palette.common.white,
-                "&:hover": {
-                  backgroundColor: theme.palette.error.dark,
-                },
-              }}
-            >
-              Recusado
-            </Button>
-            <Button
-              onClick={onCapture}
-              variant="contained"
-              startIcon={<CheckCircle />}
-              sx={{
-                textTransform: "none",
-                borderRadius: 2,
-                px: 2,
-                backgroundColor: theme.palette.success.main,
-                color: theme.palette.common.white,
-                "&:hover": {
-                  backgroundColor: theme.palette.success.dark,
-                },
-              }}
-            >
-              Captado
-            </Button>
+            {currentStatus === "IN_ACQUISITION" && (
+              <>
+                <Button
+                  onClick={handleReject}
+                  variant="contained"
+                  startIcon={<Cancel />}
+                  disabled={isUpdatingStatus || !acquisitionProcessId}
+                  sx={{
+                    textTransform: "none",
+                    borderRadius: 2,
+                    px: 2,
+                    backgroundColor: theme.palette.error.main,
+                    color: theme.palette.common.white,
+                    "&:hover": {
+                      backgroundColor: theme.palette.error.dark,
+                    },
+                  }}
+                >
+                  {isUpdatingStatus ? "Atualizando..." : "Recusado"}
+                </Button>
+                <Button
+                  onClick={handleCapture}
+                  variant="contained"
+                  startIcon={<CheckCircle />}
+                  disabled={isUpdatingStatus || !acquisitionProcessId}
+                  sx={{
+                    textTransform: "none",
+                    borderRadius: 2,
+                    px: 2,
+                    backgroundColor: theme.palette.success.main,
+                    color: theme.palette.common.white,
+                    "&:hover": {
+                      backgroundColor: theme.palette.success.dark,
+                    },
+                  }}
+                >
+                  {isUpdatingStatus ? "Atualizando..." : "Captado"}
+                </Button>
+              </>
+            )}
             <IconButton
               onClick={onClose}
               sx={{

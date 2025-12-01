@@ -5,6 +5,7 @@ import type {
   IPropertyListingAcquisition,
   CaptureType,
   IAddressGeo,
+  AcquisitionStatus,
 } from "./get-property-listing-acquisitions.service";
 
 export interface IPatchPropertyListingAcquisitionRequest {
@@ -21,6 +22,7 @@ export interface IPatchPropertyListingAcquisitionRequest {
   stageId?: string;
   captureType?: CaptureType;
   ownerId?: string;
+  status?: AcquisitionStatus;
 }
 
 export const patchPropertyListingAcquisitionPATH = (id: string) =>

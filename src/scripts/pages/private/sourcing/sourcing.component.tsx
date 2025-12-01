@@ -53,6 +53,9 @@ export function SourcingComponent() {
   const [acquisitionProcessId, setAcquisitionProcessId] = useState<
     string | undefined
   >(undefined);
+  const [acquisitionStatus, setAcquisitionStatus] = useState<
+    "IN_ACQUISITION" | "DECLINED" | "ACQUIRED" | undefined
+  >(undefined);
 
   // Dados iniciais do Kanban (exemplo)
   const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>([
@@ -225,6 +228,7 @@ export function SourcingComponent() {
 
       setPropertyData(propertyData);
       setAcquisitionProcessId(acquisition.id);
+      setAcquisitionStatus(acquisition.status);
       setIsPropertyDetailsOpen(true);
     } catch (error) {
       console.error("Erro ao buscar detalhes da captação:", error);
@@ -403,19 +407,23 @@ export function SourcingComponent() {
           onClose={() => {
             setIsPropertyDetailsOpen(false);
             setAcquisitionProcessId(undefined);
+            setAcquisitionStatus(undefined);
           }}
           data={propertyData}
           acquisitionProcessId={acquisitionProcessId}
+          acquisitionStatus={acquisitionStatus}
           onReject={() => {
             console.log("Captação de imóvel recusada");
             setIsPropertyDetailsOpen(false);
             setAcquisitionProcessId(undefined);
+            setAcquisitionStatus(undefined);
             // TODO: Implementar lógica de recusar
           }}
           onCapture={() => {
             console.log("Captação de imóvel confirmada");
             setIsPropertyDetailsOpen(false);
             setAcquisitionProcessId(undefined);
+            setAcquisitionStatus(undefined);
             // TODO: Implementar lógica de captar
           }}
           onTitleChange={(title) => {
