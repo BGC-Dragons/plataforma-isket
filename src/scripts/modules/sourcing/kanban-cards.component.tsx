@@ -49,12 +49,22 @@ export function KanbanCard({ card, onDelete, onClick }: KanbanCardProps) {
     }
   };
 
+  const getCardBackgroundColor = () => {
+    // Verifica o status do card para determinar a cor de fundo
+    if (card.subtitle === "ACQUIRED") {
+      return "#e8f5e9"; // Verde claro
+    } else if (card.subtitle === "DECLINED") {
+      return "#ffebee"; // Vermelho claro
+    }
+    return theme.palette.common.white; // Branco padrão
+  };
+
   return (
     <Box
       onClick={handleCardClick}
       sx={{
         position: "relative",
-        backgroundColor: theme.palette.common.white,
+        backgroundColor: getCardBackgroundColor(),
         borderRadius: 2,
         p: 2,
         mb: 2,

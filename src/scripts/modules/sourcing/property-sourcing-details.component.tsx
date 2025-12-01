@@ -98,6 +98,15 @@ export function PropertySourcingDetails({
     setEditedTitle(data.title);
   }, [data.title]);
 
+  // Limpar resultados de moradores quando o modal abrir ou os dados mudarem
+  useEffect(() => {
+    if (open) {
+      setOwners([]);
+      setOwnersError(null);
+      setIsLoadingOwners(false);
+    }
+  }, [open, data.address, data.number]);
+
   const loadContactHistory = useCallback(async () => {
     if (!acquisitionProcessId || !auth.store.token) return;
 

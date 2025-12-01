@@ -24,7 +24,10 @@ import { Close, Search } from "@mui/icons-material";
 import { useAuth } from "../access-manager/auth.hook";
 import { postProperties } from "../../../services/post-properties.service";
 import { postPropertyListingAcquisition } from "../../../services/post-property-listing-acquisition.service";
-import { useGetPropertyListingAcquisitionsStages } from "../../../services/get-property-listing-acquisitions-stages.service";
+import {
+  useGetPropertyListingAcquisitionsStages,
+  clearPropertyListingAcquisitionsStagesCache,
+} from "../../../services/get-property-listing-acquisitions-stages.service";
 import { mapPropertyTypeToApi } from "../../../services/helpers/map-property-type-to-api.helper";
 import { GOOGLE_CONFIG } from "../../config/google.constant";
 
@@ -94,7 +97,7 @@ export function PropertySourcingModal({
   const theme = useTheme();
   const navigate = useNavigate();
   const auth = useAuth();
-  const { data: stages } = useGetPropertyListingAcquisitionsStages();
+  const { data: stages, mutate } = useGetPropertyListingAcquisitionsStages();
   const [formData, setFormData] = useState<PropertySourcingData>({
     address: "",
     number: "",
@@ -545,6 +548,10 @@ export function PropertySourcingModal({
         auth.store.token,
         acquisitionPayload
       );
+
+      // Limpar cache e atualizar os stages/acquisitions para aparecer imediatamente no Kanban
+      clearPropertyListingAcquisitionsStagesCache();
+      await mutate();
 
       // Chamar callback se existir
       onSave?.(formData);

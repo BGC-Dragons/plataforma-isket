@@ -38,6 +38,7 @@ import {
 import { postPropertyListingAcquisitionStage } from "../../../services/post-property-listing-acquisitions-stage.service";
 import { deletePropertyListingAcquisitionStage } from "../../../services/delete-property-listing-acquisitions-stage.service";
 import { patchPropertyListingAcquisitionStage } from "../../../services/patch-property-listing-acquisitions-stage.service";
+import { deletePropertyListingAcquisition } from "../../../services/delete-property-listing-acquisition.service";
 
 import {
   DndContext,
@@ -475,6 +476,16 @@ export function Kanban({
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [deleteConfirmDialog, setDeleteConfirmDialog] = useState<{
+    open: boolean;
+    cardId: string | null;
+    columnId: ColumnId | null;
+  }>({
+    open: false,
+    cardId: null,
+    columnId: null,
+  });
+  const [isDeletingCard, setIsDeletingCard] = useState(false);
   const [newColumnTitle, setNewColumnTitle] = useState("");
   const [newColumnColor, setNewColumnColor] = useState("#C8E6C9");
   const [newColumnFontColor, setNewColumnFontColor] = useState("#000000");
@@ -510,14 +521,58 @@ export function Kanban({
   );
 
   const handleCardDelete = (cardId: string, columnId: ColumnId) => {
-    setLocalColumns((prev) =>
-      prev.map((col) =>
-        col.id === columnId
-          ? { ...col, cards: col.cards.filter((c) => c.id !== cardId) }
-          : col
-      )
-    );
-    onCardDelete?.(cardId, columnId);
+    // Abrir dialog de confirmação
+    setDeleteConfirmDialog({
+      open: true,
+      cardId,
+      columnId,
+    });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (
+      !deleteConfirmDialog.cardId ||
+      !deleteConfirmDialog.columnId ||
+      !auth.store.token
+    ) {
+      return;
+    }
+
+    setIsDeletingCard(true);
+    try {
+      // Deletar a acquisition via API
+      await deletePropertyListingAcquisition(
+        deleteConfirmDialog.cardId,
+        auth.store.token
+      );
+
+      // Atualizar os stages e acquisitions
+      clearPropertyListingAcquisitionsStagesCache();
+      await mutate();
+
+      // Fechar dialog e limpar estado
+      setDeleteConfirmDialog({
+        open: false,
+        cardId: null,
+        columnId: null,
+      });
+
+      // Chamar callback se existir
+      onCardDelete?.(deleteConfirmDialog.cardId, deleteConfirmDialog.columnId);
+    } catch (error) {
+      console.error("Erro ao deletar captação:", error);
+      alert("Erro ao deletar captação. Tente novamente.");
+    } finally {
+      setIsDeletingCard(false);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteConfirmDialog({
+      open: false,
+      cardId: null,
+      columnId: null,
+    });
   };
 
   const handleDragStart: Parameters<typeof DndContext>[0]["onDragStart"] = (
@@ -1012,6 +1067,41 @@ export function Kanban({
             sx={{ textTransform: "none" }}
           >
             {isCreating ? "Criando..." : "Criar"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog de confirmação de exclusão */}
+      <Dialog
+        open={deleteConfirmDialog.open}
+        onClose={handleCancelDelete}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Confirmar exclusão</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Tem certeza que deseja excluir esta captação? Esta ação não pode ser
+            desfeita.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={handleCancelDelete}
+            disabled={isDeletingCard}
+            sx={{ textTransform: "none" }}
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleConfirmDelete}
+            variant="contained"
+            color="error"
+            disabled={isDeletingCard}
+            sx={{ textTransform: "none" }}
+            startIcon={isDeletingCard ? <CircularProgress size={16} /> : null}
+          >
+            {isDeletingCard ? "Excluindo..." : "Excluir"}
           </Button>
         </DialogActions>
       </Dialog>
