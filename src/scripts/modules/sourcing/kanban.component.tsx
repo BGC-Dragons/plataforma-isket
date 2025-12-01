@@ -829,6 +829,7 @@ export function Kanban({
           width: "100%",
           px: 2,
           py: 2,
+          mb: { xs: 20, sm: 0 },
           backgroundColor: theme.palette.background.paper,
           boxSizing: "border-box",
           "&::-webkit-scrollbar": {

@@ -120,6 +120,7 @@ export function ButtonsBar({
           size="small"
           sx={{
             minWidth: { xs: "100%", sm: 300, md: 350 },
+            display: { xs: "none", sm: "flex" }, // Esconder no mobile
             "& .MuiOutlinedInput-root": {
               borderRadius: 2,
               "& .MuiOutlinedInput-notchedOutline": {

@@ -1,6 +1,13 @@
 import { useState } from "react";
-import { Box, useTheme } from "@mui/material";
-import { Home, Person, TrendingUp, LocationOn } from "@mui/icons-material";
+import { Box, useTheme, Button } from "@mui/material";
+import {
+  Home,
+  Person,
+  TrendingUp,
+  LocationOn,
+  Add,
+  Search as SearchIcon,
+} from "@mui/icons-material";
 import {
   ButtonsBar,
   type ViewMode,
@@ -332,14 +339,17 @@ export function SourcingComponent() {
           overflow: "hidden",
         }}
       >
-        <ButtonsBar
-          onAddCapture={handleAddCapture}
-          onSearchResidents={handleSearchResidents}
-          onSearchChange={handleSearchChange}
-          onViewModeChange={handleViewModeChange}
-          searchValue={searchValue}
-          viewMode={viewMode}
-        />
+        {/* ButtonsBar - escondido no mobile, visível no desktop */}
+        <Box sx={{ display: { xs: "none", sm: "block" } }}>
+          <ButtonsBar
+            onAddCapture={handleAddCapture}
+            onSearchResidents={handleSearchResidents}
+            onSearchChange={handleSearchChange}
+            onViewModeChange={handleViewModeChange}
+            searchValue={searchValue}
+            viewMode={viewMode}
+          />
+        </Box>
 
         {/* Conteúdo principal */}
         <Box
@@ -351,6 +361,7 @@ export function SourcingComponent() {
             overflow: "hidden",
             display: "flex",
             flexDirection: "column",
+            pb: { xs: 8, sm: 0 }, // Adicionar padding bottom no mobile para os botões não cobrirem o conteúdo
           }}
         >
           {viewMode === "grid" ? (
@@ -375,6 +386,67 @@ export function SourcingComponent() {
               </Box>
             </Box>
           )}
+        </Box>
+
+        {/* Botões no mobile - aparecem depois do kanban */}
+        <Box
+          sx={{
+            display: { xs: "flex", sm: "none" },
+            flexDirection: "row",
+            gap: 1,
+            p: 1.5,
+            mb: "60px",
+            borderTop: `1px solid ${theme.palette.divider}`,
+            backgroundColor: theme.palette.background.paper,
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            zIndex: 1000,
+            boxShadow: "0 -2px 8px rgba(0, 0, 0, 0.1)",
+          }}
+        >
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={handleAddCapture}
+            sx={{
+              flex: 1,
+              backgroundColor: theme.palette.primary.main,
+              borderRadius: 2,
+              py: 1,
+              px: 2,
+              textTransform: "none",
+              fontWeight: 600,
+              fontSize: "0.875rem",
+              "&:hover": {
+                backgroundColor: theme.palette.primary.dark,
+              },
+            }}
+          >
+            Adicionar captação
+          </Button>
+
+          <Button
+            variant="contained"
+            startIcon={<SearchIcon />}
+            onClick={handleSearchResidents}
+            sx={{
+              flex: 1,
+              backgroundColor: theme.palette.primary.main,
+              borderRadius: 2,
+              py: 1,
+              px: 2,
+              textTransform: "none",
+              fontWeight: 600,
+              fontSize: "0.875rem",
+              "&:hover": {
+                backgroundColor: theme.palette.primary.dark,
+              },
+            }}
+          >
+            Pesquisar moradores
+          </Button>
         </Box>
       </Box>
 

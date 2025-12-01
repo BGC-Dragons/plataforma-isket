@@ -508,14 +508,22 @@ export function PropertySourcingDetails({
       fullWidth
       PaperProps={{
         sx: {
-          borderRadius: 3,
+          borderRadius: { xs: 0, sm: 3 },
           overflow: "hidden",
           boxShadow: theme.shadows[24],
+          m: { xs: 0, sm: 2 },
+          maxHeight: { xs: "100vh", sm: "90vh" },
+          height: { xs: "100vh", sm: "auto" },
         },
       }}
       BackdropProps={{
         sx: {
           backgroundColor: "rgba(0, 0, 0, 0.5)",
+        },
+      }}
+      sx={{
+        "& .MuiDialog-container": {
+          alignItems: { xs: "flex-end", sm: "center" },
         },
       }}
     >
@@ -531,18 +539,29 @@ export function PropertySourcingDetails({
         <Box
           sx={{
             display: "flex",
-            alignItems: "center",
+            flexDirection: { xs: "column", sm: "row" },
+            alignItems: { xs: "flex-start", sm: "center" },
             justifyContent: "space-between",
-            p: 3,
+            p: { xs: 2, sm: 3 },
             borderBottom: `1px solid ${theme.palette.divider}`,
+            gap: { xs: 2, sm: 0 },
           }}
         >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+          {/* Título e Status */}
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: { xs: "column", sm: "row" },
+              alignItems: { xs: "flex-start", sm: "center" },
+              gap: { xs: 1, sm: 2 },
+              flex: 1,
+            }}
+          >
             <Typography
               variant="h5"
               sx={{
                 fontWeight: 700,
-                fontSize: "1.5rem",
+                fontSize: { xs: "1.25rem", sm: "1.5rem" },
                 color: theme.palette.text.primary,
               }}
             >
@@ -551,11 +570,15 @@ export function PropertySourcingDetails({
             <Chip
               icon={
                 currentStatus === "ACQUIRED" ? (
-                  <CheckCircle sx={{ fontSize: "1rem" }} />
+                  <CheckCircle
+                    sx={{ fontSize: { xs: "0.875rem", sm: "1rem" } }}
+                  />
                 ) : currentStatus === "DECLINED" ? (
-                  <Cancel sx={{ fontSize: "1rem" }} />
+                  <Cancel sx={{ fontSize: { xs: "0.875rem", sm: "1rem" } }} />
                 ) : (
-                  <AccessTime sx={{ fontSize: "1rem" }} />
+                  <AccessTime
+                    sx={{ fontSize: { xs: "0.875rem", sm: "1rem" } }}
+                  />
                 )
               }
               label={
@@ -574,13 +597,25 @@ export function PropertySourcingDetails({
                     : "#ff9800",
                 color: "#fff",
                 fontWeight: 500,
+                fontSize: { xs: "0.75rem", sm: "0.875rem" },
+                height: { xs: 24, sm: 32 },
                 "& .MuiChip-icon": {
                   color: "#fff",
                 },
               }}
             />
           </Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+
+          {/* Botões e Fechar */}
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: { xs: "column", sm: "row" },
+              alignItems: { xs: "stretch", sm: "center" },
+              gap: { xs: 1, sm: 2 },
+              width: { xs: "100%", sm: "auto" },
+            }}
+          >
             {currentStatus === "IN_ACQUISITION" && (
               <>
                 <Button
@@ -588,10 +623,13 @@ export function PropertySourcingDetails({
                   variant="contained"
                   startIcon={<Cancel />}
                   disabled={isUpdatingStatus || !acquisitionProcessId}
+                  fullWidth={true}
                   sx={{
                     textTransform: "none",
                     borderRadius: 2,
-                    px: 2,
+                    px: { xs: 1.5, sm: 2 },
+                    py: { xs: 1, sm: 1.25 },
+                    fontSize: { xs: "0.875rem", sm: "1rem" },
                     backgroundColor: theme.palette.error.main,
                     color: theme.palette.common.white,
                     "&:hover": {
@@ -606,10 +644,13 @@ export function PropertySourcingDetails({
                   variant="contained"
                   startIcon={<CheckCircle />}
                   disabled={isUpdatingStatus || !acquisitionProcessId}
+                  fullWidth={true}
                   sx={{
                     textTransform: "none",
                     borderRadius: 2,
-                    px: 2,
+                    px: { xs: 1.5, sm: 2 },
+                    py: { xs: 1, sm: 1.25 },
+                    fontSize: { xs: "0.875rem", sm: "1rem" },
                     backgroundColor: theme.palette.success.main,
                     color: theme.palette.common.white,
                     "&:hover": {
@@ -625,6 +666,10 @@ export function PropertySourcingDetails({
               onClick={onClose}
               sx={{
                 color: theme.palette.text.secondary,
+                alignSelf: { xs: "flex-end", sm: "center" },
+                position: { xs: "absolute", sm: "relative" },
+                top: { xs: 8, sm: "auto" },
+                right: { xs: 8, sm: "auto" },
                 "&:hover": {
                   backgroundColor: theme.palette.action.hover,
                 },
