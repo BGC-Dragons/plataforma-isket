@@ -42,6 +42,8 @@ import {
   type IPropertyOwner,
 } from "../../../services/get-property-owner-finder-by-address.service";
 import { ResidentSearchModal } from "./resident-search-modal";
+import type { ResidentResult } from "./search-resident-result-modal";
+import { postPropertyListingAcquisitionContactHistory } from "../../../services/post-property-listing-acquisition-contact-history.service";
 import { getPropertyListingAcquisitionsContactHistory } from "../../../services/get-property-listing-acquisitions-contact-history.service";
 import { patchPropertyListingAcquisitionContactHistory } from "../../../services/patch-property-listing-acquisition-contact-history.service";
 import { deletePropertyListingAcquisitionContactHistory } from "../../../services/delete-property-listing-acquisition-contact-history.service";
@@ -397,6 +399,40 @@ export function PropertySourcingDetails({
   ) => {
     setSelectedContact(contact);
     setEmailsDialogOpen(true);
+  };
+
+  const handleResidentSearchComplete = async (results: ResidentResult[]) => {
+    if (!acquisitionProcessId || !auth.store.token) {
+      return;
+    }
+
+    // Fechar modal de busca
+    setIsResidentSearchModalOpen(false);
+
+    // Adicionar todos os contatos encontrados diretamente à captação
+    try {
+      for (const resident of results) {
+        // Limpar o nome removendo "UNDEFINED" se estiver presente
+        const cleanName = resident.name?.replace(/\s+UNDEFINED$/i, "").trim();
+
+        await postPropertyListingAcquisitionContactHistory(
+          {
+            acquisitionProcessId,
+            contactName: cleanName,
+            contactDetails: `CPF: ${resident.cpf}`,
+            contactDate: new Date().toISOString(),
+            status: "UNDEFINED",
+          },
+          auth.store.token
+        );
+      }
+
+      // Atualizar lista de contatos
+      await loadContactHistory();
+    } catch (error) {
+      console.error("Erro ao adicionar contatos à captação:", error);
+      alert("Erro ao adicionar contatos. Tente novamente.");
+    }
   };
 
   const handleCapture = async () => {
@@ -1204,7 +1240,9 @@ export function PropertySourcingDetails({
                                 lineHeight: 1.2,
                               }}
                             >
-                              {contact.contactName?.toUpperCase() || "Sem nome"}
+                              {contact.contactName
+                                ?.replace(/\s+UNDEFINED$/i, "")
+                                .toUpperCase() || "Sem nome"}
                             </Typography>
                             {contact.contactDetails && (
                               <Typography
@@ -1559,6 +1597,7 @@ export function PropertySourcingDetails({
       <ResidentSearchModal
         open={isResidentSearchModalOpen}
         onClose={() => setIsResidentSearchModalOpen(false)}
+        onSearchComplete={handleResidentSearchComplete}
       />
 
       {/* Dialog de Telefones */}
@@ -1581,7 +1620,9 @@ export function PropertySourcingDetails({
             }}
           >
             <Typography variant="h6" sx={{ fontWeight: 600 }}>
-              Telefones - {selectedContact?.contactName || "Contato"}
+              Telefones -{" "}
+              {selectedContact?.contactName?.replace(/\s+UNDEFINED$/i, "") ||
+                "Contato"}
             </Typography>
             <IconButton
               size="small"
@@ -1662,7 +1703,9 @@ export function PropertySourcingDetails({
             }}
           >
             <Typography variant="h6" sx={{ fontWeight: 600 }}>
-              E-mails - {selectedContact?.contactName || "Contato"}
+              E-mails -{" "}
+              {selectedContact?.contactName?.replace(/\s+UNDEFINED$/i, "") ||
+                "Contato"}
             </Typography>
             <IconButton
               size="small"
