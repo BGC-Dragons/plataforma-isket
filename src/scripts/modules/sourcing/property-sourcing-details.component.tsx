@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -33,7 +33,7 @@ import {
   Person,
   Verified,
   ArrowDropDown,
-  MoreVert,
+  ContentCopy,
 } from "@mui/icons-material";
 import type { PropertySourcingData } from "./property-sourcing-modal";
 import { useAuth } from "../access-manager/auth.hook";
@@ -42,11 +42,20 @@ import {
   type IPropertyOwner,
 } from "../../../services/get-property-owner-finder-by-address.service";
 import { ResidentSearchModal } from "./resident-search-modal";
+import { getPropertyListingAcquisitionsContactHistory } from "../../../services/get-property-listing-acquisitions-contact-history.service";
+import { patchPropertyListingAcquisitionContactHistory } from "../../../services/patch-property-listing-acquisition-contact-history.service";
+import { deletePropertyListingAcquisitionContactHistory } from "../../../services/delete-property-listing-acquisition-contact-history.service";
+import { postPropertyListingAcquisitionContactHistoryNote } from "../../../services/post-property-listing-acquisition-contact-history-note.service";
+import type {
+  IPropertyListingAcquisitionContactHistory,
+  ContactStatus,
+} from "../../../services/get-property-listing-acquisitions-contact-history.service";
 
 interface PropertySourcingDetailsProps {
   open: boolean;
   onClose: () => void;
   data: PropertySourcingData;
+  acquisitionProcessId?: string; // ID da captação para buscar histórico de contatos
   onReject?: () => void;
   onCapture?: () => void;
   onTitleChange?: (title: string) => void;
@@ -56,6 +65,7 @@ export function PropertySourcingDetails({
   open,
   onClose,
   data,
+  acquisitionProcessId,
   onReject,
   onCapture,
   onTitleChange,
@@ -69,10 +79,50 @@ export function PropertySourcingDetails({
   const [ownersError, setOwnersError] = useState<string | null>(null);
   const [isResidentSearchModalOpen, setIsResidentSearchModalOpen] =
     useState(false);
+  const [contactHistory, setContactHistory] = useState<
+    IPropertyListingAcquisitionContactHistory[]
+  >([]);
+  const [isLoadingContactHistory, setIsLoadingContactHistory] = useState(false);
+  const [isAddingPhone, setIsAddingPhone] = useState<string | null>(null);
+  const [isAddingEmail, setIsAddingEmail] = useState<string | null>(null);
+  const [isAddingNote, setIsAddingNote] = useState<string | null>(null);
+  const [newPhone, setNewPhone] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [newNote, setNewNote] = useState("");
+  const [phonesDialogOpen, setPhonesDialogOpen] = useState(false);
+  const [emailsDialogOpen, setEmailsDialogOpen] = useState(false);
+  const [selectedContact, setSelectedContact] =
+    useState<IPropertyListingAcquisitionContactHistory | null>(null);
 
   useEffect(() => {
     setEditedTitle(data.title);
   }, [data.title]);
+
+  const loadContactHistory = useCallback(async () => {
+    if (!acquisitionProcessId || !auth.store.token) return;
+
+    setIsLoadingContactHistory(true);
+    try {
+      const response = await getPropertyListingAcquisitionsContactHistory(
+        acquisitionProcessId,
+        auth.store.token
+      );
+      setContactHistory(response.data);
+    } catch (error) {
+      console.error("Erro ao carregar histórico de contatos:", error);
+    } finally {
+      setIsLoadingContactHistory(false);
+    }
+  }, [acquisitionProcessId, auth.store.token]);
+
+  // Buscar histórico de contatos quando o modal abrir e tiver acquisitionProcessId
+  useEffect(() => {
+    if (open && acquisitionProcessId && auth.store.token) {
+      loadContactHistory();
+    } else {
+      setContactHistory([]);
+    }
+  }, [open, acquisitionProcessId, auth.store.token, loadContactHistory]);
 
   const handleTitleSave = () => {
     onTitleChange?.(editedTitle);
@@ -175,6 +225,154 @@ export function PropertySourcingDetails({
       return `${nationalId.slice(0, 2)}.***.***/****-${nationalId.slice(-2)}`;
     }
     return nationalId;
+  };
+
+  const contactStatusOptions: { value: ContactStatus; label: string }[] = [
+    { value: "UNDEFINED", label: "Indefinido" },
+    { value: "NOT_THE_OWNER", label: "Não é proprietário" },
+    { value: "TENANT", label: "Inquilino" },
+    { value: "OWNER", label: "Proprietário" },
+  ];
+
+  const handleAddPhone = (contactHistoryId: string) => {
+    setIsAddingPhone(contactHistoryId);
+    setNewPhone("");
+  };
+
+  const handleSavePhone = async (contactHistoryId: string) => {
+    if (!newPhone.trim() || !auth.store.token || !acquisitionProcessId) return;
+
+    try {
+      const contact = contactHistory.find((c) => c.id === contactHistoryId);
+      if (!contact) return;
+
+      const updatedPhones = [...(contact.phones || []), newPhone.trim()];
+
+      await patchPropertyListingAcquisitionContactHistory(
+        contactHistoryId,
+        { phones: updatedPhones },
+        auth.store.token
+      );
+
+      await loadContactHistory();
+      setIsAddingPhone(null);
+      setNewPhone("");
+    } catch (error) {
+      console.error("Erro ao adicionar telefone:", error);
+    }
+  };
+
+  const handleAddEmail = (contactHistoryId: string) => {
+    setIsAddingEmail(contactHistoryId);
+    setNewEmail("");
+  };
+
+  const handleSaveEmail = async (contactHistoryId: string) => {
+    if (!newEmail.trim() || !auth.store.token || !acquisitionProcessId) return;
+
+    try {
+      const contact = contactHistory.find((c) => c.id === contactHistoryId);
+      if (!contact) return;
+
+      const updatedEmails = [...(contact.emails || []), newEmail.trim()];
+
+      await patchPropertyListingAcquisitionContactHistory(
+        contactHistoryId,
+        { emails: updatedEmails },
+        auth.store.token
+      );
+
+      await loadContactHistory();
+      setIsAddingEmail(null);
+      setNewEmail("");
+    } catch (error) {
+      console.error("Erro ao adicionar email:", error);
+    }
+  };
+
+  const handleAddNote = (contactHistoryId: string) => {
+    setIsAddingNote(contactHistoryId);
+    setNewNote("");
+  };
+
+  const handleSaveNote = async (contactHistoryId: string) => {
+    if (!newNote.trim() || !auth.store.token) return;
+
+    try {
+      await postPropertyListingAcquisitionContactHistoryNote(
+        contactHistoryId,
+        { content: newNote.trim() },
+        auth.store.token
+      );
+
+      await loadContactHistory();
+      setIsAddingNote(null);
+      setNewNote("");
+    } catch (error) {
+      console.error("Erro ao adicionar anotação:", error);
+    }
+  };
+
+  const handleStatusChange = async (
+    contactHistoryId: string,
+    newStatus: ContactStatus
+  ) => {
+    if (!auth.store.token) return;
+
+    try {
+      await patchPropertyListingAcquisitionContactHistory(
+        contactHistoryId,
+        { status: newStatus },
+        auth.store.token
+      );
+
+      await loadContactHistory();
+    } catch (error) {
+      console.error("Erro ao atualizar status do contato:", error);
+    }
+  };
+
+  const handleDeleteContact = async (contactHistoryId: string) => {
+    if (!auth.store.token) return;
+
+    if (!window.confirm("Tem certeza que deseja excluir este contato?")) {
+      return;
+    }
+
+    try {
+      await deletePropertyListingAcquisitionContactHistory(
+        contactHistoryId,
+        auth.store.token
+      );
+
+      await loadContactHistory();
+    } catch (error) {
+      console.error("Erro ao deletar contato:", error);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const day = date.getDate().toString().padStart(2, "0");
+    const month = (date.getMonth() + 1).toString().padStart(2, "0");
+    const year = date.getFullYear();
+    const hours = date.getHours().toString().padStart(2, "0");
+    const minutes = date.getMinutes().toString().padStart(2, "0");
+    return `${day}/${month}/${year} - ${hours}:${minutes}`;
+  };
+
+  const handleOpenPhonesDialog = (
+    contact: IPropertyListingAcquisitionContactHistory
+  ) => {
+    setSelectedContact(contact);
+    setPhonesDialogOpen(true);
+  };
+
+  const handleOpenEmailsDialog = (
+    contact: IPropertyListingAcquisitionContactHistory
+  ) => {
+    setSelectedContact(contact);
+    setEmailsDialogOpen(true);
   };
 
   return (
@@ -821,481 +1019,423 @@ export function PropertySourcingDetails({
                 </Box>
               </Paper>
 
-              {/* Contact List - Example contacts */}
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                {/* Contact 1 */}
-                <Paper
-                  elevation={0}
+              {/* Contact List */}
+              {isLoadingContactHistory ? (
+                <Box
                   sx={{
-                    backgroundColor: "#f5f5f5",
-                    borderRadius: 3,
-                    p: 2,
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    py: 4,
                   }}
                 >
-                  <Box
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      mb: 1.5,
-                      gap: 2,
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        display: "flex",
-                        alignItems: "flex-start",
-                        gap: 1,
-                        flex: 1,
-                      }}
-                    >
-                      <Person
-                        sx={{ color: theme.palette.text.secondary, mt: 0.5 }}
-                      />
-                      <Box sx={{ display: "flex", flexDirection: "column" }}>
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            fontWeight: 600,
-                            fontSize: "0.875rem",
-                            mb: 0.25,
-                            lineHeight: 1.2,
-                          }}
-                        >
-                          ZELINDA DE JESUS SOUZA
-                        </Typography>
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            fontSize: "0.75rem",
-                            color: theme.palette.text.secondary,
-                            lineHeight: 1.2,
-                          }}
-                        >
-                          098.044.428-41
-                        </Typography>
-                      </Box>
-                    </Box>
-                    <FormControl size="small" sx={{ minWidth: 150 }}>
-                      <Select
-                        value=""
-                        displayEmpty
-                        sx={{
-                          borderRadius: 1,
-                          fontSize: "0.75rem",
-                        }}
-                      >
-                        <MenuItem value="" disabled>
-                          Tipo de contato
-                        </MenuItem>
-                      </Select>
-                    </FormControl>
-                    <IconButton
-                      size="small"
-                      sx={{ color: theme.palette.text.primary }}
-                    >
-                      <Delete fontSize="small" />
-                    </IconButton>
-                  </Box>
-                  <Box
-                    sx={{
-                      display: "flex",
-                      gap: 1,
-                      mb: 1.5,
-                    }}
-                  >
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      startIcon={<Phone />}
-                      endIcon={<ArrowDropDown />}
-                      sx={{
-                        borderColor: "#4caf50",
-                        color: "#4caf50",
-                        backgroundColor: "transparent",
-                        textTransform: "none",
-                        fontSize: "0.75rem",
-                        px: 1.5,
-                        "&:hover": {
-                          borderColor: "#388e3c",
-                          backgroundColor: "transparent",
-                        },
-                      }}
-                    >
-                      Telefone(s){" "}
-                      <Box
-                        component="span"
-                        sx={{
-                          backgroundColor: "#4caf50",
-                          color: "#fff",
-                          borderRadius: "50%",
-                          width: 20,
-                          height: 20,
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: "0.7rem",
-                          fontWeight: 600,
-                          ml: 0.5,
-                        }}
-                      >
-                        2
-                      </Box>
-                    </Button>
-                    <IconButton size="small" sx={{ color: "#4caf50" }}>
-                      <Add fontSize="small" />
-                    </IconButton>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      startIcon={<Email />}
-                      endIcon={<ArrowDropDown />}
-                      sx={{
-                        borderColor: theme.palette.divider,
-                        color: theme.palette.text.secondary,
-                        backgroundColor: "transparent",
-                        textTransform: "none",
-                        fontSize: "0.75rem",
-                        px: 1.5,
-                        "&:hover": {
-                          borderColor: theme.palette.text.secondary,
-                          backgroundColor: "transparent",
-                        },
-                      }}
-                    >
-                      E-mail{" "}
-                      <Box
-                        component="span"
-                        sx={{
-                          backgroundColor: theme.palette.text.secondary,
-                          color: "#fff",
-                          borderRadius: "50%",
-                          width: 20,
-                          height: 20,
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: "0.7rem",
-                          fontWeight: 600,
-                          ml: 0.5,
-                        }}
-                      >
-                        0
-                      </Box>
-                    </Button>
-                    <IconButton size="small">
-                      <Add fontSize="small" />
-                    </IconButton>
-                  </Box>
-                  <Box sx={{ mt: 1.5 }}>
-                    <Box
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 1,
-                        mb: 1.5,
-                      }}
-                    >
-                      <Typography
-                        variant="caption"
-                        sx={{
-                          fontWeight: 500,
-                          fontSize: "0.75rem",
-                        }}
-                      >
-                        Anotações
-                      </Typography>
-                      <Box
-                        sx={{
-                          backgroundColor: "#2196f3",
-                          color: "#fff",
-                          borderRadius: "50%",
-                          width: 18,
-                          height: 18,
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: "0.65rem",
-                          fontWeight: 600,
-                        }}
-                      >
-                        1
-                      </Box>
-                      <IconButton size="small" sx={{ ml: "auto" }}>
-                        <Add fontSize="small" />
-                      </IconButton>
-                    </Box>
-                    {/* Note Card */}
+                  <CircularProgress size={24} />
+                </Box>
+              ) : contactHistory.length === 0 ? (
+                <Box
+                  sx={{
+                    textAlign: "center",
+                    py: 4,
+                    color: theme.palette.text.secondary,
+                  }}
+                >
+                  <Typography variant="body2">
+                    Nenhum contato registrado ainda.
+                  </Typography>
+                </Box>
+              ) : (
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  {contactHistory.map((contact) => (
                     <Paper
+                      key={contact.id}
                       elevation={0}
                       sx={{
                         backgroundColor: "#f5f5f5",
-                        borderRadius: 2,
-                        border: `1px solid ${theme.palette.divider}`,
-                        p: 1.5,
-                        position: "relative",
+                        borderRadius: 3,
+                        p: 2,
                       }}
                     >
-                      <IconButton
-                        size="small"
+                      <Box
                         sx={{
-                          position: "absolute",
-                          top: 4,
-                          right: 4,
-                          color: theme.palette.text.secondary,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          mb: 1.5,
+                          gap: 2,
                         }}
                       >
-                        <MoreVert fontSize="small" />
-                      </IconButton>
-                      <Typography
-                        variant="caption"
-                        sx={{
-                          fontSize: "0.7rem",
-                          color: theme.palette.text.secondary,
-                          display: "block",
-                          mb: 0.5,
-                        }}
-                      >
-                        11/11/2025 - 10:35
-                      </Typography>
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          fontSize: "0.875rem",
-                          color: theme.palette.text.primary,
-                        }}
-                      >
-                        Ela era locatária.
-                      </Typography>
-                    </Paper>
-                  </Box>
-                </Paper>
-
-                {/* Contact 2 */}
-                <Paper
-                  elevation={0}
-                  sx={{
-                    backgroundColor: "#f5f5f5",
-                    borderRadius: 3,
-                    p: 2,
-                  }}
-                >
-                  <Box
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      mb: 1.5,
-                      gap: 2,
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        display: "flex",
-                        alignItems: "flex-start",
-                        gap: 1,
-                        flex: 1,
-                      }}
-                    >
-                      <Person
-                        sx={{ color: theme.palette.text.secondary, mt: 0.5 }}
-                      />
-                      <Box sx={{ display: "flex", flexDirection: "column" }}>
-                        <Typography
-                          variant="body2"
+                        <Box
                           sx={{
-                            fontWeight: 600,
-                            fontSize: "0.875rem",
-                            mb: 0.25,
-                            lineHeight: 1.2,
+                            display: "flex",
+                            alignItems: "flex-start",
+                            gap: 1,
+                            flex: 1,
                           }}
                         >
-                          ROGER ALEXANDRE BARBOZA
-                        </Typography>
-                        <Typography
-                          variant="caption"
+                          <Person
+                            sx={{
+                              color: theme.palette.text.secondary,
+                              mt: 0.5,
+                            }}
+                          />
+                          <Box
+                            sx={{ display: "flex", flexDirection: "column" }}
+                          >
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                fontWeight: 600,
+                                fontSize: "0.875rem",
+                                mb: 0.25,
+                                lineHeight: 1.2,
+                              }}
+                            >
+                              {contact.contactName?.toUpperCase() || "Sem nome"}
+                            </Typography>
+                            {contact.contactDetails && (
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  fontSize: "0.75rem",
+                                  color: theme.palette.text.secondary,
+                                  lineHeight: 1.2,
+                                }}
+                              >
+                                {contact.contactDetails}
+                              </Typography>
+                            )}
+                          </Box>
+                        </Box>
+                        <FormControl size="small" sx={{ minWidth: 150 }}>
+                          <Select
+                            value={contact.status}
+                            onChange={(e) =>
+                              handleStatusChange(
+                                contact.id,
+                                e.target.value as ContactStatus
+                              )
+                            }
+                            sx={{
+                              borderRadius: 1,
+                              fontSize: "0.75rem",
+                            }}
+                          >
+                            {contactStatusOptions.map((option) => (
+                              <MenuItem key={option.value} value={option.value}>
+                                {option.label}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDeleteContact(contact.id)}
+                          sx={{ color: theme.palette.text.primary }}
+                        >
+                          <Delete fontSize="small" />
+                        </IconButton>
+                      </Box>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          gap: 1,
+                          mb: 1.5,
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          startIcon={<Phone />}
+                          endIcon={<ArrowDropDown />}
+                          onClick={() => handleOpenPhonesDialog(contact)}
                           sx={{
+                            borderColor: "#4caf50",
+                            color: "#4caf50",
+                            backgroundColor: "transparent",
+                            textTransform: "none",
                             fontSize: "0.75rem",
-                            color: theme.palette.text.secondary,
-                            lineHeight: 1.2,
+                            px: 1.5,
+                            "&:hover": {
+                              borderColor: "#388e3c",
+                              backgroundColor: "transparent",
+                            },
                           }}
                         >
-                          038.356.200-64
-                        </Typography>
+                          Telefone(s){" "}
+                          <Box
+                            component="span"
+                            sx={{
+                              backgroundColor: "#4caf50",
+                              color: "#fff",
+                              borderRadius: "50%",
+                              width: 20,
+                              height: 20,
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: "0.7rem",
+                              fontWeight: 600,
+                              ml: 0.5,
+                            }}
+                          >
+                            {contact.phones?.length || 0}
+                          </Box>
+                        </Button>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleAddPhone(contact.id)}
+                          sx={{ color: "#4caf50" }}
+                        >
+                          <Add fontSize="small" />
+                        </IconButton>
+                        {isAddingPhone === contact.id && (
+                          <Box
+                            sx={{
+                              display: "flex",
+                              gap: 1,
+                              alignItems: "center",
+                              width: "100%",
+                            }}
+                          >
+                            <TextField
+                              size="small"
+                              placeholder="Novo telefone"
+                              value={newPhone}
+                              onChange={(e) => setNewPhone(e.target.value)}
+                              sx={{ flex: 1 }}
+                            />
+                            <IconButton
+                              size="small"
+                              onClick={() => handleSavePhone(contact.id)}
+                              sx={{ color: "#4caf50" }}
+                            >
+                              <CheckCircle fontSize="small" />
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              onClick={() => {
+                                setIsAddingPhone(null);
+                                setNewPhone("");
+                              }}
+                            >
+                              <Cancel fontSize="small" />
+                            </IconButton>
+                          </Box>
+                        )}
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          startIcon={<Email />}
+                          endIcon={<ArrowDropDown />}
+                          onClick={() => handleOpenEmailsDialog(contact)}
+                          sx={{
+                            borderColor: theme.palette.divider,
+                            color: theme.palette.text.secondary,
+                            backgroundColor: "transparent",
+                            textTransform: "none",
+                            fontSize: "0.75rem",
+                            px: 1.5,
+                            "&:hover": {
+                              borderColor: theme.palette.text.secondary,
+                              backgroundColor: "transparent",
+                            },
+                          }}
+                        >
+                          E-mail{" "}
+                          <Box
+                            component="span"
+                            sx={{
+                              backgroundColor: theme.palette.text.secondary,
+                              color: "#fff",
+                              borderRadius: "50%",
+                              width: 20,
+                              height: 20,
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: "0.7rem",
+                              fontWeight: 600,
+                              ml: 0.5,
+                            }}
+                          >
+                            {contact.emails?.length || 0}
+                          </Box>
+                        </Button>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleAddEmail(contact.id)}
+                        >
+                          <Add fontSize="small" />
+                        </IconButton>
+                        {isAddingEmail === contact.id && (
+                          <Box
+                            sx={{
+                              display: "flex",
+                              gap: 1,
+                              alignItems: "center",
+                              width: "100%",
+                            }}
+                          >
+                            <TextField
+                              size="small"
+                              type="email"
+                              placeholder="Novo e-mail"
+                              value={newEmail}
+                              onChange={(e) => setNewEmail(e.target.value)}
+                              sx={{ flex: 1 }}
+                            />
+                            <IconButton
+                              size="small"
+                              onClick={() => handleSaveEmail(contact.id)}
+                              sx={{ color: "#4caf50" }}
+                            >
+                              <CheckCircle fontSize="small" />
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              onClick={() => {
+                                setIsAddingEmail(null);
+                                setNewEmail("");
+                              }}
+                            >
+                              <Cancel fontSize="small" />
+                            </IconButton>
+                          </Box>
+                        )}
                       </Box>
-                    </Box>
-                    <FormControl size="small" sx={{ minWidth: 150 }}>
-                      <Select
-                        value=""
-                        displayEmpty
-                        sx={{
-                          borderRadius: 1,
-                          fontSize: "0.75rem",
-                        }}
-                      >
-                        <MenuItem value="" disabled>
-                          Tipo de contato
-                        </MenuItem>
-                      </Select>
-                    </FormControl>
-                    <IconButton
-                      size="small"
-                      sx={{ color: theme.palette.text.primary }}
-                    >
-                      <Delete fontSize="small" />
-                    </IconButton>
-                  </Box>
-                  <Box
-                    sx={{
-                      display: "flex",
-                      gap: 1,
-                      mb: 1.5,
-                    }}
-                  >
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      startIcon={<Phone />}
-                      endIcon={<ArrowDropDown />}
-                      sx={{
-                        borderColor: "#4caf50",
-                        color: "#4caf50",
-                        backgroundColor: "transparent",
-                        textTransform: "none",
-                        fontSize: "0.75rem",
-                        px: 1.5,
-                        "&:hover": {
-                          borderColor: "#388e3c",
-                          backgroundColor: "transparent",
-                        },
-                      }}
-                    >
-                      Telefone(s){" "}
-                      <Box
-                        component="span"
-                        sx={{
-                          backgroundColor: "#4caf50",
-                          color: "#fff",
-                          borderRadius: "50%",
-                          width: 20,
-                          height: 20,
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: "0.7rem",
-                          fontWeight: 600,
-                          ml: 0.5,
-                        }}
-                      >
-                        1
+                      <Box sx={{ mt: 1.5 }}>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1,
+                            mb: 1.5,
+                          }}
+                        >
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              fontWeight: 500,
+                              fontSize: "0.75rem",
+                            }}
+                          >
+                            Anotações
+                          </Typography>
+                          <Box
+                            sx={{
+                              backgroundColor: "#2196f3",
+                              color: "#fff",
+                              borderRadius: "50%",
+                              width: 18,
+                              height: 18,
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: "0.65rem",
+                              fontWeight: 600,
+                            }}
+                          >
+                            {contact.contactNotes?.length || 0}
+                          </Box>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleAddNote(contact.id)}
+                            sx={{ ml: "auto" }}
+                          >
+                            <Add fontSize="small" />
+                          </IconButton>
+                        </Box>
+                        {isAddingNote === contact.id && (
+                          <Box sx={{ mb: 1.5 }}>
+                            <TextField
+                              fullWidth
+                              multiline
+                              rows={2}
+                              size="small"
+                              placeholder="Nova anotação"
+                              value={newNote}
+                              onChange={(e) => setNewNote(e.target.value)}
+                              sx={{ mb: 1 }}
+                            />
+                            <Box
+                              sx={{
+                                display: "flex",
+                                gap: 1,
+                                justifyContent: "flex-end",
+                              }}
+                            >
+                              <Button
+                                size="small"
+                                onClick={() => handleSaveNote(contact.id)}
+                                variant="contained"
+                                sx={{ textTransform: "none" }}
+                              >
+                                Salvar
+                              </Button>
+                              <Button
+                                size="small"
+                                onClick={() => {
+                                  setIsAddingNote(null);
+                                  setNewNote("");
+                                }}
+                                sx={{ textTransform: "none" }}
+                              >
+                                Cancelar
+                              </Button>
+                            </Box>
+                          </Box>
+                        )}
+                        {/* Notes List */}
+                        {contact.contactNotes &&
+                          contact.contactNotes.length > 0 && (
+                            <Box
+                              sx={{
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 1,
+                              }}
+                            >
+                              {contact.contactNotes.map((note) => (
+                                <Paper
+                                  key={note.id}
+                                  elevation={0}
+                                  sx={{
+                                    backgroundColor: "#f5f5f5",
+                                    borderRadius: 2,
+                                    border: `1px solid ${theme.palette.divider}`,
+                                    p: 1.5,
+                                  }}
+                                >
+                                  <Typography
+                                    variant="caption"
+                                    sx={{
+                                      fontSize: "0.7rem",
+                                      color: theme.palette.text.secondary,
+                                      display: "block",
+                                      mb: 0.5,
+                                    }}
+                                  >
+                                    {formatDate(note.createdAt)}
+                                  </Typography>
+                                  <Typography
+                                    variant="body2"
+                                    sx={{
+                                      fontSize: "0.875rem",
+                                      color: theme.palette.text.primary,
+                                    }}
+                                  >
+                                    {note.content}
+                                  </Typography>
+                                </Paper>
+                              ))}
+                            </Box>
+                          )}
                       </Box>
-                    </Button>
-                    <IconButton size="small" sx={{ color: "#4caf50" }}>
-                      <Add fontSize="small" />
-                    </IconButton>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      startIcon={<Email />}
-                      endIcon={<ArrowDropDown />}
-                      sx={{
-                        borderColor: theme.palette.divider,
-                        color: theme.palette.text.secondary,
-                        backgroundColor: "transparent",
-                        textTransform: "none",
-                        fontSize: "0.75rem",
-                        px: 1.5,
-                        "&:hover": {
-                          borderColor: theme.palette.text.secondary,
-                          backgroundColor: "transparent",
-                        },
-                      }}
-                    >
-                      E-mail{" "}
-                      <Box
-                        component="span"
-                        sx={{
-                          backgroundColor: theme.palette.text.secondary,
-                          color: "#fff",
-                          borderRadius: "50%",
-                          width: 20,
-                          height: 20,
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: "0.7rem",
-                          fontWeight: 600,
-                          ml: 0.5,
-                        }}
-                      >
-                        0
-                      </Box>
-                    </Button>
-                    <IconButton size="small">
-                      <Add fontSize="small" />
-                    </IconButton>
-                  </Box>
-                  <Box sx={{ mt: 1.5 }}>
-                    <Box
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 1,
-                        mb: 1.5,
-                      }}
-                    >
-                      <Typography
-                        variant="caption"
-                        sx={{
-                          fontWeight: 500,
-                          fontSize: "0.75rem",
-                        }}
-                      >
-                        Anotações
-                      </Typography>
-                      <Box
-                        sx={{
-                          backgroundColor: "#2196f3",
-                          color: "#fff",
-                          borderRadius: "50%",
-                          width: 18,
-                          height: 18,
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: "0.65rem",
-                          fontWeight: 600,
-                        }}
-                      >
-                        0
-                      </Box>
-                      <IconButton size="small" sx={{ ml: "auto" }}>
-                        <Add fontSize="small" />
-                      </IconButton>
-                    </Box>
-                    {/* Empty State */}
-                    <Box
-                      sx={{
-                        border: "2px dashed #e0e0e0",
-                        borderRadius: 2,
-                        p: 3,
-                        textAlign: "center",
-                        backgroundColor: "#fafafa",
-                      }}
-                    >
-                      <Typography
-                        variant="caption"
-                        sx={{
-                          fontSize: "0.75rem",
-                          color: theme.palette.text.secondary,
-                        }}
-                      >
-                        Sem anotações
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Paper>
-              </Box>
+                    </Paper>
+                  ))}
+                </Box>
+              )}
             </Paper>
           </Box>
         </Box>
@@ -1306,6 +1446,166 @@ export function PropertySourcingDetails({
         open={isResidentSearchModalOpen}
         onClose={() => setIsResidentSearchModalOpen(false)}
       />
+
+      {/* Dialog de Telefones */}
+      <Dialog
+        open={phonesDialogOpen}
+        onClose={() => {
+          setPhonesDialogOpen(false);
+          setSelectedContact(null);
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogContent>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              mb: 2,
+            }}
+          >
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              Telefones - {selectedContact?.contactName || "Contato"}
+            </Typography>
+            <IconButton
+              size="small"
+              onClick={() => {
+                setPhonesDialogOpen(false);
+                setSelectedContact(null);
+              }}
+            >
+              <Close />
+            </IconButton>
+          </Box>
+          {selectedContact?.phones && selectedContact.phones.length > 0 ? (
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              {selectedContact.phones.map((phone, index) => (
+                <Paper
+                  key={index}
+                  elevation={0}
+                  sx={{
+                    p: 2,
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 2,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 2,
+                  }}
+                >
+                  <Phone sx={{ color: "#4caf50" }} />
+                  <Typography variant="body1" sx={{ flex: 1 }}>
+                    {phone}
+                  </Typography>
+                  <IconButton
+                    size="small"
+                    onClick={() => {
+                      // Copiar para clipboard
+                      navigator.clipboard.writeText(phone);
+                    }}
+                    sx={{ color: theme.palette.text.secondary }}
+                    title="Copiar telefone"
+                  >
+                    <ContentCopy fontSize="small" />
+                  </IconButton>
+                </Paper>
+              ))}
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                textAlign: "center",
+                py: 4,
+                color: theme.palette.text.secondary,
+              }}
+            >
+              <Typography variant="body2">
+                Nenhum telefone cadastrado
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Emails */}
+      <Dialog
+        open={emailsDialogOpen}
+        onClose={() => {
+          setEmailsDialogOpen(false);
+          setSelectedContact(null);
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogContent>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              mb: 2,
+            }}
+          >
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              E-mails - {selectedContact?.contactName || "Contato"}
+            </Typography>
+            <IconButton
+              size="small"
+              onClick={() => {
+                setEmailsDialogOpen(false);
+                setSelectedContact(null);
+              }}
+            >
+              <Close />
+            </IconButton>
+          </Box>
+          {selectedContact?.emails && selectedContact.emails.length > 0 ? (
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              {selectedContact.emails.map((email, index) => (
+                <Paper
+                  key={index}
+                  elevation={0}
+                  sx={{
+                    p: 2,
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 2,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 2,
+                  }}
+                >
+                  <Email sx={{ color: theme.palette.text.secondary }} />
+                  <Typography variant="body1" sx={{ flex: 1 }}>
+                    {email}
+                  </Typography>
+                  <IconButton
+                    size="small"
+                    onClick={() => {
+                      // Copiar para clipboard
+                      navigator.clipboard.writeText(email);
+                    }}
+                    sx={{ color: theme.palette.text.secondary }}
+                    title="Copiar e-mail"
+                  >
+                    <ContentCopy fontSize="small" />
+                  </IconButton>
+                </Paper>
+              ))}
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                textAlign: "center",
+                py: 4,
+                color: theme.palette.text.secondary,
+              }}
+            >
+              <Typography variant="body2">Nenhum e-mail cadastrado</Typography>
+            </Box>
+          )}
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
