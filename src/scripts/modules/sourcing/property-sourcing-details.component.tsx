@@ -14,6 +14,8 @@ import {
   FormControl,
   InputAdornment,
   Paper,
+  CircularProgress,
+  Alert,
 } from "@mui/material";
 import {
   Close,
@@ -34,6 +36,11 @@ import {
   MoreVert,
 } from "@mui/icons-material";
 import type { PropertySourcingData } from "./property-sourcing-modal";
+import { useAuth } from "../access-manager/auth.hook";
+import {
+  getPropertyOwnerFinderByAddress,
+  type IPropertyOwner,
+} from "../../../services/get-property-owner-finder-by-address.service";
 
 interface PropertySourcingDetailsProps {
   open: boolean;
@@ -53,8 +60,12 @@ export function PropertySourcingDetails({
   onTitleChange,
 }: PropertySourcingDetailsProps) {
   const theme = useTheme();
+  const auth = useAuth();
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(data.title);
+  const [owners, setOwners] = useState<IPropertyOwner[]>([]);
+  const [isLoadingOwners, setIsLoadingOwners] = useState(false);
+  const [ownersError, setOwnersError] = useState<string | null>(null);
 
   useEffect(() => {
     setEditedTitle(data.title);
@@ -77,6 +88,90 @@ export function PropertySourcingDetails({
       data.complement && `, ${data.complement}`,
     ].filter(Boolean);
     return parts.join("");
+  };
+
+  const handleRevealOwners = async () => {
+    if (!data.address || !data.number) {
+      setOwnersError(
+        "Endereço e número são obrigatórios para buscar proprietários."
+      );
+      return;
+    }
+
+    setIsLoadingOwners(true);
+    setOwnersError(null);
+    setOwners([]);
+
+    try {
+      const streetNumber = parseInt(data.number, 10);
+      if (isNaN(streetNumber)) {
+        throw new Error("Número do endereço inválido");
+      }
+
+      const params = {
+        formattedAddress: data.address,
+        streetNumber: streetNumber,
+        propertyComplement: data.complement || null,
+        // Se tiver coordenadas, adicionar (mas não temos no PropertySourcingData atual)
+        // streetGeo: data.addressDetails?.coordinates ? {
+        //   lat: data.addressDetails.coordinates.lat,
+        //   lon: data.addressDetails.coordinates.lng,
+        // } : undefined,
+      };
+
+      const response = await getPropertyOwnerFinderByAddress(
+        params,
+        auth.store.token || ""
+      );
+
+      if (response.data.data && response.data.data.length > 0) {
+        setOwners(response.data.data);
+      } else {
+        setOwnersError("Nenhum proprietário encontrado para este endereço.");
+      }
+    } catch (error: unknown) {
+      console.error("Erro ao buscar proprietários:", error);
+      if (error && typeof error === "object" && "response" in error) {
+        const axiosError = error as {
+          response?: {
+            status?: number;
+            data?: { message?: string; error?: string };
+          };
+        };
+
+        if (axiosError.response?.status === 402) {
+          setOwnersError(
+            "Você não possui créditos suficientes. Por favor, adquira créditos para continuar usando o serviço."
+          );
+        } else {
+          const errorMessage =
+            axiosError.response?.data?.message ||
+            axiosError.response?.data?.error ||
+            "Erro ao buscar proprietários. Tente novamente.";
+          setOwnersError(errorMessage);
+        }
+      } else if (error instanceof Error) {
+        setOwnersError(error.message);
+      } else {
+        setOwnersError(
+          "Erro inesperado ao buscar proprietários. Tente novamente."
+        );
+      }
+    } finally {
+      setIsLoadingOwners(false);
+    }
+  };
+
+  const formatNationalId = (nationalId: string) => {
+    // Formatar CPF/CNPJ: mostrar apenas últimos 2 dígitos
+    if (nationalId.length === 11) {
+      // CPF
+      return `${nationalId.slice(0, 3)}.***.***-${nationalId.slice(-2)}`;
+    } else if (nationalId.length === 14) {
+      // CNPJ
+      return `${nationalId.slice(0, 2)}.***.***/****-${nationalId.slice(-2)}`;
+    }
+    return nationalId;
   };
 
   return (
@@ -450,6 +545,8 @@ export function PropertySourcingDetails({
               <Button
                 variant="contained"
                 fullWidth
+                onClick={handleRevealOwners}
+                disabled={isLoadingOwners || !data.address || !data.number}
                 sx={{
                   backgroundColor: "#1976d2",
                   textTransform: "none",
@@ -462,315 +559,155 @@ export function PropertySourcingDetails({
                   "&:hover": {
                     backgroundColor: "#1565c0",
                   },
+                  "&:disabled": {
+                    backgroundColor: theme.palette.action.disabledBackground,
+                    color: theme.palette.action.disabled,
+                  },
                 }}
               >
-                <Bolt
-                  sx={{
-                    fontSize: "1.25rem",
-                    color: theme.palette.common.white,
-                    mr: 1.5,
-                  }}
-                />
-                <Box
-                  sx={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "flex-start",
-                  }}
-                >
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      fontWeight: 500,
-                      color: theme.palette.common.white,
-                      lineHeight: 1.2,
-                    }}
-                  >
-                    Revelar lista de proprietários
-                  </Typography>
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      fontSize: "0.75rem",
-                      color: theme.palette.common.white,
-                      opacity: 0.9,
-                      lineHeight: 1.2,
-                    }}
-                  >
-                    Busca automática pelo endereço
-                  </Typography>
-                </Box>
+                {isLoadingOwners ? (
+                  <CircularProgress
+                    size={24}
+                    sx={{ color: theme.palette.common.white }}
+                  />
+                ) : (
+                  <>
+                    <Bolt
+                      sx={{
+                        fontSize: "1.25rem",
+                        color: theme.palette.common.white,
+                        mr: 1.5,
+                      }}
+                    />
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "flex-start",
+                      }}
+                    >
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontWeight: 500,
+                          color: theme.palette.common.white,
+                          lineHeight: 1.2,
+                        }}
+                      >
+                        Revelar lista de proprietários
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          fontSize: "0.75rem",
+                          color: theme.palette.common.white,
+                          opacity: 0.9,
+                          lineHeight: 1.2,
+                        }}
+                      >
+                        Busca automática pelo endereço
+                      </Typography>
+                    </Box>
+                  </>
+                )}
               </Button>
 
-              {/* List of Possible Residents */}
-              <Box
-                sx={{
-                  mt: 2,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 1,
-                }}
-              >
-                {/* Resident 1 */}
-                <Paper
-                  elevation={0}
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1.5,
-                    p: 1.5,
-                    borderRadius: 2,
-                    border: `1px solid ${theme.palette.divider}`,
-                  }}
-                >
-                  <Person sx={{ color: "#4caf50", fontSize: "1.5rem" }} />
-                  <Box sx={{ flex: 1 }}>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontWeight: 500,
-                        fontSize: "0.875rem",
-                        mb: 0.25,
-                      }}
-                    >
-                      JOAO BOMBONATTO NETO
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        fontSize: "0.75rem",
-                        color: theme.palette.text.secondary,
-                      }}
-                    >
-                      045.***.***-**
-                    </Typography>
-                  </Box>
-                  <Button
-                    size="small"
-                    variant="contained"
-                    sx={{
-                      backgroundColor: "#1976d2",
-                      color: theme.palette.common.white,
-                      textTransform: "none",
-                      fontSize: "0.75rem",
-                      px: 2,
-                      "&:hover": {
-                        backgroundColor: "#1565c0",
-                      },
-                    }}
-                  >
-                    Revelar
-                  </Button>
-                </Paper>
+              {ownersError && (
+                <Alert severity="error" sx={{ mt: 2, mb: 1 }}>
+                  {ownersError}
+                </Alert>
+              )}
 
-                {/* Resident 2 */}
-                <Paper
-                  elevation={0}
+              {/* List of Possible Residents/Owners */}
+              {owners.length > 0 && (
+                <Box
                   sx={{
+                    mt: 2,
                     display: "flex",
-                    alignItems: "center",
-                    gap: 1.5,
-                    p: 1.5,
-                    borderRadius: 2,
-                    border: `1px solid ${theme.palette.divider}`,
+                    flexDirection: "column",
+                    gap: 1,
                   }}
                 >
-                  <Person sx={{ color: "#4caf50", fontSize: "1.5rem" }} />
-                  <Box sx={{ flex: 1 }}>
-                    <Typography
-                      variant="body2"
+                  {owners.map((owner) => (
+                    <Paper
+                      key={
+                        owner.id ||
+                        `${owner.firstName}-${owner.lastName}-${owner.nationalId}`
+                      }
+                      elevation={0}
                       sx={{
-                        fontWeight: 500,
-                        fontSize: "0.875rem",
-                        mb: 0.25,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1.5,
+                        p: 1.5,
+                        borderRadius: 2,
+                        border: `1px solid ${theme.palette.divider}`,
                       }}
                     >
-                      FABIO JOSE ASSAF NOGUEIRA
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        fontSize: "0.75rem",
-                        color: theme.palette.text.secondary,
-                      }}
-                    >
-                      369.***.***-**
-                    </Typography>
-                  </Box>
-                  <Button
-                    size="small"
-                    variant="contained"
-                    sx={{
-                      backgroundColor: "#1976d2",
-                      color: theme.palette.common.white,
-                      textTransform: "none",
-                      fontSize: "0.75rem",
-                      px: 2,
-                      "&:hover": {
-                        backgroundColor: "#1565c0",
-                      },
-                    }}
-                  >
-                    Revelar
-                  </Button>
-                </Paper>
-
-                {/* Resident 3 */}
-                <Paper
-                  elevation={0}
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1.5,
-                    p: 1.5,
-                    borderRadius: 2,
-                    border: `1px solid ${theme.palette.divider}`,
-                  }}
-                >
-                  <Person sx={{ color: "#4caf50", fontSize: "1.5rem" }} />
-                  <Box sx={{ flex: 1 }}>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontWeight: 500,
-                        fontSize: "0.875rem",
-                        mb: 0.25,
-                      }}
-                    >
-                      EUCLESIO MANOEL FINATTI
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        fontSize: "0.75rem",
-                        color: theme.palette.text.secondary,
-                      }}
-                    >
-                      307.***.***-**
-                    </Typography>
-                  </Box>
-                  <Button
-                    size="small"
-                    variant="contained"
-                    sx={{
-                      backgroundColor: "#1976d2",
-                      color: theme.palette.common.white,
-                      textTransform: "none",
-                      fontSize: "0.75rem",
-                      px: 2,
-                      "&:hover": {
-                        backgroundColor: "#1565c0",
-                      },
-                    }}
-                  >
-                    Revelar
-                  </Button>
-                </Paper>
-
-                {/* Resident 4 */}
-                <Paper
-                  elevation={0}
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1.5,
-                    p: 1.5,
-                    borderRadius: 2,
-                    border: `1px solid ${theme.palette.divider}`,
-                  }}
-                >
-                  <Person sx={{ color: "#4caf50", fontSize: "1.5rem" }} />
-                  <Box sx={{ flex: 1 }}>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontWeight: 500,
-                        fontSize: "0.875rem",
-                        mb: 0.25,
-                      }}
-                    >
-                      ELISABETH LUCKOW INVITTI
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        fontSize: "0.75rem",
-                        color: theme.palette.text.secondary,
-                      }}
-                    >
-                      028.***.***-**
-                    </Typography>
-                  </Box>
-                  <Button
-                    size="small"
-                    variant="contained"
-                    sx={{
-                      backgroundColor: "#1976d2",
-                      color: theme.palette.common.white,
-                      textTransform: "none",
-                      fontSize: "0.75rem",
-                      px: 2,
-                      "&:hover": {
-                        backgroundColor: "#1565c0",
-                      },
-                    }}
-                  >
-                    Revelar
-                  </Button>
-                </Paper>
-
-                {/* Resident 5 */}
-                <Paper
-                  elevation={0}
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1.5,
-                    p: 1.5,
-                    borderRadius: 2,
-                    border: `1px solid ${theme.palette.divider}`,
-                  }}
-                >
-                  <Person sx={{ color: "#4caf50", fontSize: "1.5rem" }} />
-                  <Box sx={{ flex: 1 }}>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontWeight: 500,
-                        fontSize: "0.875rem",
-                        mb: 0.25,
-                      }}
-                    >
-                      ELIANE APARECIDA DERACETTA
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        fontSize: "0.75rem",
-                        color: theme.palette.text.secondary,
-                      }}
-                    >
-                      123.***.***-**
-                    </Typography>
-                  </Box>
-                  <Button
-                    size="small"
-                    variant="contained"
-                    sx={{
-                      backgroundColor: "#1976d2",
-                      color: theme.palette.common.white,
-                      textTransform: "none",
-                      fontSize: "0.75rem",
-                      px: 2,
-                      "&:hover": {
-                        backgroundColor: "#1565c0",
-                      },
-                    }}
-                  >
-                    Revelar
-                  </Button>
-                </Paper>
-              </Box>
+                      <Person sx={{ color: "#4caf50", fontSize: "1.5rem" }} />
+                      <Box sx={{ flex: 1 }}>
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontWeight: 500,
+                            fontSize: "0.875rem",
+                            mb: 0.25,
+                          }}
+                        >
+                          {`${owner.firstName}`.toUpperCase()}
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            fontSize: "0.75rem",
+                            color: theme.palette.text.secondary,
+                          }}
+                        >
+                          {formatNationalId(owner.nationalId)}
+                        </Typography>
+                        {(owner.propertyAsOwner ||
+                          owner.propertyAsResident) && (
+                          <Chip
+                            label={
+                              owner.propertyAsOwner
+                                ? "Proprietário"
+                                : "Residente"
+                            }
+                            size="small"
+                            sx={{
+                              mt: 0.5,
+                              fontSize: "0.65rem",
+                              height: "20px",
+                              backgroundColor: owner.propertyAsOwner
+                                ? theme.palette.success.light
+                                : theme.palette.info.light,
+                              color: owner.propertyAsOwner
+                                ? theme.palette.success.dark
+                                : theme.palette.info.dark,
+                            }}
+                          />
+                        )}
+                      </Box>
+                      <Button
+                        size="small"
+                        variant="contained"
+                        sx={{
+                          backgroundColor: "#1976d2",
+                          color: theme.palette.common.white,
+                          textTransform: "none",
+                          fontSize: "0.75rem",
+                          px: 2,
+                          "&:hover": {
+                            backgroundColor: "#1565c0",
+                          },
+                        }}
+                      >
+                        Revelar
+                      </Button>
+                    </Paper>
+                  ))}
+                </Box>
+              )}
             </Paper>
 
             {/* Right Box: Contatos */}
