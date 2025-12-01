@@ -41,6 +41,7 @@ import {
   getPropertyOwnerFinderByAddress,
   type IPropertyOwner,
 } from "../../../services/get-property-owner-finder-by-address.service";
+import { ResidentSearchModal } from "./resident-search-modal";
 
 interface PropertySourcingDetailsProps {
   open: boolean;
@@ -66,6 +67,8 @@ export function PropertySourcingDetails({
   const [owners, setOwners] = useState<IPropertyOwner[]>([]);
   const [isLoadingOwners, setIsLoadingOwners] = useState(false);
   const [ownersError, setOwnersError] = useState<string | null>(null);
+  const [isResidentSearchModalOpen, setIsResidentSearchModalOpen] =
+    useState(false);
 
   useEffect(() => {
     setEditedTitle(data.title);
@@ -780,6 +783,7 @@ export function PropertySourcingDetails({
               {/* Already have name/CPF box */}
               <Paper
                 elevation={0}
+                onClick={() => setIsResidentSearchModalOpen(true)}
                 sx={{
                   backgroundColor: "#e3f2fd",
                   borderRadius: 3,
@@ -1296,6 +1300,12 @@ export function PropertySourcingDetails({
           </Box>
         </Box>
       </DialogContent>
+
+      {/* Modal de pesquisa de moradores */}
+      <ResidentSearchModal
+        open={isResidentSearchModalOpen}
+        onClose={() => setIsResidentSearchModalOpen(false)}
+      />
     </Dialog>
   );
 }

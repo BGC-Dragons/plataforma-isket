@@ -21,17 +21,18 @@ import {
 } from "../../../modules/sourcing/contact-sourcing-modal";
 import { PropertySourcingDetails } from "../../../modules/sourcing/property-sourcing-details.component";
 import { ContactSourcingDetails } from "../../../modules/sourcing/contact-sourcing-details";
-import {
-  ResidentSearchModal,
-  type ResidentSearchData,
-} from "../../../modules/sourcing/resident-search-modal";
+import { ResidentSearchModal } from "../../../modules/sourcing/resident-search-modal";
 import {
   SearchResidentResultModal,
   type ResidentResult,
 } from "../../../modules/sourcing/search-resident-result-modal";
+import { useAuth } from "../../../modules/access-manager/auth.hook";
+import { getPropertyListingAcquisitionById } from "../../../../services/get-property-listing-acquisition-by-id.service";
+import type { KanbanCardData } from "../../../modules/sourcing/kanban-cards.component";
 
 export function SourcingComponent() {
   const theme = useTheme();
+  const auth = useAuth();
   const [searchValue, setSearchValue] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -39,10 +40,16 @@ export function SourcingComponent() {
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [isPropertyDetailsOpen, setIsPropertyDetailsOpen] = useState(false);
   const [isContactDetailsOpen, setIsContactDetailsOpen] = useState(false);
-  const [isResidentSearchModalOpen, setIsResidentSearchModalOpen] = useState(false);
-  const [isResidentResultModalOpen, setIsResidentResultModalOpen] = useState(false);
-  const [propertyData, setPropertyData] = useState<PropertySourcingData | null>(null);
-  const [contactData, setContactData] = useState<ContactSourcingData | null>(null);
+  const [isResidentSearchModalOpen, setIsResidentSearchModalOpen] =
+    useState(false);
+  const [isResidentResultModalOpen, setIsResidentResultModalOpen] =
+    useState(false);
+  const [propertyData, setPropertyData] = useState<PropertySourcingData | null>(
+    null
+  );
+  const [contactData, setContactData] = useState<ContactSourcingData | null>(
+    null
+  );
 
   // Dados iniciais do Kanban (exemplo)
   const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>([
@@ -158,12 +165,16 @@ export function SourcingComponent() {
     setIsResidentSearchModalOpen(true);
   };
 
-  const handleResidentSearch = (data: ResidentSearchData) => {
-    console.log("Dados da pesquisa de moradores:", data);
+  const [residentSearchResults, setResidentSearchResults] = useState<
+    ResidentResult[]
+  >([]);
+
+  const handleResidentSearch = (results: ResidentResult[]) => {
+    console.log("Resultados da pesquisa de moradores:", results);
+    setResidentSearchResults(results);
     // Fecha o modal de pesquisa e abre o modal de resultados
     setIsResidentSearchModalOpen(false);
     setIsResidentResultModalOpen(true);
-    // TODO: Implementar lógica de pesquisar moradores e passar resultados
   };
 
   const handleBackToSearch = () => {
@@ -179,6 +190,42 @@ export function SourcingComponent() {
   const handleReveal = (resident: ResidentResult) => {
     console.log("Revelar dados de:", resident);
     // TODO: Implementar lógica de revelar
+  };
+
+  const handleCardClick = async (card: KanbanCardData) => {
+    // Só abrir modal de detalhes se for um card de propriedade
+    if (card.type !== "property") {
+      return;
+    }
+
+    try {
+      if (!auth.store.token) {
+        console.error("Token de autenticação não encontrado");
+        return;
+      }
+
+      // Buscar dados completos da captação
+      const response = await getPropertyListingAcquisitionById(
+        card.id,
+        auth.store.token
+      );
+      const acquisition = response.data;
+
+      // Converter para PropertySourcingData
+      const propertyData: PropertySourcingData = {
+        address: acquisition.formattedAddress || "",
+        number: acquisition.addressNumber?.toString() || "",
+        complement: acquisition.addressComplement || "",
+        propertyType: "", // Não temos essa informação na captação
+        title: acquisition.title || "",
+      };
+
+      setPropertyData(propertyData);
+      setIsPropertyDetailsOpen(true);
+    } catch (error) {
+      console.error("Erro ao buscar detalhes da captação:", error);
+      // TODO: Mostrar mensagem de erro ao usuário
+    }
   };
 
   const handleSearchChange = (value: string) => {
@@ -303,6 +350,7 @@ export function SourcingComponent() {
               columns={kanbanColumns}
               onCardMove={handleCardMove}
               onCardDelete={handleCardDelete}
+              onCardClick={handleCardClick}
               onAddColumn={handleAddColumn}
             />
           ) : (
@@ -392,7 +440,6 @@ export function SourcingComponent() {
       <ResidentSearchModal
         open={isResidentSearchModalOpen}
         onClose={() => setIsResidentSearchModalOpen(false)}
-        onSearch={handleResidentSearch}
         onSearchComplete={handleResidentSearch}
       />
 
@@ -401,6 +448,7 @@ export function SourcingComponent() {
         open={isResidentResultModalOpen}
         onClose={() => setIsResidentResultModalOpen(false)}
         onBack={handleBackToSearch}
+        results={residentSearchResults}
         onCreateCapture={handleCreateCapture}
         onReveal={handleReveal}
       />

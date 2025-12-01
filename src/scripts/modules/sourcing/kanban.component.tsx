@@ -81,6 +81,7 @@ interface KanbanProps {
     destinationColumnId: ColumnId
   ) => void;
   onCardDelete?: (cardId: string, columnId: ColumnId) => void;
+  onCardClick?: (card: KanbanCardData) => void;
   onAddColumn?: (column: Omit<KanbanColumn, "id" | "cards">) => void;
 }
 
@@ -119,14 +120,18 @@ const defaultColumns: KanbanColumn[] = [
 function SortableColumnWrapper({
   column,
   onCardDelete,
+  onCardClick,
   onMenuOpen,
+  isDraggingCard,
 }: {
   column: KanbanColumn;
   onCardDelete: (cardId: string, columnId: ColumnId) => void;
+  onCardClick?: (card: KanbanCardData) => void;
   onMenuOpen?: (
     event: React.MouseEvent<HTMLElement>,
     columnId: ColumnId
   ) => void;
+  isDraggingCard?: boolean;
 }) {
   const {
     attributes,
@@ -144,8 +149,8 @@ function SortableColumnWrapper({
   };
 
   return (
-    <Box 
-      ref={setNodeRef} 
+    <Box
+      ref={setNodeRef}
       style={style}
       sx={{
         flexShrink: 0,
@@ -155,8 +160,10 @@ function SortableColumnWrapper({
       <SortableColumn
         column={column}
         onCardDelete={onCardDelete}
+        onCardClick={onCardClick}
         onMenuOpen={onMenuOpen}
         dragHandleProps={{ ...attributes, ...listeners }}
+        isDraggingCard={isDraggingCard}
       />
     </Box>
   );
@@ -166,16 +173,20 @@ function SortableColumnWrapper({
 function SortableColumn({
   column,
   onCardDelete,
+  onCardClick,
   onMenuOpen,
   dragHandleProps,
+  isDraggingCard,
 }: {
   column: KanbanColumn;
   onCardDelete: (cardId: string, columnId: ColumnId) => void;
+  onCardClick?: (card: KanbanCardData) => void;
   onMenuOpen?: (
     event: React.MouseEvent<HTMLElement>,
     columnId: ColumnId
   ) => void;
   dragHandleProps?: React.HTMLAttributes<HTMLElement>;
+  isDraggingCard?: boolean;
 }) {
   const theme = useTheme();
   const cardIds = column.cards.map((card) => card.id);
@@ -313,6 +324,8 @@ function SortableColumn({
                 card={card}
                 columnId={column.id}
                 onDelete={onCardDelete}
+                onClick={onCardClick}
+                isDraggingCard={isDraggingCard}
               />
             ))}
           </Box>
@@ -327,10 +340,14 @@ function SortableCard({
   card,
   columnId,
   onDelete,
+  onClick,
+  isDraggingCard,
 }: {
   card: KanbanCardData;
   columnId: ColumnId;
   onDelete: (cardId: string, columnId: ColumnId) => void;
+  onClick?: (card: KanbanCardData) => void;
+  isDraggingCard?: boolean;
 }) {
   const {
     attributes,
@@ -347,12 +364,19 @@ function SortableCard({
     opacity: isDragging ? 0.5 : 1,
   };
 
+  // Criar handler de clique que verifica se não está arrastando
+  const handleClick = (clickedCard: KanbanCardData) => {
+    if (!isDraggingCard && !isDragging) {
+      onClick?.(clickedCard);
+    }
+  };
+
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
       <KanbanCard
         card={card}
-        columnId={columnId}
         onDelete={(id) => onDelete(id, columnId)}
+        onClick={handleClick}
       />
     </div>
   );
@@ -431,6 +455,7 @@ export function Kanban({
   columns: propsColumns,
   onCardMove,
   onCardDelete,
+  onCardClick,
 }: KanbanProps) {
   const theme = useTheme();
   const auth = useAuth();
@@ -442,6 +467,7 @@ export function Kanban({
   } = useGetPropertyListingAcquisitionsStages();
   const [localColumns, setLocalColumns] = useState<KanbanColumn[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [isDraggingCard, setIsDraggingCard] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<{
     element: HTMLElement;
     columnId: ColumnId;
@@ -470,8 +496,14 @@ export function Kanban({
   }, [stages, propsColumns]);
 
   // Configurar sensores para drag and drop
+  // Adicionar activationConstraint para permitir cliques simples
+  // O drag só será ativado após mover pelo menos 8px
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Só ativa o drag após mover 8px
+      },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
@@ -492,6 +524,13 @@ export function Kanban({
     event
   ) => {
     setActiveId(event.active.id as string);
+    // Verificar se é um card (não uma coluna)
+    const isCard = localColumns.some((col) =>
+      col.cards.some((card) => card.id === event.active.id)
+    );
+    if (isCard) {
+      setIsDraggingCard(true);
+    }
   };
 
   const handleDragEnd: Parameters<typeof DndContext>[0]["onDragEnd"] = async (
@@ -499,6 +538,7 @@ export function Kanban({
   ) => {
     const { active, over } = event;
     setActiveId(null);
+    setIsDraggingCard(false); // Resetar flag de drag
 
     if (!over) return;
 
@@ -509,14 +549,20 @@ export function Kanban({
     const sourceColumn = localColumns.find((col) => col.id === activeId);
     const destinationColumn = localColumns.find((col) => col.id === overId);
 
-    if (sourceColumn && destinationColumn && sourceColumn.id !== destinationColumn.id) {
+    if (
+      sourceColumn &&
+      destinationColumn &&
+      sourceColumn.id !== destinationColumn.id
+    ) {
       // Reordenar colunas
       const sourceIndex = localColumns.findIndex((col) => col.id === activeId);
-      const destinationIndex = localColumns.findIndex((col) => col.id === overId);
+      const destinationIndex = localColumns.findIndex(
+        (col) => col.id === overId
+      );
 
       // Salvar estado anterior para possível reversão
       const previousColumns = [...localColumns];
-      
+
       const newColumns = [...localColumns];
       const [removed] = newColumns.splice(sourceIndex, 1);
       newColumns.splice(destinationIndex, 0, removed);
@@ -681,7 +727,7 @@ export function Kanban({
   const activeCard = localColumns
     .flatMap((col) => col.cards)
     .find((card) => card.id === activeId);
-  
+
   const activeColumn = localColumns.find((col) => col.id === activeId);
 
   // Loading state
@@ -755,7 +801,9 @@ export function Kanban({
               key={column.id}
               column={column}
               onCardDelete={handleCardDelete}
+              onCardClick={onCardClick}
               onMenuOpen={handleMenuOpen}
+              isDraggingCard={isDraggingCard}
             />
           ))}
         </SortableContext>
@@ -808,6 +856,7 @@ export function Kanban({
             <SortableColumn
               column={activeColumn}
               onCardDelete={handleCardDelete}
+              onCardClick={onCardClick}
               onMenuOpen={handleMenuOpen}
             />
           </Box>

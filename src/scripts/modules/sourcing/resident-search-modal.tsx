@@ -11,6 +11,8 @@ import {
   useTheme,
   Divider,
   Paper,
+  CircularProgress,
+  Alert,
 } from "@mui/material";
 import {
   Close,
@@ -19,12 +21,18 @@ import {
   Email,
   Description,
 } from "@mui/icons-material";
+import { useAuth } from "../access-manager/auth.hook";
+import { getPropertyOwnerFinderByNationalId } from "../../../services/get-property-owner-finder-by-national-id.service";
+import { getPropertyOwnerFinderByDetails } from "../../../services/get-property-owner-finder-by-details.service";
+import { getPropertyOwnerFinderCompanyByRegistrationNumber } from "../../../services/get-property-owner-finder-company-by-registration-number.service";
+import type { IPropertyOwner } from "../../../services/get-property-owner-finder-by-address.service";
+import type { ResidentResult } from "./search-resident-result-modal";
 
 interface ResidentSearchModalProps {
   open: boolean;
   onClose: () => void;
   onSearch?: (data: ResidentSearchData) => void;
-  onSearchComplete?: (data: ResidentSearchData) => void;
+  onSearchComplete?: (results: ResidentResult[]) => void;
 }
 
 export interface ResidentSearchData {
@@ -120,6 +128,7 @@ export function ResidentSearchModal({
   onSearchComplete,
 }: ResidentSearchModalProps) {
   const theme = useTheme();
+  const auth = useAuth();
   const [formData, setFormData] = useState<ResidentSearchData>({
     nameOrCompany: "",
     street: "",
@@ -133,6 +142,8 @@ export function ResidentSearchModal({
     email: "",
     cpfCnpj: "",
   });
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   const handleChange = (field: keyof ResidentSearchData, value: string) => {
     let formattedValue = value;
@@ -165,17 +176,205 @@ export function ResidentSearchModal({
       email: "",
       cpfCnpj: "",
     });
+    setSearchError(null);
   };
 
-  const handleSearch = () => {
+  // Converter IPropertyOwner para ResidentResult
+  const convertOwnerToResult = (owner: IPropertyOwner): ResidentResult => {
+    return {
+      id:
+        owner.id || `${owner.firstName}-${owner.lastName}-${owner.nationalId}`,
+      name: `${owner.firstName} ${owner.lastName}`.trim(),
+      cpf: owner.nationalId,
+    };
+  };
+
+  const handleSearch = async () => {
+    // Validar que pelo menos um campo foi preenchido
+    const hasData =
+      formData.nameOrCompany.trim() ||
+      formData.cpfCnpj.trim() ||
+      formData.phone.trim() ||
+      formData.email.trim() ||
+      formData.street.trim() ||
+      formData.zipCode.trim() ||
+      formData.city.trim();
+
+    if (!hasData) {
+      setSearchError("Preencha pelo menos um campo para realizar a busca.");
+      return;
+    }
+
+    setIsSearching(true);
+    setSearchError(null);
     onSearch?.(formData);
-    if (onSearchComplete) {
-      // Se houver onSearchComplete, não limpa nem fecha - o modal de resultados vai gerenciar
-      onSearchComplete(formData);
-    } else {
-      // Se não houver, comporta-se como antes
-      handleClear();
-      onClose();
+
+    try {
+      const token = auth.store.token;
+      if (!token) {
+        throw new Error("Token de autenticação não encontrado.");
+      }
+
+      let results: ResidentResult[] = [];
+
+      // Determinar qual endpoint usar baseado nos campos preenchidos
+      const cleanCpfCnpj = formData.cpfCnpj.replace(/\D/g, "");
+
+      // 1. Se tiver CPF/CNPJ (11 ou 14 dígitos), usar find-by-nationalId
+      if (cleanCpfCnpj.length === 11 || cleanCpfCnpj.length === 14) {
+        try {
+          if (cleanCpfCnpj.length === 14) {
+            // CNPJ - buscar empresa
+            const companyResponse =
+              await getPropertyOwnerFinderCompanyByRegistrationNumber(
+                cleanCpfCnpj,
+                token
+              );
+
+            if (companyResponse.data.data) {
+              const company = companyResponse.data.data;
+              // Converter sócios em resultados
+              if (company.partners && company.partners.length > 0) {
+                results = company.partners.map((partner) => ({
+                  id: partner.nationalId,
+                  name: partner.name,
+                  cpf: partner.nationalId,
+                }));
+              } else {
+                // Se não houver sócios, criar resultado com dados da empresa
+                results = [
+                  {
+                    id: company.companyRegistrationNumber,
+                    name: company.companyName,
+                    cpf: company.companyRegistrationNumber,
+                  },
+                ];
+              }
+            }
+          } else {
+            // CPF - buscar pessoa
+            const personResponse = await getPropertyOwnerFinderByNationalId(
+              cleanCpfCnpj,
+              token
+            );
+
+            if (personResponse.data) {
+              results = [convertOwnerToResult(personResponse.data)];
+            }
+          }
+        } catch (error: unknown) {
+          if (error && typeof error === "object" && "response" in error) {
+            const axiosError = error as {
+              response?: { status?: number; data?: { message?: string } };
+            };
+            if (axiosError.response?.status === 404) {
+              setSearchError(
+                "Nenhum resultado encontrado com os dados fornecidos."
+              );
+              setIsSearching(false);
+              return;
+            }
+          }
+          throw error;
+        }
+      } else {
+        // 2. Se não tiver CPF/CNPJ, usar find-by-details
+        const searchParams: Parameters<
+          typeof getPropertyOwnerFinderByDetails
+        >[0] = {};
+
+        if (formData.nameOrCompany.trim()) {
+          searchParams.name = formData.nameOrCompany.trim();
+        }
+        if (formData.phone.trim()) {
+          // Remover formatação do telefone
+          const cleanPhone = formData.phone.replace(/\D/g, "");
+          searchParams.phone = cleanPhone;
+        }
+        if (formData.email.trim()) {
+          searchParams.email = formData.email.trim();
+        }
+        if (formData.zipCode.trim()) {
+          const cleanZipCode = formData.zipCode.replace(/\D/g, "");
+          searchParams.postalCode = cleanZipCode;
+        }
+        if (formData.street.trim()) {
+          searchParams.street = formData.street.trim();
+        }
+        if (formData.number.trim()) {
+          const streetNumber = parseInt(formData.number, 10);
+          if (!isNaN(streetNumber)) {
+            searchParams.streetNumber = streetNumber;
+          }
+        }
+        if (formData.complement.trim()) {
+          searchParams.complement = formData.complement.trim();
+        }
+        if (formData.neighborhood.trim()) {
+          searchParams.neighborhood = formData.neighborhood.trim();
+        }
+        if (formData.city.trim()) {
+          searchParams.city = formData.city.trim();
+        }
+        if (formData.state.trim()) {
+          searchParams.state = formData.state.trim();
+        }
+
+        const detailsResponse = await getPropertyOwnerFinderByDetails(
+          searchParams,
+          token
+        );
+
+        if (detailsResponse.data.data && detailsResponse.data.data.length > 0) {
+          results = detailsResponse.data.data.map(convertOwnerToResult);
+        } else {
+          setSearchError(
+            "Nenhum resultado encontrado com os dados fornecidos."
+          );
+          setIsSearching(false);
+          return;
+        }
+      }
+
+      // Passar resultados para o callback
+      if (onSearchComplete) {
+        onSearchComplete(results);
+      } else {
+        handleClear();
+        onClose();
+      }
+    } catch (error: unknown) {
+      console.error("Erro ao buscar contatos:", error);
+      if (error && typeof error === "object" && "response" in error) {
+        const axiosError = error as {
+          response?: {
+            status?: number;
+            data?: { message?: string; error?: string };
+          };
+        };
+
+        if (axiosError.response?.status === 402) {
+          setSearchError(
+            "Você não possui créditos suficientes. Por favor, adquira créditos para continuar usando o serviço."
+          );
+        } else if (axiosError.response?.status === 404) {
+          setSearchError(
+            "Nenhum resultado encontrado com os dados fornecidos."
+          );
+        } else {
+          const errorMessage =
+            axiosError.response?.data?.message ||
+            axiosError.response?.data?.error ||
+            "Erro ao buscar contatos. Tente novamente.";
+          setSearchError(errorMessage);
+        }
+      } else if (error instanceof Error) {
+        setSearchError(error.message);
+      } else {
+        setSearchError("Erro inesperado ao buscar contatos. Tente novamente.");
+      }
+    } finally {
+      setIsSearching(false);
     }
   };
 
@@ -557,6 +756,15 @@ export function ResidentSearchModal({
       {/* Divider */}
       <Divider />
 
+      {/* Error Message */}
+      {searchError && (
+        <Box sx={{ px: 3, pt: 2 }}>
+          <Alert severity="error" onClose={() => setSearchError(null)}>
+            {searchError}
+          </Alert>
+        </Box>
+      )}
+
       {/* Actions */}
       <DialogActions
         sx={{
@@ -567,6 +775,7 @@ export function ResidentSearchModal({
       >
         <Button
           onClick={handleClear}
+          disabled={isSearching}
           sx={{
             textTransform: "none",
             color: theme.palette.text.secondary,
@@ -581,6 +790,7 @@ export function ResidentSearchModal({
         <Button
           onClick={handleSearch}
           variant="contained"
+          disabled={isSearching}
           sx={{
             textTransform: "none",
             borderRadius: 2,
@@ -589,24 +799,37 @@ export function ResidentSearchModal({
             "&:hover": {
               backgroundColor: theme.palette.primary.dark,
             },
+            "&:disabled": {
+              backgroundColor: theme.palette.action.disabledBackground,
+              color: theme.palette.action.disabled,
+            },
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
             py: 1.5,
           }}
         >
-          <Box component="span">Buscar morador</Box>
-          <Typography
-            variant="caption"
-            sx={{
-              fontSize: "0.7rem",
-              opacity: 0.9,
-              lineHeight: 1,
-              mt: 0.25,
-            }}
-          >
-            287 créditos disponíveis
-          </Typography>
+          {isSearching ? (
+            <CircularProgress
+              size={20}
+              sx={{ color: theme.palette.common.white }}
+            />
+          ) : (
+            <>
+              <Box component="span">Buscar morador</Box>
+              <Typography
+                variant="caption"
+                sx={{
+                  fontSize: "0.7rem",
+                  opacity: 0.9,
+                  lineHeight: 1,
+                  mt: 0.25,
+                }}
+              >
+                287 créditos disponíveis
+              </Typography>
+            </>
+          )}
         </Button>
       </DialogActions>
     </Dialog>

@@ -1,12 +1,5 @@
 import { Box, Typography, IconButton, Chip, useTheme } from "@mui/material";
-import {
-  Delete,
-  Home,
-  Person,
-  TrendingUp,
-  LocationOn,
-} from "@mui/icons-material";
-import type { ColumnId } from "./kanban.component";
+import { Delete, Home, Person } from "@mui/icons-material";
 
 export type CardType = "property" | "contact";
 
@@ -21,12 +14,22 @@ export interface KanbanCardData {
 
 interface KanbanCardProps {
   card: KanbanCardData;
-  columnId?: ColumnId;
   onDelete?: (id: string) => void;
+  onClick?: (card: KanbanCardData) => void;
 }
 
-export function KanbanCard({ card, columnId, onDelete }: KanbanCardProps) {
+export function KanbanCard({ card, onDelete, onClick }: KanbanCardProps) {
   const theme = useTheme();
+
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Não disparar clique se estiver clicando no botão de deletar
+    if ((e.target as HTMLElement).closest("button")) {
+      return;
+    }
+    // O activationConstraint já garante que cliques simples não ativam o drag
+    // Então podemos chamar onClick diretamente
+    onClick?.(card);
+  };
 
   const getCardIcon = () => {
     // Usa o tipo do card para determinar o ícone
@@ -48,6 +51,7 @@ export function KanbanCard({ card, columnId, onDelete }: KanbanCardProps) {
 
   return (
     <Box
+      onClick={handleCardClick}
       sx={{
         position: "relative",
         backgroundColor: theme.palette.common.white,
@@ -59,14 +63,14 @@ export function KanbanCard({ card, columnId, onDelete }: KanbanCardProps) {
         flexDirection: "column",
         justifyContent: "center",
         boxShadow: theme.shadows[2],
-        cursor: "grab",
+        cursor: onClick ? "pointer" : "grab",
         "&:active": {
-          cursor: "grabbing",
+          cursor: onClick ? "pointer" : "grabbing",
         },
         transition: "all 0.2s ease",
         "&:hover": {
           boxShadow: theme.shadows[4],
-          transform: "translateY(-2px)",
+          transform: onClick ? "translateY(-2px)" : undefined,
         },
       }}
     >
@@ -118,10 +122,7 @@ export function KanbanCard({ card, columnId, onDelete }: KanbanCardProps) {
           size="small"
           sx={{
             mb: 1,
-            backgroundColor:
-              card.type === "property"
-                ? "#C8E6C9"
-                : "#BBDEFB",
+            backgroundColor: card.type === "property" ? "#C8E6C9" : "#BBDEFB",
             color: theme.palette.text.primary,
             fontWeight: 600,
             fontSize: "0.7rem",
