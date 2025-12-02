@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -14,7 +14,6 @@ import {
   FormControl,
   InputAdornment,
   Paper,
-  Avatar,
 } from "@mui/material";
 import {
   Close,
@@ -30,15 +29,30 @@ import {
   Add,
   Verified,
   ArrowDropDown,
-  Delete,
   Home,
+  ContentCopy,
 } from "@mui/icons-material";
 import type { ContactSourcingData } from "./contact-sourcing-modal";
+import { useAuth } from "../access-manager/auth.hook";
+import { getPropertyOwnerFinderByNationalId } from "../../../services/get-property-owner-finder-by-national-id.service";
+import {
+  postRevealedPropertiesMultiple,
+  getRevealedProperties,
+  type IRevealedProperty,
+} from "../../../services/get-property-listing-acquisitions-revealed-properties.service";
+import { CircularProgress, Alert } from "@mui/material";
+import { getPropertyListingAcquisitionsContactHistory } from "../../../services/get-property-listing-acquisitions-contact-history.service";
+import type { IPropertyListingAcquisitionContactHistory } from "../../../services/get-property-listing-acquisitions-contact-history.service";
+import { patchPropertyListingAcquisitionContactHistory } from "../../../services/patch-property-listing-acquisition-contact-history.service";
+import { CreateContactModal } from "./create-contact-modal";
+import { getPropertyListingAcquisitionContacts } from "../../../services/get-property-listing-acquisition-contacts.service";
+import type { IPropertyListingAcquisitionContact } from "../../../services/post-property-listing-acquisition-contact.service";
 
 interface ContactSourcingDetailsProps {
   open: boolean;
   onClose: () => void;
   data: ContactSourcingData;
+  acquisitionProcessId?: string;
   onReject?: () => void;
   onCapture?: () => void;
   onTitleChange?: (title: string) => void;
@@ -48,13 +62,39 @@ export function ContactSourcingDetails({
   open,
   onClose,
   data,
+  acquisitionProcessId,
   onReject,
   onCapture,
   onTitleChange,
 }: ContactSourcingDetailsProps) {
   const theme = useTheme();
+  const auth = useAuth();
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(data.title);
+  const [isRevealingProperties, setIsRevealingProperties] = useState(false);
+  const [revealError, setRevealError] = useState<string | null>(null);
+  const [revealedProperties, setRevealedProperties] = useState<
+    IRevealedProperty[]
+  >([]);
+  const [isLoadingRevealedProperties, setIsLoadingRevealedProperties] =
+    useState(false);
+  const [contactHistory, setContactHistory] = useState<
+    IPropertyListingAcquisitionContactHistory[]
+  >([]);
+  const [isAddingPhone, setIsAddingPhone] = useState(false);
+  const [isAddingEmail, setIsAddingEmail] = useState(false);
+  const [newPhone, setNewPhone] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [phonesDialogOpen, setPhonesDialogOpen] = useState(false);
+  const [emailsDialogOpen, setEmailsDialogOpen] = useState(false);
+  const [selectedContact, setSelectedContact] =
+    useState<IPropertyListingAcquisitionContactHistory | null>(null);
+  const [isCreateContactModalOpen, setIsCreateContactModalOpen] =
+    useState(false);
+  const [contacts, setContacts] = useState<
+    IPropertyListingAcquisitionContact[]
+  >([]);
+  const [isLoadingContacts, setIsLoadingContacts] = useState(false);
 
   useEffect(() => {
     setEditedTitle(data.title);
@@ -68,6 +108,307 @@ export function ContactSourcingDetails({
   const handleTitleCancel = () => {
     setEditedTitle(data.title);
     setIsEditingTitle(false);
+  };
+
+  const loadContactHistory = useCallback(async () => {
+    if (!acquisitionProcessId || !auth.store.token) return;
+
+    try {
+      const response = await getPropertyListingAcquisitionsContactHistory(
+        acquisitionProcessId,
+        auth.store.token
+      );
+      setContactHistory(response.data);
+    } catch (error) {
+      console.error("Erro ao carregar histórico de contatos:", error);
+    }
+  }, [acquisitionProcessId, auth.store.token]);
+
+  const loadContacts = useCallback(async () => {
+    if (!acquisitionProcessId || !auth.store.token) return;
+
+    setIsLoadingContacts(true);
+    try {
+      const response = await getPropertyListingAcquisitionContacts(
+        acquisitionProcessId,
+        auth.store.token
+      );
+      // A resposta vem no formato { contacts: [...] }
+      const contactsData = Array.isArray(response.data.contacts)
+        ? response.data.contacts
+        : [];
+
+      console.log("Contatos processados:", contactsData); // Debug
+      setContacts(contactsData);
+    } catch (error) {
+      console.error("Erro ao carregar contatos:", error);
+      setContacts([]); // Em caso de erro, garantir que seja array vazio
+    } finally {
+      setIsLoadingContacts(false);
+    }
+  }, [acquisitionProcessId, auth.store.token]);
+
+  const loadRevealedProperties = useCallback(async () => {
+    if (!acquisitionProcessId || !auth.store.token) {
+      return;
+    }
+
+    setIsLoadingRevealedProperties(true);
+    try {
+      const response = await getRevealedProperties(
+        acquisitionProcessId,
+        auth.store.token
+      );
+      setRevealedProperties(response.data.properties || []);
+    } catch (error) {
+      console.error("Erro ao carregar propriedades reveladas:", error);
+    } finally {
+      setIsLoadingRevealedProperties(false);
+    }
+  }, [acquisitionProcessId, auth.store.token]);
+
+  // Carregar propriedades reveladas, histórico de contatos e contatos quando o modal abrir
+  useEffect(() => {
+    if (open && acquisitionProcessId && auth.store.token) {
+      loadRevealedProperties();
+      loadContactHistory();
+      loadContacts();
+    } else {
+      setContactHistory([]);
+      setContacts([]);
+    }
+  }, [
+    open,
+    acquisitionProcessId,
+    auth.store.token,
+    loadRevealedProperties,
+    loadContactHistory,
+    loadContacts,
+  ]);
+
+  const handleRevealProperties = async () => {
+    if (!acquisitionProcessId || !auth.store.token || !data.cpf) {
+      setRevealError(
+        "CPF não encontrado. Não é possível revelar propriedades."
+      );
+      return;
+    }
+
+    setIsRevealingProperties(true);
+    setRevealError(null);
+
+    try {
+      // 1. Buscar propriedades pelo CPF
+      const ownerResponse = await getPropertyOwnerFinderByNationalId(
+        data.cpf,
+        auth.store.token
+      );
+      const owner = ownerResponse.data;
+
+      // 2. Extrair propriedades do resultado
+      const properties: Array<{
+        address: string;
+        complement?: string;
+        city?: string;
+        state?: string;
+        postalCode?: string;
+        neighborhood?: string;
+        selectedRelation?: string;
+      }> = [];
+
+      // Propriedade como proprietário
+      if (owner.propertyAsOwner) {
+        const prop = owner.propertyAsOwner;
+        // Extrair informações do formattedAddress
+        const addressParts = prop.formattedAddress.split(",");
+        const streetAndNumber = addressParts[0]?.trim() || "";
+        const neighborhood = addressParts[1]?.trim() || "";
+        const cityState = addressParts[2]?.trim() || "";
+        const [city, state] = cityState.split(" - ");
+
+        properties.push({
+          address: streetAndNumber,
+          complement: prop.addressComplementId || undefined,
+          city: city || undefined,
+          state: state || undefined,
+          neighborhood: neighborhood || undefined,
+          selectedRelation: "owner",
+        });
+      }
+
+      // Propriedade como residente
+      if (owner.propertyAsResident) {
+        const prop = owner.propertyAsResident;
+        const addressParts = prop.formattedAddress.split(",");
+        const streetAndNumber = addressParts[0]?.trim() || "";
+        const neighborhood = addressParts[1]?.trim() || "";
+        const cityState = addressParts[2]?.trim() || "";
+        const [city, state] = cityState.split(" - ");
+
+        properties.push({
+          address: streetAndNumber,
+          complement: prop.addressComplementId || undefined,
+          city: city || undefined,
+          state: state || undefined,
+          neighborhood: neighborhood || undefined,
+          selectedRelation: "resident",
+        });
+      }
+
+      // 3. Criar propriedades reveladas
+      if (properties.length > 0) {
+        await postRevealedPropertiesMultiple(
+          acquisitionProcessId,
+          {
+            cpf: data.cpf.replace(/\D/g, ""), // Apenas números
+            properties: properties,
+          },
+          auth.store.token
+        );
+
+        // 4. Recarregar propriedades reveladas
+        await loadRevealedProperties();
+      } else {
+        setRevealError("Nenhuma propriedade encontrada para este CPF.");
+      }
+    } catch (error: unknown) {
+      console.error("Erro ao revelar propriedades:", error);
+      if (error && typeof error === "object" && "response" in error) {
+        const axiosError = error as {
+          response?: { status?: number; data?: { message?: string } };
+        };
+        if (axiosError.response?.status === 402) {
+          setRevealError(
+            "Créditos insuficientes. Por favor, adquira créditos adicionais para continuar."
+          );
+        } else if (axiosError.response?.status === 404) {
+          setRevealError("Nenhuma propriedade encontrada para este CPF.");
+        } else {
+          const errorMessage =
+            axiosError.response?.data?.message ||
+            "Erro ao revelar propriedades. Tente novamente.";
+          setRevealError(errorMessage);
+        }
+      } else if (error instanceof Error) {
+        setRevealError(error.message);
+      } else {
+        setRevealError(
+          "Erro inesperado ao revelar propriedades. Tente novamente."
+        );
+      }
+    } finally {
+      setIsRevealingProperties(false);
+    }
+  };
+
+  // Pegar o primeiro contato (contato principal)
+  const mainContact = contactHistory.length > 0 ? contactHistory[0] : null;
+  const mainPhones = mainContact?.phones || [];
+  const mainEmails = mainContact?.emails || [];
+
+  const handleAddPhone = () => {
+    setIsAddingPhone(true);
+    setNewPhone("");
+  };
+
+  const handleSavePhone = async () => {
+    if (
+      !newPhone.trim() ||
+      !auth.store.token ||
+      !acquisitionProcessId ||
+      !mainContact
+    )
+      return;
+
+    try {
+      const updatedPhones = [...mainPhones, newPhone.trim()];
+
+      await patchPropertyListingAcquisitionContactHistory(
+        mainContact.id,
+        { phones: updatedPhones },
+        auth.store.token
+      );
+
+      await loadContactHistory();
+      setIsAddingPhone(false);
+      setNewPhone("");
+    } catch (error) {
+      console.error("Erro ao adicionar telefone:", error);
+    }
+  };
+
+  const handleAddEmail = () => {
+    setIsAddingEmail(true);
+    setNewEmail("");
+  };
+
+  const handleSaveEmail = async () => {
+    if (
+      !newEmail.trim() ||
+      !auth.store.token ||
+      !acquisitionProcessId ||
+      !mainContact
+    )
+      return;
+
+    try {
+      const updatedEmails = [...mainEmails, newEmail.trim()];
+
+      await patchPropertyListingAcquisitionContactHistory(
+        mainContact.id,
+        { emails: updatedEmails },
+        auth.store.token
+      );
+
+      await loadContactHistory();
+      setIsAddingEmail(false);
+      setNewEmail("");
+    } catch (error) {
+      console.error("Erro ao adicionar email:", error);
+    }
+  };
+
+  const handleOpenPhonesDialog = () => {
+    if (mainContact) {
+      setSelectedContact(mainContact);
+      setPhonesDialogOpen(true);
+    }
+  };
+
+  const handleOpenEmailsDialog = () => {
+    if (mainContact) {
+      setSelectedContact(mainContact);
+      setEmailsDialogOpen(true);
+    }
+  };
+
+  const handleContactCreated = async () => {
+    // Recarregar contatos após criar um novo contato
+    await loadContacts();
+  };
+
+  const formatCPF = (cpf: string | undefined | null) => {
+    if (!cpf) return "CPF não informado";
+    const numbers = cpf.replace(/\D/g, "");
+    if (numbers.length === 11) {
+      return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(
+        6,
+        9
+      )}-${numbers.slice(9, 11)}`;
+    }
+    return cpf;
+  };
+
+  const formatRelationship = (relationship: string) => {
+    const relationships: Record<string, string> = {
+      familiar: "Familiar",
+      family: "Familiar",
+      negocios: "Negócios",
+      amigo: "Amigo",
+      vizinho: "Vizinho",
+      outros: "Outros",
+    };
+    return relationships[relationship] || relationship;
   };
 
   return (
@@ -314,6 +655,7 @@ export function ContactSourcingDetails({
                   gap: 1,
                   alignItems: "center",
                   alignSelf: "center",
+                  flexWrap: "wrap",
                 }}
               >
                 <Button
@@ -321,15 +663,24 @@ export function ContactSourcingDetails({
                   variant="outlined"
                   startIcon={<Phone />}
                   endIcon={<ArrowDropDown />}
+                  onClick={handleOpenPhonesDialog}
+                  disabled={!mainContact}
                   sx={{
-                    borderColor: "#4caf50",
-                    color: "#4caf50",
+                    borderColor:
+                      mainPhones.length > 0 ? "#4caf50" : theme.palette.divider,
+                    color:
+                      mainPhones.length > 0
+                        ? "#4caf50"
+                        : theme.palette.text.secondary,
                     backgroundColor: "transparent",
                     textTransform: "none",
                     fontSize: "0.75rem",
                     px: 1.5,
                     "&:hover": {
-                      borderColor: "#388e3c",
+                      borderColor:
+                        mainPhones.length > 0
+                          ? "#388e3c"
+                          : theme.palette.text.secondary,
                       backgroundColor: "transparent",
                     },
                   }}
@@ -338,7 +689,10 @@ export function ContactSourcingDetails({
                   <Box
                     component="span"
                     sx={{
-                      backgroundColor: "#4caf50",
+                      backgroundColor:
+                        mainPhones.length > 0
+                          ? "#4caf50"
+                          : theme.palette.text.secondary,
                       color: "#fff",
                       borderRadius: "50%",
                       width: 20,
@@ -351,17 +705,58 @@ export function ContactSourcingDetails({
                       ml: 0.5,
                     }}
                   >
-                    2
+                    {mainPhones.length}
                   </Box>
                 </Button>
-                <IconButton size="small" sx={{ color: "#4caf50" }}>
+                <IconButton
+                  size="small"
+                  onClick={handleAddPhone}
+                  disabled={!mainContact}
+                  sx={{ color: "#4caf50" }}
+                >
                   <Add fontSize="small" />
                 </IconButton>
+                {isAddingPhone && (
+                  <Box
+                    sx={{
+                      display: "flex",
+                      gap: 1,
+                      alignItems: "center",
+                      width: "100%",
+                    }}
+                  >
+                    <TextField
+                      size="small"
+                      placeholder="Novo telefone"
+                      value={newPhone}
+                      onChange={(e) => setNewPhone(e.target.value)}
+                      sx={{ flex: 1 }}
+                    />
+                    <IconButton
+                      size="small"
+                      onClick={handleSavePhone}
+                      sx={{ color: "#4caf50" }}
+                    >
+                      <CheckCircle fontSize="small" />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      onClick={() => {
+                        setIsAddingPhone(false);
+                        setNewPhone("");
+                      }}
+                    >
+                      <Cancel fontSize="small" />
+                    </IconButton>
+                  </Box>
+                )}
                 <Button
                   size="small"
                   variant="outlined"
                   startIcon={<Email />}
                   endIcon={<ArrowDropDown />}
+                  onClick={handleOpenEmailsDialog}
+                  disabled={!mainContact}
                   sx={{
                     borderColor: theme.palette.divider,
                     color: theme.palette.text.secondary,
@@ -392,12 +787,51 @@ export function ContactSourcingDetails({
                       ml: 0.5,
                     }}
                   >
-                    0
+                    {mainEmails.length}
                   </Box>
                 </Button>
-                <IconButton size="small">
+                <IconButton
+                  size="small"
+                  onClick={handleAddEmail}
+                  disabled={!mainContact}
+                >
                   <Add fontSize="small" />
                 </IconButton>
+                {isAddingEmail && (
+                  <Box
+                    sx={{
+                      display: "flex",
+                      gap: 1,
+                      alignItems: "center",
+                      width: "100%",
+                    }}
+                  >
+                    <TextField
+                      size="small"
+                      type="email"
+                      placeholder="Novo e-mail"
+                      value={newEmail}
+                      onChange={(e) => setNewEmail(e.target.value)}
+                      sx={{ flex: 1 }}
+                    />
+                    <IconButton
+                      size="small"
+                      onClick={handleSaveEmail}
+                      sx={{ color: "#4caf50" }}
+                    >
+                      <CheckCircle fontSize="small" />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      onClick={() => {
+                        setIsAddingEmail(false);
+                        setNewEmail("");
+                      }}
+                    >
+                      <Cancel fontSize="small" />
+                    </IconButton>
+                  </Box>
+                )}
               </Box>
             </Box>
           </Box>
@@ -465,20 +899,6 @@ export function ContactSourcingDetails({
                   position: "relative",
                 }}
               >
-                <Avatar
-                  sx={{
-                    position: "absolute",
-                    top: 16,
-                    right: 16,
-                    width: 40,
-                    height: 40,
-                    backgroundColor: "#4caf50",
-                    fontSize: "1.25rem",
-                    fontWeight: 700,
-                  }}
-                >
-                  P
-                </Avatar>
                 <Box
                   sx={{
                     display: "flex",
@@ -551,9 +971,19 @@ export function ContactSourcingDetails({
                   </Typography>
                 </Box>
               </Paper>
+              {revealError && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                  {revealError}
+                </Alert>
+              )}
+
               <Button
                 variant="contained"
                 fullWidth
+                onClick={handleRevealProperties}
+                disabled={
+                  isRevealingProperties || !data.cpf || !acquisitionProcessId
+                }
                 sx={{
                   backgroundColor: "#1976d2",
                   textTransform: "none",
@@ -566,370 +996,226 @@ export function ContactSourcingDetails({
                   "&:hover": {
                     backgroundColor: "#1565c0",
                   },
+                  "&:disabled": {
+                    backgroundColor: theme.palette.action.disabledBackground,
+                    color: theme.palette.action.disabled,
+                  },
                 }}
               >
-                <Bolt
-                  sx={{
-                    fontSize: "1.25rem",
-                    color: theme.palette.common.white,
-                    mr: 1.5,
-                  }}
-                />
-                <Box
-                  sx={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "flex-start",
-                  }}
-                >
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      fontWeight: 500,
-                      color: theme.palette.common.white,
-                      lineHeight: 1.2,
-                    }}
-                  >
-                    Revelar/atualizar imóveis
-                  </Typography>
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      fontSize: "0.75rem",
-                      color: theme.palette.common.white,
-                      opacity: 0.9,
-                      lineHeight: 1.2,
-                    }}
-                  >
-                    Busca automática pelo nome e CPF
-                  </Typography>
-                </Box>
+                {isRevealingProperties ? (
+                  <CircularProgress
+                    size={24}
+                    sx={{ color: theme.palette.common.white }}
+                  />
+                ) : (
+                  <>
+                    <Bolt
+                      sx={{
+                        fontSize: "1.25rem",
+                        color: theme.palette.common.white,
+                        mr: 1.5,
+                      }}
+                    />
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "flex-start",
+                      }}
+                    >
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontWeight: 500,
+                          color: theme.palette.common.white,
+                          lineHeight: 1.2,
+                        }}
+                      >
+                        Revelar/atualizar imóveis
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          fontSize: "0.75rem",
+                          color: theme.palette.common.white,
+                          opacity: 0.9,
+                          lineHeight: 1.2,
+                        }}
+                      >
+                        Busca automática pelo CPF
+                      </Typography>
+                    </Box>
+                  </>
+                )}
               </Button>
 
-              {/* List of Possible Properties */}
-              <Box
-                sx={{
-                  mt: 2,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 1,
-                }}
-              >
-                {/* Property 1 */}
-                <Paper
-                  elevation={0}
+              {/* List of Revealed Properties */}
+              {isLoadingRevealedProperties ? (
+                <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
+                  <CircularProgress size={24} />
+                </Box>
+              ) : revealedProperties.length > 0 ? (
+                <Box
                   sx={{
+                    mt: 2,
                     display: "flex",
-                    alignItems: "flex-start",
-                    gap: 1.5,
-                    p: 1.5,
-                    borderRadius: 2,
-                    border: `1px solid ${theme.palette.divider}`,
+                    flexDirection: "column",
+                    gap: 1,
                   }}
                 >
-                  <Home
-                    sx={{ color: "#4caf50", fontSize: "1.5rem", mt: 0.5 }}
-                  />
-                  <Box sx={{ flex: 1 }}>
-                    <Typography
-                      variant="body2"
+                  {revealedProperties.map((property) => (
+                    <Paper
+                      key={property.id}
+                      elevation={0}
                       sx={{
-                        fontWeight: 500,
-                        fontSize: "0.875rem",
-                        mb: 0.25,
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: 1.5,
+                        p: 1.5,
+                        borderRadius: 2,
+                        border: `1px solid ${theme.palette.divider}`,
                       }}
                     >
-                      Angelo Tozim, 1060
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        fontSize: "0.75rem",
-                        color: theme.palette.text.secondary,
-                        display: "block",
-                        mb: 0.25,
-                      }}
-                    >
-                      31
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        fontSize: "0.75rem",
-                        color: theme.palette.text.secondary,
-                        display: "block",
-                        mb: 0.25,
-                      }}
-                    >
-                      Belo Horizonte - MG
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        fontSize: "0.75rem",
-                        color: theme.palette.text.secondary,
-                      }}
-                    >
-                      30130-000
-                    </Typography>
-                  </Box>
-                  <Box
-                    sx={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 1,
-                      alignItems: "flex-end",
-                    }}
-                  >
-                    <FormControl size="small" sx={{ minWidth: 120 }}>
-                      <Select
-                        value=""
-                        displayEmpty
+                      <Home
+                        sx={{ color: "#4caf50", fontSize: "1.5rem", mt: 0.5 }}
+                      />
+                      <Box sx={{ flex: 1 }}>
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontWeight: 500,
+                            fontSize: "0.875rem",
+                            mb: 0.25,
+                          }}
+                        >
+                          {property.address}
+                        </Typography>
+                        {property.complement && (
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              fontSize: "0.75rem",
+                              color: theme.palette.text.secondary,
+                              display: "block",
+                              mb: 0.25,
+                            }}
+                          >
+                            {property.complement}
+                          </Typography>
+                        )}
+                        {property.neighborhood && (
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              fontSize: "0.75rem",
+                              color: theme.palette.text.secondary,
+                              display: "block",
+                              mb: 0.25,
+                            }}
+                          >
+                            {property.neighborhood}
+                          </Typography>
+                        )}
+                        {(property.city || property.state) && (
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              fontSize: "0.75rem",
+                              color: theme.palette.text.secondary,
+                              display: "block",
+                              mb: 0.25,
+                            }}
+                          >
+                            {[property.city, property.state]
+                              .filter(Boolean)
+                              .join(" - ")}
+                          </Typography>
+                        )}
+                        {property.postalCode && (
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              fontSize: "0.75rem",
+                              color: theme.palette.text.secondary,
+                            }}
+                          >
+                            {property.postalCode}
+                          </Typography>
+                        )}
+                        <Chip
+                          label={
+                            property.selectedRelation === "owner"
+                              ? "Proprietário"
+                              : property.selectedRelation === "resident"
+                              ? "Residente"
+                              : property.selectedRelation
+                          }
+                          size="small"
+                          sx={{
+                            mt: 0.5,
+                            fontSize: "0.7rem",
+                            height: 20,
+                            backgroundColor:
+                              property.selectedRelation === "owner"
+                                ? theme.palette.success.light
+                                : theme.palette.info.light,
+                            color:
+                              property.selectedRelation === "owner"
+                                ? theme.palette.success.dark
+                                : theme.palette.info.dark,
+                          }}
+                        />
+                      </Box>
+                      <Box
                         sx={{
-                          borderRadius: 1,
-                          fontSize: "0.75rem",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 1,
+                          alignItems: "flex-end",
                         }}
                       >
-                        <MenuItem value="" disabled>
-                          Proprietário
-                        </MenuItem>
-                      </Select>
-                    </FormControl>
-                    <Button
-                      size="small"
-                      variant="contained"
-                      sx={{
-                        backgroundColor: "#1976d2",
-                        color: theme.palette.common.white,
-                        textTransform: "none",
-                        fontSize: "0.75rem",
-                        px: 2,
-                        "&:hover": {
-                          backgroundColor: "#1565c0",
-                        },
-                      }}
-                    >
-                      Criar captação
-                    </Button>
-                  </Box>
-                  <IconButton
-                    size="small"
-                    sx={{ color: theme.palette.text.secondary, mt: 0.5 }}
-                  >
-                    <Delete fontSize="small" />
-                  </IconButton>
-                </Paper>
-
-                {/* Property 2 */}
-                <Paper
-                  elevation={0}
-                  sx={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: 1.5,
-                    p: 1.5,
-                    borderRadius: 2,
-                    border: `1px solid ${theme.palette.divider}`,
-                  }}
-                >
-                  <Home
-                    sx={{ color: "#4caf50", fontSize: "1.5rem", mt: 0.5 }}
-                  />
-                  <Box sx={{ flex: 1 }}>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontWeight: 500,
-                        fontSize: "0.875rem",
-                        mb: 0.25,
-                      }}
-                    >
-                      Rua das Flores, 500
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        fontSize: "0.75rem",
-                        color: theme.palette.text.secondary,
-                        display: "block",
-                        mb: 0.25,
-                      }}
-                    >
-                      12
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        fontSize: "0.75rem",
-                        color: theme.palette.text.secondary,
-                        display: "block",
-                        mb: 0.25,
-                      }}
-                    >
-                      São Paulo - SP
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        fontSize: "0.75rem",
-                        color: theme.palette.text.secondary,
-                      }}
-                    >
-                      01310-100
-                    </Typography>
-                  </Box>
-                  <Box
-                    sx={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 1,
-                      alignItems: "flex-end",
-                    }}
-                  >
-                    <FormControl size="small" sx={{ minWidth: 120 }}>
-                      <Select
-                        value=""
-                        displayEmpty
-                        sx={{
-                          borderRadius: 1,
-                          fontSize: "0.75rem",
-                        }}
-                      >
-                        <MenuItem value="" disabled>
-                          Proprietário
-                        </MenuItem>
-                      </Select>
-                    </FormControl>
-                    <Button
-                      size="small"
-                      variant="contained"
-                      sx={{
-                        backgroundColor: "#1976d2",
-                        color: theme.palette.common.white,
-                        textTransform: "none",
-                        fontSize: "0.75rem",
-                        px: 2,
-                        "&:hover": {
-                          backgroundColor: "#1565c0",
-                        },
-                      }}
-                    >
-                      Criar captação
-                    </Button>
-                  </Box>
-                  <IconButton
-                    size="small"
-                    sx={{ color: theme.palette.text.secondary, mt: 0.5 }}
-                  >
-                    <Delete fontSize="small" />
-                  </IconButton>
-                </Paper>
-
-                {/* Property 3 */}
-                <Paper
-                  elevation={0}
-                  sx={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: 1.5,
-                    p: 1.5,
-                    borderRadius: 2,
-                    border: `1px solid ${theme.palette.divider}`,
-                  }}
-                >
-                  <Home
-                    sx={{ color: "#4caf50", fontSize: "1.5rem", mt: 0.5 }}
-                  />
-                  <Box sx={{ flex: 1 }}>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontWeight: 500,
-                        fontSize: "0.875rem",
-                        mb: 0.25,
-                      }}
-                    >
-                      Av. Paulista, 1000
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        fontSize: "0.75rem",
-                        color: theme.palette.text.secondary,
-                        display: "block",
-                        mb: 0.25,
-                      }}
-                    >
-                      45
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        fontSize: "0.75rem",
-                        color: theme.palette.text.secondary,
-                        display: "block",
-                        mb: 0.25,
-                      }}
-                    >
-                      São Paulo - SP
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        fontSize: "0.75rem",
-                        color: theme.palette.text.secondary,
-                      }}
-                    >
-                      01310-100
-                    </Typography>
-                  </Box>
-                  <Box
-                    sx={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 1,
-                      alignItems: "flex-end",
-                    }}
-                  >
-                    <FormControl size="small" sx={{ minWidth: 120 }}>
-                      <Select
-                        value=""
-                        displayEmpty
-                        sx={{
-                          borderRadius: 1,
-                          fontSize: "0.75rem",
-                        }}
-                      >
-                        <MenuItem value="" disabled>
-                          Proprietário
-                        </MenuItem>
-                      </Select>
-                    </FormControl>
-                    <Button
-                      size="small"
-                      variant="contained"
-                      sx={{
-                        backgroundColor: "#1976d2",
-                        color: theme.palette.common.white,
-                        textTransform: "none",
-                        fontSize: "0.75rem",
-                        px: 2,
-                        "&:hover": {
-                          backgroundColor: "#1565c0",
-                        },
-                      }}
-                    >
-                      Criar captação
-                    </Button>
-                  </Box>
-                  <IconButton
-                    size="small"
-                    sx={{ color: theme.palette.text.secondary, mt: 0.5 }}
-                  >
-                    <Delete fontSize="small" />
-                  </IconButton>
-                </Paper>
-              </Box>
+                        <FormControl size="small" sx={{ minWidth: 120 }}>
+                          <Select
+                            value={property.selectedRelation || "owner"}
+                            displayEmpty
+                            sx={{
+                              borderRadius: 1,
+                              fontSize: "0.75rem",
+                            }}
+                          >
+                            <MenuItem value="owner">Proprietário</MenuItem>
+                            <MenuItem value="resident">Residente</MenuItem>
+                          </Select>
+                        </FormControl>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          disabled={property.captureCreated}
+                          sx={{
+                            backgroundColor: "#1976d2",
+                            color: theme.palette.common.white,
+                            textTransform: "none",
+                            fontSize: "0.75rem",
+                            px: 2,
+                            "&:hover": {
+                              backgroundColor: "#1565c0",
+                            },
+                            "&:disabled": {
+                              backgroundColor:
+                                theme.palette.action.disabledBackground,
+                              color: theme.palette.action.disabled,
+                            },
+                          }}
+                        >
+                          {property.captureCreated
+                            ? "Captação criada"
+                            : "Criar captação"}
+                        </Button>
+                      </Box>
+                    </Paper>
+                  ))}
+                </Box>
+              ) : null}
             </Paper>
 
             {/* Right Box: Contatos */}
@@ -1004,6 +1290,8 @@ export function ContactSourcingDetails({
                 variant="contained"
                 startIcon={<Description />}
                 fullWidth
+                onClick={() => setIsCreateContactModalOpen(true)}
+                disabled={!acquisitionProcessId}
                 sx={{
                   backgroundColor: "#1976d2",
                   textTransform: "none",
@@ -1019,205 +1307,350 @@ export function ContactSourcingDetails({
               </Button>
 
               {/* Contact Cards */}
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                {/* Contact Card 1 */}
-                <Paper
-                  elevation={0}
+              {isLoadingContacts ? (
+                <Box
                   sx={{
-                    backgroundColor: "#f5f5f5",
-                    borderRadius: 3,
-                    p: 2,
-                    position: "relative",
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    py: 4,
                   }}
                 >
-                  {/* Delete Icon */}
-                  <IconButton
-                    size="small"
-                    sx={{
-                      position: "absolute",
-                      top: 8,
-                      right: 8,
-                      color: theme.palette.text.secondary,
-                    }}
-                  >
-                    <Delete fontSize="small" />
-                  </IconButton>
-
-                  {/* Name */}
-                  <Typography
-                    variant="body1"
-                    sx={{
-                      fontWeight: 600,
-                      fontSize: "0.875rem",
-                      mb: 0.5,
-                      pr: 4,
-                    }}
-                  >
-                    João Souza Stanski
-                  </Typography>
-
-                  {/* CPF and Relationship */}
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      fontSize: "0.75rem",
-                      color: theme.palette.text.secondary,
-                      mb: 1.5,
-                    }}
-                  >
-                    938.555.587-10 - Relacionamento: Familiar
-                  </Typography>
-
-                  {/* Email and Phone Box */}
-                  <Box
-                    sx={{
-                      display: "flex",
-                      gap: 1,
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      startIcon={<Email />}
-                      sx={{
-                        borderColor: theme.palette.divider,
-                        color: theme.palette.text.primary,
-                        backgroundColor: "transparent",
-                        textTransform: "none",
-                        fontSize: "0.75rem",
-                        px: 1.5,
-                        "&:hover": {
-                          borderColor: theme.palette.text.secondary,
-                          backgroundColor: "transparent",
-                        },
-                      }}
-                    >
-                      E-mail: joao@mail.com.br
-                    </Button>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      startIcon={<Phone />}
-                      sx={{
-                        borderColor: theme.palette.divider,
-                        color: theme.palette.text.primary,
-                        backgroundColor: "transparent",
-                        textTransform: "none",
-                        fontSize: "0.75rem",
-                        px: 1.5,
-                        "&:hover": {
-                          borderColor: theme.palette.text.secondary,
-                          backgroundColor: "transparent",
-                        },
-                      }}
-                    >
-                      Telefone: (13) 98888-7744
-                    </Button>
-                  </Box>
-                </Paper>
-
-                {/* Contact Card 2 - Example */}
-                <Paper
-                  elevation={0}
+                  <CircularProgress size={24} />
+                </Box>
+              ) : !Array.isArray(contacts) || contacts.length === 0 ? (
+                <Box
                   sx={{
-                    backgroundColor: "#f5f5f5",
-                    borderRadius: 3,
-                    p: 2,
-                    position: "relative",
+                    textAlign: "center",
+                    py: 4,
+                    color: theme.palette.text.secondary,
                   }}
                 >
-                  {/* Delete Icon */}
-                  <IconButton
-                    size="small"
-                    sx={{
-                      position: "absolute",
-                      top: 8,
-                      right: 8,
-                      color: theme.palette.text.secondary,
-                    }}
-                  >
-                    <Delete fontSize="small" />
-                  </IconButton>
-
-                  {/* Name */}
-                  <Typography
-                    variant="body1"
-                    sx={{
-                      fontWeight: 600,
-                      fontSize: "0.875rem",
-                      mb: 0.5,
-                      pr: 4,
-                    }}
-                  >
-                    Maria Silva Santos
+                  <Typography variant="body2">
+                    Nenhum contato cadastrado ainda.
                   </Typography>
-
-                  {/* CPF and Relationship */}
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      fontSize: "0.75rem",
-                      color: theme.palette.text.secondary,
-                      mb: 1.5,
-                    }}
-                  >
-                    123.456.789-00 - Relacionamento: Amigo
-                  </Typography>
-
-                  {/* Email and Phone Box */}
-                  <Box
-                    sx={{
-                      display: "flex",
-                      gap: 1,
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      startIcon={<Email />}
+                </Box>
+              ) : (
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  {(Array.isArray(contacts) ? contacts : []).map((contact) => (
+                    <Paper
+                      key={contact.id}
+                      elevation={0}
                       sx={{
-                        borderColor: theme.palette.divider,
-                        color: theme.palette.text.primary,
-                        backgroundColor: "transparent",
-                        textTransform: "none",
-                        fontSize: "0.75rem",
-                        px: 1.5,
-                        "&:hover": {
-                          borderColor: theme.palette.text.secondary,
-                          backgroundColor: "transparent",
-                        },
+                        backgroundColor: "#f5f5f5",
+                        borderRadius: 3,
+                        p: 2,
+                        position: "relative",
                       }}
                     >
-                      E-mail: maria@mail.com.br
-                    </Button>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      startIcon={<Phone />}
-                      sx={{
-                        borderColor: theme.palette.divider,
-                        color: theme.palette.text.primary,
-                        backgroundColor: "transparent",
-                        textTransform: "none",
-                        fontSize: "0.75rem",
-                        px: 1.5,
-                        "&:hover": {
-                          borderColor: theme.palette.text.secondary,
-                          backgroundColor: "transparent",
-                        },
-                      }}
-                    >
-                      Telefone: (11) 98765-4321
-                    </Button>
-                  </Box>
-                </Paper>
-              </Box>
+                      {/* Name */}
+                      <Typography
+                        variant="body1"
+                        sx={{
+                          fontWeight: 600,
+                          fontSize: "0.875rem",
+                          mb: 0.5,
+                        }}
+                      >
+                        {contact.name}
+                      </Typography>
+
+                      {/* CPF and Relationship */}
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontSize: "0.75rem",
+                          color: theme.palette.text.secondary,
+                          mb: 1.5,
+                        }}
+                      >
+                        {formatCPF(contact.cpf)} - Relacionamento:{" "}
+                        {formatRelationship(contact.relationship)}
+                      </Typography>
+
+                      {/* Email and Phone Box */}
+                      <Box
+                        sx={{
+                          display: "flex",
+                          gap: 1,
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        {/* Renderizar emails (array ou string) */}
+                        {contact.emails && contact.emails.length > 0
+                          ? contact.emails.map((email, index) => (
+                              <Button
+                                key={`email-${index}`}
+                                size="small"
+                                variant="outlined"
+                                startIcon={<Email />}
+                                sx={{
+                                  borderColor: theme.palette.divider,
+                                  color: theme.palette.text.primary,
+                                  backgroundColor: "transparent",
+                                  textTransform: "none",
+                                  fontSize: "0.75rem",
+                                  px: 1.5,
+                                  "&:hover": {
+                                    borderColor: theme.palette.text.secondary,
+                                    backgroundColor: "transparent",
+                                  },
+                                }}
+                              >
+                                E-mail: {email}
+                              </Button>
+                            ))
+                          : contact.email && (
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                startIcon={<Email />}
+                                sx={{
+                                  borderColor: theme.palette.divider,
+                                  color: theme.palette.text.primary,
+                                  backgroundColor: "transparent",
+                                  textTransform: "none",
+                                  fontSize: "0.75rem",
+                                  px: 1.5,
+                                  "&:hover": {
+                                    borderColor: theme.palette.text.secondary,
+                                    backgroundColor: "transparent",
+                                  },
+                                }}
+                              >
+                                E-mail: {contact.email}
+                              </Button>
+                            )}
+                        {/* Renderizar phones (array ou string) */}
+                        {contact.phones && contact.phones.length > 0
+                          ? contact.phones.map((phone, index) => (
+                              <Button
+                                key={`phone-${index}`}
+                                size="small"
+                                variant="outlined"
+                                startIcon={<Phone />}
+                                sx={{
+                                  borderColor: theme.palette.divider,
+                                  color: theme.palette.text.primary,
+                                  backgroundColor: "transparent",
+                                  textTransform: "none",
+                                  fontSize: "0.75rem",
+                                  px: 1.5,
+                                  "&:hover": {
+                                    borderColor: theme.palette.text.secondary,
+                                    backgroundColor: "transparent",
+                                  },
+                                }}
+                              >
+                                Telefone: {phone}
+                              </Button>
+                            ))
+                          : contact.phone && (
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                startIcon={<Phone />}
+                                sx={{
+                                  borderColor: theme.palette.divider,
+                                  color: theme.palette.text.primary,
+                                  backgroundColor: "transparent",
+                                  textTransform: "none",
+                                  fontSize: "0.75rem",
+                                  px: 1.5,
+                                  "&:hover": {
+                                    borderColor: theme.palette.text.secondary,
+                                    backgroundColor: "transparent",
+                                  },
+                                }}
+                              >
+                                Telefone: {contact.phone}
+                              </Button>
+                            )}
+                      </Box>
+                    </Paper>
+                  ))}
+                </Box>
+              )}
             </Paper>
           </Box>
         </Box>
       </DialogContent>
+
+      {/* Dialog de Telefones */}
+      <Dialog
+        open={phonesDialogOpen}
+        onClose={() => {
+          setPhonesDialogOpen(false);
+          setSelectedContact(null);
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogContent>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              mb: 2,
+            }}
+          >
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              Telefones -{" "}
+              {selectedContact?.contactName?.replace(/\s+UNDEFINED$/i, "") ||
+                data.name ||
+                "Contato"}
+            </Typography>
+            <IconButton
+              size="small"
+              onClick={() => {
+                setPhonesDialogOpen(false);
+                setSelectedContact(null);
+              }}
+            >
+              <Close />
+            </IconButton>
+          </Box>
+          {selectedContact?.phones && selectedContact.phones.length > 0 ? (
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              {selectedContact.phones.map((phone, index) => (
+                <Paper
+                  key={index}
+                  elevation={0}
+                  sx={{
+                    p: 2,
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 2,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 2,
+                  }}
+                >
+                  <Phone sx={{ color: "#4caf50" }} />
+                  <Typography variant="body1" sx={{ flex: 1 }}>
+                    {phone}
+                  </Typography>
+                  <IconButton
+                    size="small"
+                    onClick={() => {
+                      // Copiar para clipboard
+                      navigator.clipboard.writeText(phone);
+                    }}
+                    sx={{ color: theme.palette.text.secondary }}
+                    title="Copiar telefone"
+                  >
+                    <ContentCopy fontSize="small" />
+                  </IconButton>
+                </Paper>
+              ))}
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                textAlign: "center",
+                py: 4,
+                color: theme.palette.text.secondary,
+              }}
+            >
+              <Typography variant="body2">
+                Nenhum telefone cadastrado
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Emails */}
+      <Dialog
+        open={emailsDialogOpen}
+        onClose={() => {
+          setEmailsDialogOpen(false);
+          setSelectedContact(null);
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogContent>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              mb: 2,
+            }}
+          >
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              E-mails -{" "}
+              {selectedContact?.contactName?.replace(/\s+UNDEFINED$/i, "") ||
+                data.name ||
+                "Contato"}
+            </Typography>
+            <IconButton
+              size="small"
+              onClick={() => {
+                setEmailsDialogOpen(false);
+                setSelectedContact(null);
+              }}
+            >
+              <Close />
+            </IconButton>
+          </Box>
+          {selectedContact?.emails && selectedContact.emails.length > 0 ? (
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              {selectedContact.emails.map((email, index) => (
+                <Paper
+                  key={index}
+                  elevation={0}
+                  sx={{
+                    p: 2,
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 2,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 2,
+                  }}
+                >
+                  <Email sx={{ color: theme.palette.text.secondary }} />
+                  <Typography variant="body1" sx={{ flex: 1 }}>
+                    {email}
+                  </Typography>
+                  <IconButton
+                    size="small"
+                    onClick={() => {
+                      // Copiar para clipboard
+                      navigator.clipboard.writeText(email);
+                    }}
+                    sx={{ color: theme.palette.text.secondary }}
+                    title="Copiar e-mail"
+                  >
+                    <ContentCopy fontSize="small" />
+                  </IconButton>
+                </Paper>
+              ))}
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                textAlign: "center",
+                py: 4,
+                color: theme.palette.text.secondary,
+              }}
+            >
+              <Typography variant="body2">Nenhum e-mail cadastrado</Typography>
+            </Box>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Criar Contato */}
+      {acquisitionProcessId && (
+        <CreateContactModal
+          open={isCreateContactModalOpen}
+          onClose={() => setIsCreateContactModalOpen(false)}
+          acquisitionProcessId={acquisitionProcessId}
+          onContactCreated={handleContactCreated}
+        />
+      )}
     </Dialog>
   );
 }

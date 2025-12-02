@@ -207,11 +207,6 @@ export function SourcingComponent() {
   };
 
   const handleCardClick = async (card: KanbanCardData) => {
-    // Só abrir modal de detalhes se for um card de propriedade
-    if (card.type !== "property") {
-      return;
-    }
-
     try {
       if (!auth.store.token) {
         console.error("Token de autenticação não encontrado");
@@ -225,19 +220,54 @@ export function SourcingComponent() {
       );
       const acquisition = response.data;
 
-      // Converter para PropertySourcingData
-      const propertyData: PropertySourcingData = {
-        address: acquisition.formattedAddress || "",
-        number: acquisition.addressNumber?.toString() || "",
-        complement: acquisition.addressComplement || "",
-        propertyType: "", // Não temos essa informação na captação
-        title: acquisition.title || "",
-      };
+      // Se for um card de propriedade
+      if (card.type === "property") {
+        // Converter para PropertySourcingData
+        const propertyData: PropertySourcingData = {
+          address: acquisition.formattedAddress || "",
+          number: acquisition.addressNumber?.toString() || "",
+          complement: acquisition.addressComplement || "",
+          propertyType: "", // Não temos essa informação na captação
+          title: acquisition.title || "",
+        };
 
-      setPropertyData(propertyData);
-      setAcquisitionProcessId(acquisition.id);
-      setAcquisitionStatus(acquisition.status);
-      setIsPropertyDetailsOpen(true);
+        setPropertyData(propertyData);
+        setAcquisitionProcessId(acquisition.id);
+        setAcquisitionStatus(acquisition.status);
+        setIsPropertyDetailsOpen(true);
+      } else if (card.type === "contact") {
+        // Converter para ContactSourcingData
+        // Extrair informações do formattedAddress (formato: "Nome - CPF: xxx - Email: xxx - Tel: xxx")
+        const formattedAddress = acquisition.formattedAddress || "";
+        const parts = formattedAddress.split(" - ");
+        const name = parts[0] || "";
+        let cpf = "";
+        let email = "";
+        let phone = "";
+
+        parts.forEach((part) => {
+          if (part.startsWith("CPF:")) {
+            cpf = part.replace("CPF:", "").trim();
+          } else if (part.startsWith("Email:")) {
+            email = part.replace("Email:", "").trim();
+          } else if (part.startsWith("Tel:")) {
+            phone = part.replace("Tel:", "").trim();
+          }
+        });
+
+        const contactData: ContactSourcingData = {
+          name: name,
+          cpf: cpf,
+          email: email,
+          phone: phone,
+          title: acquisition.title || "",
+        };
+
+        setContactData(contactData);
+        setAcquisitionProcessId(acquisition.id);
+        setAcquisitionStatus(acquisition.status);
+        setIsContactDetailsOpen(true);
+      }
     } catch (error) {
       console.error("Erro ao buscar detalhes da captação:", error);
       // TODO: Mostrar mensagem de erro ao usuário
@@ -502,16 +532,25 @@ export function SourcingComponent() {
       {contactData && (
         <ContactSourcingDetails
           open={isContactDetailsOpen}
-          onClose={() => setIsContactDetailsOpen(false)}
+          onClose={() => {
+            setIsContactDetailsOpen(false);
+            setAcquisitionProcessId(undefined);
+            setAcquisitionStatus(undefined);
+          }}
           data={contactData}
+          acquisitionProcessId={acquisitionProcessId}
           onReject={() => {
             console.log("Captação de contato recusada");
             setIsContactDetailsOpen(false);
+            setAcquisitionProcessId(undefined);
+            setAcquisitionStatus(undefined);
             // TODO: Implementar lógica de recusar
           }}
           onCapture={() => {
             console.log("Captação de contato confirmada");
             setIsContactDetailsOpen(false);
+            setAcquisitionProcessId(undefined);
+            setAcquisitionStatus(undefined);
             // TODO: Implementar lógica de captar
           }}
           onTitleChange={(title) => {

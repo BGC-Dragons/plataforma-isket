@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
 import {
   Dialog,
   DialogContent,
@@ -12,29 +11,23 @@ import {
   useTheme,
   CircularProgress,
   Alert,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
 } from "@mui/material";
 import { Close } from "@mui/icons-material";
 import { useAuth } from "../access-manager/auth.hook";
-import { postPropertyListingAcquisition } from "../../../services/post-property-listing-acquisition.service";
 import {
-  useGetPropertyListingAcquisitionsStages,
-  clearPropertyListingAcquisitionsStagesCache,
-} from "../../../services/get-property-listing-acquisitions-stages.service";
-import { postPropertyListingAcquisitionContactHistory } from "../../../services/post-property-listing-acquisition-contact-history.service";
-import { mutate } from "swr";
+  postPropertyListingAcquisitionContact,
+  type ContactRelationship,
+} from "../../../services/post-property-listing-acquisition-contact.service";
 
-interface ContactSourcingModalProps {
+interface CreateContactModalProps {
   open: boolean;
   onClose: () => void;
-  onSave?: (data: ContactSourcingData) => void;
-}
-
-export interface ContactSourcingData {
-  name: string;
-  cpf: string;
-  email: string;
-  phone: string;
-  title: string;
+  acquisitionProcessId: string;
+  onContactCreated?: () => void;
 }
 
 const formatCPF = (value: string) => {
@@ -69,32 +62,42 @@ const formatPhoneNumber = (value: string) => {
   }
 };
 
-export function ContactSourcingModal({
+const relationshipOptions: { value: ContactRelationship; label: string }[] = [
+  { value: "familiar", label: "Familiar" },
+  { value: "negocios", label: "Negócios" },
+  { value: "amigo", label: "Amigo" },
+  { value: "vizinho", label: "Vizinho" },
+  { value: "outros", label: "Outros" },
+];
+
+export function CreateContactModal({
   open,
   onClose,
-  onSave,
-}: ContactSourcingModalProps) {
+  acquisitionProcessId,
+  onContactCreated,
+}: CreateContactModalProps) {
   const theme = useTheme();
   const auth = useAuth();
-  const navigate = useNavigate();
-  const { data: stages, mutate } = useGetPropertyListingAcquisitionsStages();
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [formData, setFormData] = useState<ContactSourcingData>({
+  const [formData, setFormData] = useState({
     name: "",
     cpf: "",
     email: "",
     phone: "",
-    title: "",
+    relationship: "outros" as ContactRelationship,
   });
 
-  const handleChange = (field: keyof ContactSourcingData, value: string) => {
+  const handleChange = (
+    field: keyof typeof formData,
+    value: string | ContactRelationship
+  ) => {
     let formattedValue = value;
 
     if (field === "cpf") {
-      formattedValue = formatCPF(value);
+      formattedValue = formatCPF(value as string);
     } else if (field === "phone") {
-      formattedValue = formatPhoneNumber(value);
+      formattedValue = formatPhoneNumber(value as string);
     }
 
     setFormData((prev) => ({
@@ -109,22 +112,23 @@ export function ContactSourcingModal({
       cpf: "",
       email: "",
       phone: "",
-      title: "",
+      relationship: "outros",
     });
+    setSaveError(null);
   };
 
   const handleSave = async () => {
     if (!auth.store.token) {
-      setSaveError("Você precisa estar autenticado para captar um contato");
+      setSaveError("Você precisa estar autenticado para criar um contato");
       return;
     }
 
-    if (!formData.name) {
+    if (!formData.name.trim()) {
       setSaveError("Por favor, informe o nome do contato");
       return;
     }
 
-    if (!formData.cpf) {
+    if (!formData.cpf.trim()) {
       setSaveError("Por favor, informe o CPF do contato");
       return;
     }
@@ -133,90 +137,41 @@ export function ContactSourcingModal({
     setSaveError(null);
 
     try {
-      // 1. Obter o primeiro estágio (estágio inicial)
-      if (!stages || stages.length === 0) {
-        throw new Error(
-          "Nenhum estágio de captação encontrado. Por favor, crie um estágio primeiro."
-        );
-      }
-
-      // Ordenar estágios por ordem e pegar o primeiro (estágio inicial)
-      const sortedStages = [...stages].sort((a, b) => a.order - b.order);
-      const firstStage = sortedStages[0];
-      const stageId = firstStage.id;
-
-      // 2. Criar a captação (POST /property-listing-acquisitions/acquisitions)
-      const contactInfo = [
-        formData.name,
-        formData.cpf ? `CPF: ${formData.cpf}` : "",
-        formData.email ? `Email: ${formData.email}` : "",
-        formData.phone ? `Tel: ${formData.phone}` : "",
-      ]
-        .filter(Boolean)
-        .join(" - ");
-
-      const acquisitionPayload = {
-        title: formData.title || formData.name || "Captação de Contato",
-        description: formData.title || undefined,
-        formattedAddress: contactInfo,
-        stageId: stageId,
-        captureType: "contact" as const,
-      };
-
-      // Criar a captação (POST /property-listing-acquisitions/acquisitions)
-      const acquisitionResponse = await postPropertyListingAcquisition(
-        auth.store.token,
-        acquisitionPayload
-      );
-      const acquisitionId = acquisitionResponse.data.id;
-
-      // Criar histórico de contato (POST /property-listing-acquisitions/contact-history)
-      const phones = formData.phone ? [formData.phone] : [];
-      const emails = formData.email ? [formData.email] : [];
-      
-      await postPropertyListingAcquisitionContactHistory(
+      await postPropertyListingAcquisitionContact(
+        acquisitionProcessId,
         {
-          acquisitionProcessId: acquisitionId,
-          contactName: formData.name,
-          contactId: formData.cpf,
-          contactDate: new Date().toISOString(),
-          phones: phones,
-          emails: emails,
-          status: "UNDEFINED",
+          name: formData.name.trim(),
+          cpf: formData.cpf.replace(/\D/g, ""), // Apenas números
+          email: formData.email.trim() || undefined,
+          phone: formData.phone.replace(/\D/g, "") || undefined, // Apenas números
+          relationship: formData.relationship,
         },
         auth.store.token
       );
 
-      // Limpar cache e atualizar os stages/acquisitions para aparecer imediatamente no Kanban
-      clearPropertyListingAcquisitionsStagesCache();
-      await mutate();
-
       // Chamar callback se existir
-      onSave?.(formData);
+      onContactCreated?.();
 
       // Limpar formulário
       handleClear();
 
       // Fechar modal
       onClose();
-
-      // Navegar para a página de captação
-      navigate("/captacao");
     } catch (error: unknown) {
-      console.error("Erro ao criar captação de contato:", error);
+      console.error("Erro ao criar contato:", error);
       if (error && typeof error === "object" && "response" in error) {
         const axiosError = error as {
           response?: { status?: number; data?: { message?: string } };
         };
         const errorMessage =
           axiosError.response?.data?.message ||
-          "Erro ao criar captação de contato. Tente novamente.";
+          "Erro ao criar contato. Tente novamente.";
         setSaveError(errorMessage);
       } else if (error instanceof Error) {
         setSaveError(error.message);
       } else {
         setSaveError(
-          "Erro inesperado ao criar captação de contato. Tente novamente."
+          "Erro inesperado ao criar contato. Tente novamente."
         );
       }
     } finally {
@@ -267,7 +222,7 @@ export function ContactSourcingModal({
               color: theme.palette.text.primary,
             }}
           >
-            Captação de contato
+            Criar contato
           </Typography>
           <IconButton
             onClick={handleClose}
@@ -284,6 +239,12 @@ export function ContactSourcingModal({
 
         {/* Content */}
         <Box sx={{ p: 3 }}>
+          {saveError && (
+            <Alert severity="error" sx={{ mb: 3 }}>
+              {saveError}
+            </Alert>
+          )}
+
           <Typography
             variant="body1"
             sx={{
@@ -292,7 +253,7 @@ export function ContactSourcingModal({
               fontSize: "1rem",
             }}
           >
-            Preencha as informações do imóvel que deseja captar.
+            Preencha as informações do contato que deseja adicionar.
           </Typography>
 
           {/* Form Fields */}
@@ -311,7 +272,7 @@ export function ContactSourcingModal({
               }}
             />
 
-            {/* CPF, E-mail e Telefone */}
+            {/* CPF e Relacionamento */}
             <Box
               sx={{
                 display: "flex",
@@ -328,12 +289,47 @@ export function ContactSourcingModal({
                   maxLength: 14,
                 }}
                 sx={{
-                  flex: { xs: 1, sm: "0 0 150px" },
+                  flex: { xs: 1, sm: "0 0 200px" },
                   "& .MuiOutlinedInput-root": {
                     borderRadius: 2,
                   },
                 }}
               />
+              <FormControl
+                fullWidth
+                required
+                sx={{
+                  flex: 1,
+                  "& .MuiOutlinedInput-root": {
+                    borderRadius: 2,
+                  },
+                }}
+              >
+                <InputLabel>Relacionamento *</InputLabel>
+                <Select
+                  value={formData.relationship}
+                  onChange={(e) =>
+                    handleChange("relationship", e.target.value as ContactRelationship)
+                  }
+                  label="Relacionamento *"
+                >
+                  {relationshipOptions.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+
+            {/* E-mail e Telefone */}
+            <Box
+              sx={{
+                display: "flex",
+                gap: 2,
+                flexDirection: { xs: "column", sm: "row" },
+              }}
+            >
               <TextField
                 label="E-mail"
                 type="email"
@@ -361,19 +357,6 @@ export function ContactSourcingModal({
                 }}
               />
             </Box>
-
-            {/* Título da captação */}
-            <TextField
-              label="Título da captação"
-              value={formData.title}
-              onChange={(e) => handleChange("title", e.target.value)}
-              fullWidth
-              sx={{
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: 2,
-                },
-              }}
-            />
           </Box>
         </Box>
       </DialogContent>
@@ -390,7 +373,7 @@ export function ContactSourcingModal({
           onClick={handleClear}
           sx={{
             textTransform: "none",
-            color: theme.palette.common.white,
+            color: theme.palette.text.secondary,
           }}
         >
           Limpar
@@ -398,13 +381,12 @@ export function ContactSourcingModal({
         <Box sx={{ display: "flex", gap: 2 }}>
           <Button
             onClick={handleClose}
-            variant="contained"
+            variant="outlined"
             sx={{
               textTransform: "none",
               borderRadius: 2,
               px: 3,
               borderColor: theme.palette.divider,
-              color: theme.palette.common.white,
             }}
           >
             Cancelar
@@ -426,10 +408,10 @@ export function ContactSourcingModal({
             {isSaving ? (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <CircularProgress size={16} sx={{ color: "inherit" }} />
-                Captando...
+                Criando...
               </Box>
             ) : (
-              "Captar contato"
+              "Criar contato"
             )}
           </Button>
         </Box>
@@ -437,3 +419,4 @@ export function ContactSourcingModal({
     </Dialog>
   );
 }
+
