@@ -63,11 +63,13 @@ const formatPhoneNumber = (value: string) => {
 };
 
 const relationshipOptions: { value: ContactRelationship; label: string }[] = [
-  { value: "familiar", label: "Familiar" },
-  { value: "negocios", label: "Negócios" },
-  { value: "amigo", label: "Amigo" },
-  { value: "vizinho", label: "Vizinho" },
-  { value: "outros", label: "Outros" },
+  { value: "owner", label: "Proprietário" },
+  { value: "related", label: "Relacionado" },
+  { value: "family", label: "Familiar" },
+  { value: "business", label: "Negócios" },
+  { value: "friend", label: "Amigo" },
+  { value: "neighbor", label: "Vizinho" },
+  { value: "other", label: "Outros" },
 ];
 
 export function CreateContactModal({
@@ -85,7 +87,7 @@ export function CreateContactModal({
     cpf: "",
     email: "",
     phone: "",
-    relationship: "outros" as ContactRelationship,
+    relationship: "other" as ContactRelationship,
   });
 
   const handleChange = (
@@ -112,7 +114,7 @@ export function CreateContactModal({
       cpf: "",
       email: "",
       phone: "",
-      relationship: "outros",
+      relationship: "other",
     });
     setSaveError(null);
   };
@@ -137,13 +139,21 @@ export function CreateContactModal({
     setSaveError(null);
 
     try {
+      // Preparar arrays de emails e phones (API espera arrays)
+      const emails: string[] = formData.email.trim()
+        ? [formData.email.trim()]
+        : [];
+      const phones: string[] = formData.phone.replace(/\D/g, "")
+        ? [formData.phone.replace(/\D/g, "")]
+        : [];
+
       await postPropertyListingAcquisitionContact(
         acquisitionProcessId,
         {
           name: formData.name.trim(),
           cpf: formData.cpf.replace(/\D/g, ""), // Apenas números
-          email: formData.email.trim() || undefined,
-          phone: formData.phone.replace(/\D/g, "") || undefined, // Apenas números
+          emails: emails, // Array de emails (mesmo que vazio)
+          phones: phones, // Array de phones (mesmo que vazio)
           relationship: formData.relationship,
         },
         auth.store.token

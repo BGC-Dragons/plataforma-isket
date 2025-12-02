@@ -30,6 +30,17 @@ export interface IPropertyOwnerProperty {
   updatedAt: string;
 }
 
+export interface IPersonHistoryItem {
+  street: string;
+  streetNumber: string;
+  addressComplementId?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  changeDate?: string;
+}
+
 export interface IPropertyOwner {
   id?: string;
   firstName: string;
@@ -40,6 +51,7 @@ export interface IPropertyOwner {
   propertyAsOwner?: IPropertyOwnerProperty | null;
   propertyAsResident?: IPropertyOwnerProperty | null;
   addressHistory?: unknown[];
+  personHistory?: IPersonHistoryItem[]; // Histórico de endereços da pessoa
   createdAt: string;
   updatedAt: string;
 }

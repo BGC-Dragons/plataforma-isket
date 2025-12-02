@@ -55,6 +55,11 @@ export interface IPostRevealedPropertiesMultipleRequest {
     postalCode?: string;
     neighborhood?: string;
     selectedRelation?: string;
+    rawAddress?: {
+      formattedAddress?: string;
+      street?: string;
+      number?: number;
+    };
   }>;
 }
 
@@ -62,7 +67,7 @@ export interface IPostRevealedPropertyResponse extends IRevealedProperty {}
 
 export interface IPostRevealedPropertiesMultipleResponse {
   cpf: string;
-  properties: IRevealedProperty[];
+  properties: IRevealedProperty[]; // API retorna 'properties' na resposta
   createdProperties?: IRevealedProperty[]; // Mantido para compatibilidade
   totalCreated?: number; // Mantido para compatibilidade
 }

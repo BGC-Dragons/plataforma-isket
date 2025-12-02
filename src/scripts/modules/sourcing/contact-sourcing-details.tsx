@@ -37,7 +37,6 @@ import { useAuth } from "../access-manager/auth.hook";
 import { getPropertyOwnerFinderByNationalId } from "../../../services/get-property-owner-finder-by-national-id.service";
 import {
   postRevealedPropertiesMultiple,
-  getRevealedProperties,
   putRevealedProperty,
   type IRevealedProperty,
 } from "../../../services/get-property-listing-acquisitions-revealed-properties.service";
@@ -77,8 +76,6 @@ export function ContactSourcingDetails({
   const [revealedProperties, setRevealedProperties] = useState<
     IRevealedProperty[]
   >([]);
-  const [isLoadingRevealedProperties, setIsLoadingRevealedProperties] =
-    useState(false);
   const [contactHistory, setContactHistory] = useState<
     IPropertyListingAcquisitionContactHistory[]
   >([]);
@@ -146,25 +143,6 @@ export function ContactSourcingDetails({
       setContacts([]); // Em caso de erro, garantir que seja array vazio
     } finally {
       setIsLoadingContacts(false);
-    }
-  }, [acquisitionProcessId, auth.store.token]);
-
-  const loadRevealedProperties = useCallback(async () => {
-    if (!acquisitionProcessId || !auth.store.token) {
-      return;
-    }
-
-    setIsLoadingRevealedProperties(true);
-    try {
-      const response = await getRevealedProperties(
-        acquisitionProcessId,
-        auth.store.token
-      );
-      setRevealedProperties(response.data.properties || []);
-    } catch (error) {
-      console.error("Erro ao carregar propriedades reveladas:", error);
-    } finally {
-      setIsLoadingRevealedProperties(false);
     }
   }, [acquisitionProcessId, auth.store.token]);
 
@@ -279,40 +257,135 @@ export function ContactSourcingDetails({
 
       console.log("Verificando propertyAsOwner:", owner.propertyAsOwner);
       console.log("Verificando propertyAsResident:", owner.propertyAsResident);
+      console.log("Verificando personHistory:", owner.personHistory);
 
-      // Propriedade como proprietário
+      // Primeiro, tentar extrair de personHistory (formato mais comum na API)
+      if (
+        owner.personHistory &&
+        Array.isArray(owner.personHistory) &&
+        owner.personHistory.length > 0
+      ) {
+        console.log(
+          "Processando personHistory com",
+          owner.personHistory.length,
+          "itens"
+        );
+        owner.personHistory.forEach((historyItem, index) => {
+          console.log(
+            `Processando item ${index} do personHistory:`,
+            historyItem
+          );
+
+          if (
+            historyItem &&
+            typeof historyItem === "object" &&
+            "street" in historyItem &&
+            "streetNumber" in historyItem
+          ) {
+            const item = historyItem as {
+              street: string;
+              streetNumber: string;
+              addressComplementId?: string;
+              neighborhood?: string;
+              city?: string;
+              state?: string;
+              postalCode?: string;
+            };
+
+            // Construir endereço no formato "RUA, NUMERO"
+            const address = `${item.street}, ${item.streetNumber}`;
+
+            console.log("Endereço construído do personHistory:", address);
+
+            properties.push({
+              address: address,
+              complement: item.addressComplementId || undefined,
+              city: item.city || undefined,
+              state: item.state || undefined,
+              postalCode: item.postalCode || undefined,
+              neighborhood: item.neighborhood || undefined,
+              selectedRelation: "owner", // personHistory geralmente indica propriedade como owner
+            });
+
+            console.log(
+              `Propriedade ${index} do personHistory adicionada com sucesso`
+            );
+          }
+        });
+      }
+
+      // Propriedade como proprietário (fallback se personHistory não existir)
       if (owner.propertyAsOwner && owner.propertyAsOwner !== null) {
         const prop = owner.propertyAsOwner;
         console.log("Processando propertyAsOwner:", prop);
-        console.log("formattedAddress:", prop.formattedAddress);
+        console.log("formattedAddress completo:", prop.formattedAddress);
 
         // Verificar se formattedAddress existe
         if (prop.formattedAddress) {
-          // Extrair informações do formattedAddress
-          const addressParts = prop.formattedAddress.split(",");
-          const streetAndNumber = addressParts[0]?.trim() || "";
-          const neighborhood = addressParts[1]?.trim() || "";
-          const cityState = addressParts[2]?.trim() || "";
-          const [city, state] = cityState.split(" - ");
+          // Tentar extrair informações do formattedAddress
+          const addressParts = prop.formattedAddress
+            .split(",")
+            .map((part) => part.trim());
+          console.log("Partes do endereço após split:", addressParts);
 
-          console.log("Endereço extraído - streetAndNumber:", streetAndNumber);
-          console.log("Endereço extraído - neighborhood:", neighborhood);
-          console.log("Endereço extraído - city:", city);
-          console.log("Endereço extraído - state:", state);
+          // O endereço pode vir em diferentes formatos:
+          // 1. "RUA, NUMERO, BAIRRO, CIDADE - ESTADO"
+          // 2. "RUA, NUMERO" (sem bairro, cidade, estado)
+          // 3. "RUA NUMERO" (tudo junto)
 
-          // Só adicionar se tiver pelo menos o endereço
-          if (streetAndNumber) {
+          let address = "";
+          let neighborhood: string | undefined = undefined;
+          let city: string | undefined = undefined;
+          let state: string | undefined = undefined;
+
+          if (addressParts.length >= 4) {
+            // Formato completo: "RUA, NUMERO, BAIRRO, CIDADE - ESTADO"
+            address = `${addressParts[0]}, ${addressParts[1]}`;
+            neighborhood = addressParts[2] || undefined;
+            const cityState = addressParts[3] || "";
+            const cityStateParts = cityState.split(" - ");
+            city = cityStateParts[0]?.trim() || undefined;
+            state = cityStateParts[1]?.trim() || undefined;
+          } else if (addressParts.length === 3) {
+            // Formato: "RUA, NUMERO, BAIRRO" ou "RUA, NUMERO, CIDADE - ESTADO"
+            address = `${addressParts[0]}, ${addressParts[1]}`;
+            const thirdPart = addressParts[2] || "";
+            // Verificar se o terceiro campo contém " - " (cidade - estado) ou é bairro
+            if (thirdPart.includes(" - ")) {
+              const cityStateParts = thirdPart.split(" - ");
+              city = cityStateParts[0]?.trim() || undefined;
+              state = cityStateParts[1]?.trim() || undefined;
+            } else {
+              neighborhood = thirdPart || undefined;
+            }
+          } else if (addressParts.length === 2) {
+            // Formato: "RUA, NUMERO"
+            address = `${addressParts[0]}, ${addressParts[1]}`;
+          } else if (addressParts.length === 1) {
+            // Formato: "RUA NUMERO" (tudo junto)
+            address = addressParts[0];
+          }
+
+          console.log("Endereço processado - address:", address);
+          console.log("Endereço processado - neighborhood:", neighborhood);
+          console.log("Endereço processado - city:", city);
+          console.log("Endereço processado - state:", state);
+
+          // Sempre adicionar se tiver pelo menos o endereço
+          if (address) {
             properties.push({
-              address: streetAndNumber,
+              address: address,
               complement: prop.addressComplementId || undefined,
-              city: city || undefined,
-              state: state || undefined,
-              neighborhood: neighborhood || undefined,
+              city: city,
+              state: state,
+              neighborhood: neighborhood,
               selectedRelation: "owner",
             });
-            console.log("Propriedade como owner adicionada");
+            console.log("Propriedade como owner adicionada com sucesso");
           } else {
-            console.warn("streetAndNumber está vazio, não adicionando propriedade");
+            console.warn(
+              "Endereço está vazio após processamento, não adicionando propriedade"
+            );
           }
         } else {
           console.warn("formattedAddress não existe em propertyAsOwner");
@@ -325,34 +398,74 @@ export function ContactSourcingDetails({
       if (owner.propertyAsResident && owner.propertyAsResident !== null) {
         const prop = owner.propertyAsResident;
         console.log("Processando propertyAsResident:", prop);
-        console.log("formattedAddress:", prop.formattedAddress);
+        console.log("formattedAddress completo:", prop.formattedAddress);
 
         // Verificar se formattedAddress existe
         if (prop.formattedAddress) {
-          const addressParts = prop.formattedAddress.split(",");
-          const streetAndNumber = addressParts[0]?.trim() || "";
-          const neighborhood = addressParts[1]?.trim() || "";
-          const cityState = addressParts[2]?.trim() || "";
-          const [city, state] = cityState.split(" - ");
+          // Tentar extrair informações do formattedAddress
+          const addressParts = prop.formattedAddress
+            .split(",")
+            .map((part) => part.trim());
+          console.log("Partes do endereço após split:", addressParts);
 
-          console.log("Endereço extraído - streetAndNumber:", streetAndNumber);
-          console.log("Endereço extraído - neighborhood:", neighborhood);
-          console.log("Endereço extraído - city:", city);
-          console.log("Endereço extraído - state:", state);
+          // O endereço pode vir em diferentes formatos:
+          // 1. "RUA, NUMERO, BAIRRO, CIDADE - ESTADO"
+          // 2. "RUA, NUMERO" (sem bairro, cidade, estado)
+          // 3. "RUA NUMERO" (tudo junto)
 
-          // Só adicionar se tiver pelo menos o endereço
-          if (streetAndNumber) {
+          let address = "";
+          let neighborhood: string | undefined = undefined;
+          let city: string | undefined = undefined;
+          let state: string | undefined = undefined;
+
+          if (addressParts.length >= 4) {
+            // Formato completo: "RUA, NUMERO, BAIRRO, CIDADE - ESTADO"
+            address = `${addressParts[0]}, ${addressParts[1]}`;
+            neighborhood = addressParts[2] || undefined;
+            const cityState = addressParts[3] || "";
+            const cityStateParts = cityState.split(" - ");
+            city = cityStateParts[0]?.trim() || undefined;
+            state = cityStateParts[1]?.trim() || undefined;
+          } else if (addressParts.length === 3) {
+            // Formato: "RUA, NUMERO, BAIRRO" ou "RUA, NUMERO, CIDADE - ESTADO"
+            address = `${addressParts[0]}, ${addressParts[1]}`;
+            const thirdPart = addressParts[2] || "";
+            // Verificar se o terceiro campo contém " - " (cidade - estado) ou é bairro
+            if (thirdPart.includes(" - ")) {
+              const cityStateParts = thirdPart.split(" - ");
+              city = cityStateParts[0]?.trim() || undefined;
+              state = cityStateParts[1]?.trim() || undefined;
+            } else {
+              neighborhood = thirdPart || undefined;
+            }
+          } else if (addressParts.length === 2) {
+            // Formato: "RUA, NUMERO"
+            address = `${addressParts[0]}, ${addressParts[1]}`;
+          } else if (addressParts.length === 1) {
+            // Formato: "RUA NUMERO" (tudo junto)
+            address = addressParts[0];
+          }
+
+          console.log("Endereço processado - address:", address);
+          console.log("Endereço processado - neighborhood:", neighborhood);
+          console.log("Endereço processado - city:", city);
+          console.log("Endereço processado - state:", state);
+
+          // Sempre adicionar se tiver pelo menos o endereço
+          if (address) {
             properties.push({
-              address: streetAndNumber,
+              address: address,
               complement: prop.addressComplementId || undefined,
-              city: city || undefined,
-              state: state || undefined,
-              neighborhood: neighborhood || undefined,
+              city: city,
+              state: state,
+              neighborhood: neighborhood,
               selectedRelation: "resident",
             });
-            console.log("Propriedade como resident adicionada");
+            console.log("Propriedade como resident adicionada com sucesso");
           } else {
-            console.warn("streetAndNumber está vazio, não adicionando propriedade");
+            console.warn(
+              "Endereço está vazio após processamento, não adicionando propriedade"
+            );
           }
         } else {
           console.warn("formattedAddress não existe em propertyAsResident");
@@ -366,15 +479,63 @@ export function ContactSourcingDetails({
       console.log("owner.propertyAsOwner:", owner.propertyAsOwner);
       console.log("owner.propertyAsResident:", owner.propertyAsResident);
 
+      // Se não conseguimos extrair propriedades mas temos dados, tentar usar formattedAddress diretamente
+      if (properties.length === 0) {
+        console.warn(
+          "Nenhuma propriedade extraída! Tentando usar formattedAddress diretamente..."
+        );
+
+        // Tentar usar propertyAsOwner
+        if (owner.propertyAsOwner?.formattedAddress) {
+          console.log(
+            "Usando propertyAsOwner.formattedAddress diretamente:",
+            owner.propertyAsOwner.formattedAddress
+          );
+          properties.push({
+            address: owner.propertyAsOwner.formattedAddress,
+            complement: owner.propertyAsOwner.addressComplementId || undefined,
+            selectedRelation: "owner",
+          });
+        }
+
+        // Tentar usar propertyAsResident
+        if (owner.propertyAsResident?.formattedAddress) {
+          console.log(
+            "Usando propertyAsResident.formattedAddress diretamente:",
+            owner.propertyAsResident.formattedAddress
+          );
+          properties.push({
+            address: owner.propertyAsResident.formattedAddress,
+            complement:
+              owner.propertyAsResident.addressComplementId || undefined,
+            selectedRelation: "resident",
+          });
+        }
+
+        console.log(
+          "Propriedades após tentativa de usar formattedAddress diretamente:",
+          properties
+        );
+      }
+
       // 3. Criar propriedades reveladas
       // SEMPRE fazer a chamada POST, mesmo se não houver propriedades extraídas
       // A API pode precisar atualizar os dados mesmo sem novas propriedades
-      console.log("Fazendo POST para criar/atualizar propriedades reveladas...");
+      console.log(
+        "Fazendo POST para criar/atualizar propriedades reveladas..."
+      );
       console.log("acquisitionProcessId:", acquisitionProcessId);
-      console.log("Payload:", {
-        cpf: data.cpf.replace(/\D/g, ""),
-        properties: properties,
-      });
+      console.log(
+        "Payload completo:",
+        JSON.stringify(
+          {
+            cpf: data.cpf.replace(/\D/g, ""),
+            properties: properties,
+          },
+          null,
+          2
+        )
+      );
 
       const response = await postRevealedPropertiesMultiple(
         acquisitionProcessId,
@@ -392,25 +553,20 @@ export function ContactSourcingDetails({
       // Limpar erro após sucesso
       setRevealError(null);
 
-      // 4. Usar as propriedades da resposta se disponíveis, senão recarregar
+      // 4. Usar as propriedades da resposta diretamente (como na plataforma antiga)
       const responseData = response.data;
-      if (responseData && (responseData.properties || responseData.createdProperties)) {
-        // A API pode retornar 'properties' ou 'createdProperties'
-        const returnedProperties = responseData.properties || responseData.createdProperties || [];
-        console.log("Propriedades retornadas pela API:", returnedProperties);
-        if (Array.isArray(returnedProperties) && returnedProperties.length > 0) {
-          setRevealedProperties(returnedProperties);
-        } else {
-          // Se não retornou propriedades, recarregar do servidor
-          await loadRevealedProperties();
-        }
-      } else {
-        // Se não houver propriedades na resposta, recarregar do servidor
-        await loadRevealedProperties();
-      }
+      // A API retorna 'properties' na resposta (não 'createdProperties' como a documentação dizia)
+      const returnedProperties =
+        responseData?.properties || responseData?.createdProperties || [];
+      console.log("Propriedades retornadas pela API:", returnedProperties);
+      console.log("Total de propriedades:", returnedProperties.length);
+      // Sempre usar a resposta do POST diretamente, sem fazer GET adicional
+      setRevealedProperties(returnedProperties);
 
       if (properties.length === 0) {
-        console.log("Nenhuma propriedade nova foi extraída, mas a chamada POST foi feita");
+        console.log(
+          "Nenhuma propriedade nova foi extraída, mas a chamada POST foi feita"
+        );
       }
     } catch (error: unknown) {
       console.error("Erro ao revelar propriedades:", error);
@@ -1209,11 +1365,7 @@ export function ContactSourcingDetails({
               </Button>
 
               {/* List of Revealed Properties */}
-              {isLoadingRevealedProperties ? (
-                <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
-                  <CircularProgress size={24} />
-                </Box>
-              ) : revealedProperties.length > 0 ? (
+              {revealedProperties.length > 0 ? (
                 <Box
                   sx={{
                     mt: 2,

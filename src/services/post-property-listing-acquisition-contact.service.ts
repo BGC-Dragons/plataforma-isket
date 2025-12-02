@@ -3,18 +3,21 @@ import { isketApiClient } from "./clients/isket-api.client";
 import { getHeader } from "./helpers/get-header-function";
 
 export type ContactRelationship =
-  | "familiar"
+  | "owner"
+  | "related"
   | "family"
-  | "negocios"
-  | "amigo"
-  | "vizinho"
-  | "outros";
+  | "business"
+  | "friend"
+  | "neighbor"
+  | "other";
 
 export interface IPostPropertyListingAcquisitionContactRequest {
   name: string;
   cpf: string;
-  email?: string;
-  phone?: string;
+  emails?: string[]; // API espera array de emails
+  phones?: string[]; // API espera array de phones
+  email?: string; // Mantido para compatibilidade
+  phone?: string; // Mantido para compatibilidade
   relationship: ContactRelationship;
 }
 
