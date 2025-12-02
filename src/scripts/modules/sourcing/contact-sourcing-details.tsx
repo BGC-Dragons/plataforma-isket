@@ -196,10 +196,18 @@ export function ContactSourcingDetails({
     }
   };
 
-  // Carregar propriedades reveladas, histórico de contatos e contatos quando o modal abrir
+  // Limpar propriedades reveladas quando o modal abrir (similar ao property-sourcing-details)
+  useEffect(() => {
+    if (open) {
+      setRevealedProperties([]);
+      setRevealError(null);
+      setIsRevealingProperties(false);
+    }
+  }, [open, data.cpf]);
+
+  // Carregar histórico de contatos e contatos quando o modal abrir
   useEffect(() => {
     if (open && acquisitionProcessId && auth.store.token) {
-      loadRevealedProperties();
       loadContactHistory();
       loadContacts();
     } else {
@@ -210,7 +218,6 @@ export function ContactSourcingDetails({
     open,
     acquisitionProcessId,
     auth.store.token,
-    loadRevealedProperties,
     loadContactHistory,
     loadContacts,
   ]);
@@ -234,6 +241,10 @@ export function ContactSourcingDetails({
     setRevealError(null);
 
     try {
+      console.log("Iniciando revelação de propriedades...");
+      console.log("acquisitionProcessId:", acquisitionProcessId);
+      console.log("CPF:", data.cpf);
+
       // 1. Buscar propriedades pelo CPF
       const ownerResponse = await getPropertyOwnerFinderByNationalId(
         data.cpf,
@@ -242,10 +253,16 @@ export function ContactSourcingDetails({
       const owner = ownerResponse.data;
 
       console.log("Resposta da API de busca por CPF:", owner);
+      console.log("Resposta completa (JSON):", JSON.stringify(owner, null, 2));
+      console.log("Tipo da resposta:", typeof owner);
+      console.log("owner é null?", owner === null);
+      console.log("owner é undefined?", owner === undefined);
 
       // Verificar se a resposta é válida
       if (!owner) {
+        console.error("Resposta inválida da API - owner é null/undefined");
         setRevealError("Resposta inválida da API. Tente novamente.");
+        setIsRevealingProperties(false);
         return;
       }
 
@@ -260,9 +277,14 @@ export function ContactSourcingDetails({
         selectedRelation?: string;
       }> = [];
 
+      console.log("Verificando propertyAsOwner:", owner.propertyAsOwner);
+      console.log("Verificando propertyAsResident:", owner.propertyAsResident);
+
       // Propriedade como proprietário
       if (owner.propertyAsOwner && owner.propertyAsOwner !== null) {
         const prop = owner.propertyAsOwner;
+        console.log("Processando propertyAsOwner:", prop);
+        console.log("formattedAddress:", prop.formattedAddress);
 
         // Verificar se formattedAddress existe
         if (prop.formattedAddress) {
@@ -272,6 +294,11 @@ export function ContactSourcingDetails({
           const neighborhood = addressParts[1]?.trim() || "";
           const cityState = addressParts[2]?.trim() || "";
           const [city, state] = cityState.split(" - ");
+
+          console.log("Endereço extraído - streetAndNumber:", streetAndNumber);
+          console.log("Endereço extraído - neighborhood:", neighborhood);
+          console.log("Endereço extraído - city:", city);
+          console.log("Endereço extraído - state:", state);
 
           // Só adicionar se tiver pelo menos o endereço
           if (streetAndNumber) {
@@ -283,13 +310,22 @@ export function ContactSourcingDetails({
               neighborhood: neighborhood || undefined,
               selectedRelation: "owner",
             });
+            console.log("Propriedade como owner adicionada");
+          } else {
+            console.warn("streetAndNumber está vazio, não adicionando propriedade");
           }
+        } else {
+          console.warn("formattedAddress não existe em propertyAsOwner");
         }
+      } else {
+        console.log("propertyAsOwner é null ou undefined");
       }
 
       // Propriedade como residente
       if (owner.propertyAsResident && owner.propertyAsResident !== null) {
         const prop = owner.propertyAsResident;
+        console.log("Processando propertyAsResident:", prop);
+        console.log("formattedAddress:", prop.formattedAddress);
 
         // Verificar se formattedAddress existe
         if (prop.formattedAddress) {
@@ -298,6 +334,11 @@ export function ContactSourcingDetails({
           const neighborhood = addressParts[1]?.trim() || "";
           const cityState = addressParts[2]?.trim() || "";
           const [city, state] = cityState.split(" - ");
+
+          console.log("Endereço extraído - streetAndNumber:", streetAndNumber);
+          console.log("Endereço extraído - neighborhood:", neighborhood);
+          console.log("Endereço extraído - city:", city);
+          console.log("Endereço extraído - state:", state);
 
           // Só adicionar se tiver pelo menos o endereço
           if (streetAndNumber) {
@@ -309,8 +350,15 @@ export function ContactSourcingDetails({
               neighborhood: neighborhood || undefined,
               selectedRelation: "resident",
             });
+            console.log("Propriedade como resident adicionada");
+          } else {
+            console.warn("streetAndNumber está vazio, não adicionando propriedade");
           }
+        } else {
+          console.warn("formattedAddress não existe em propertyAsResident");
         }
+      } else {
+        console.log("propertyAsResident é null ou undefined");
       }
 
       console.log("Propriedades extraídas:", properties);
@@ -319,34 +367,50 @@ export function ContactSourcingDetails({
       console.log("owner.propertyAsResident:", owner.propertyAsResident);
 
       // 3. Criar propriedades reveladas
-      if (properties.length > 0) {
-        console.log("Fazendo POST para criar propriedades reveladas...");
-        console.log("acquisitionProcessId:", acquisitionProcessId);
-        console.log("Payload:", {
-          cpf: data.cpf.replace(/\D/g, ""),
+      // SEMPRE fazer a chamada POST, mesmo se não houver propriedades extraídas
+      // A API pode precisar atualizar os dados mesmo sem novas propriedades
+      console.log("Fazendo POST para criar/atualizar propriedades reveladas...");
+      console.log("acquisitionProcessId:", acquisitionProcessId);
+      console.log("Payload:", {
+        cpf: data.cpf.replace(/\D/g, ""),
+        properties: properties,
+      });
+
+      const response = await postRevealedPropertiesMultiple(
+        acquisitionProcessId,
+        {
+          cpf: data.cpf.replace(/\D/g, ""), // Apenas números
           properties: properties,
-        });
+        },
+        auth.store.token
+      );
 
-        const response = await postRevealedPropertiesMultiple(
-          acquisitionProcessId,
-          {
-            cpf: data.cpf.replace(/\D/g, ""), // Apenas números
-            properties: properties,
-          },
-          auth.store.token
-        );
+      console.log("Resposta do POST:", response);
+      console.log("Status da resposta:", response.status);
+      console.log("Dados da resposta:", response.data);
 
-        console.log("Resposta do POST:", response);
+      // Limpar erro após sucesso
+      setRevealError(null);
 
-        // Limpar erro após sucesso
-        setRevealError(null);
-
-        // 4. Recarregar propriedades reveladas
-        await loadRevealedProperties();
+      // 4. Usar as propriedades da resposta se disponíveis, senão recarregar
+      const responseData = response.data;
+      if (responseData && (responseData.properties || responseData.createdProperties)) {
+        // A API pode retornar 'properties' ou 'createdProperties'
+        const returnedProperties = responseData.properties || responseData.createdProperties || [];
+        console.log("Propriedades retornadas pela API:", returnedProperties);
+        if (Array.isArray(returnedProperties) && returnedProperties.length > 0) {
+          setRevealedProperties(returnedProperties);
+        } else {
+          // Se não retornou propriedades, recarregar do servidor
+          await loadRevealedProperties();
+        }
       } else {
-        console.log("Nenhuma propriedade encontrada para criar");
-        console.log("owner completo:", JSON.stringify(owner, null, 2));
-        setRevealError("Nenhuma propriedade encontrada para este CPF.");
+        // Se não houver propriedades na resposta, recarregar do servidor
+        await loadRevealedProperties();
+      }
+
+      if (properties.length === 0) {
+        console.log("Nenhuma propriedade nova foi extraída, mas a chamada POST foi feita");
       }
     } catch (error: unknown) {
       console.error("Erro ao revelar propriedades:", error);
@@ -354,6 +418,8 @@ export function ContactSourcingDetails({
         const axiosError = error as {
           response?: { status?: number; data?: { message?: string } };
         };
+        console.error("Erro Axios - Status:", axiosError.response?.status);
+        console.error("Erro Axios - Data:", axiosError.response?.data);
         if (axiosError.response?.status === 402) {
           setRevealError(
             "Créditos insuficientes. Por favor, adquira créditos adicionais para continuar."
@@ -367,8 +433,11 @@ export function ContactSourcingDetails({
           setRevealError(errorMessage);
         }
       } else if (error instanceof Error) {
+        console.error("Erro genérico:", error.message);
+        console.error("Stack:", error.stack);
         setRevealError(error.message);
       } else {
+        console.error("Erro desconhecido:", error);
         setRevealError(
           "Erro inesperado ao revelar propriedades. Tente novamente."
         );

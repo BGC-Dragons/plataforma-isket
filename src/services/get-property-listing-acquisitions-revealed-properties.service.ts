@@ -62,8 +62,9 @@ export interface IPostRevealedPropertyResponse extends IRevealedProperty {}
 
 export interface IPostRevealedPropertiesMultipleResponse {
   cpf: string;
-  createdProperties: IRevealedProperty[];
-  totalCreated: number;
+  properties: IRevealedProperty[];
+  createdProperties?: IRevealedProperty[]; // Mantido para compatibilidade
+  totalCreated?: number; // Mantido para compatibilidade
 }
 
 export interface IPutRevealedPropertyRequest {
