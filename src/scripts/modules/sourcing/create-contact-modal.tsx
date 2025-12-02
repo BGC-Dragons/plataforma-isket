@@ -170,9 +170,7 @@ export function CreateContactModal({
       } else if (error instanceof Error) {
         setSaveError(error.message);
       } else {
-        setSaveError(
-          "Erro inesperado ao criar contato. Tente novamente."
-        );
+        setSaveError("Erro inesperado ao criar contato. Tente novamente.");
       }
     } finally {
       setIsSaving(false);
@@ -309,7 +307,10 @@ export function CreateContactModal({
                 <Select
                   value={formData.relationship}
                   onChange={(e) =>
-                    handleChange("relationship", e.target.value as ContactRelationship)
+                    handleChange(
+                      "relationship",
+                      e.target.value as ContactRelationship
+                    )
                   }
                   label="Relacionamento *"
                 >
@@ -373,7 +374,7 @@ export function CreateContactModal({
           onClick={handleClear}
           sx={{
             textTransform: "none",
-            color: theme.palette.text.secondary,
+            color: theme.palette.common.white,
           }}
         >
           Limpar
@@ -387,6 +388,11 @@ export function CreateContactModal({
               borderRadius: 2,
               px: 3,
               borderColor: theme.palette.divider,
+              color: theme.palette.common.white,
+              "&:hover": {
+                borderColor: theme.palette.text.secondary,
+                backgroundColor: theme.palette.action.hover,
+              },
             }}
           >
             Cancelar
@@ -419,4 +425,3 @@ export function CreateContactModal({
     </Dialog>
   );
 }
-
