@@ -513,7 +513,9 @@ export function PropertySourcingDetails({
           boxShadow: theme.shadows[24],
           m: { xs: 0, sm: 2 },
           maxHeight: { xs: "100vh", sm: "90vh" },
-          height: { xs: "100vh", sm: "auto" },
+          height: { xs: "100vh", sm: "90vh" },
+          display: "flex",
+          flexDirection: "column",
         },
       }}
       BackdropProps={{
@@ -533,6 +535,8 @@ export function PropertySourcingDetails({
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
+          flex: 1,
+          minHeight: 0,
         }}
       >
         {/* Header */}

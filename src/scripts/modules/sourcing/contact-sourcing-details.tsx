@@ -497,14 +497,24 @@ export function ContactSourcingDetails({
       fullWidth
       PaperProps={{
         sx: {
-          borderRadius: 3,
+          borderRadius: { xs: 0, sm: 3 },
           overflow: "hidden",
           boxShadow: theme.shadows[24],
+          m: { xs: 0, sm: 2 },
+          maxHeight: { xs: "100vh", sm: "90vh" },
+          height: { xs: "100vh", sm: "90vh" },
+          display: "flex",
+          flexDirection: "column",
         },
       }}
       BackdropProps={{
         sx: {
           backgroundColor: "rgba(0, 0, 0, 0.5)",
+        },
+      }}
+      sx={{
+        "& .MuiDialog-container": {
+          alignItems: { xs: "flex-end", sm: "center" },
         },
       }}
     >
@@ -514,6 +524,8 @@ export function ContactSourcingDetails({
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
+          flex: 1,
+          minHeight: 0,
         }}
       >
         {/* Header */}
