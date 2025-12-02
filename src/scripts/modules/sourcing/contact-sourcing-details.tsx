@@ -38,6 +38,7 @@ import { getPropertyOwnerFinderByNationalId } from "../../../services/get-proper
 import {
   postRevealedPropertiesMultiple,
   getRevealedProperties,
+  putRevealedProperty,
   type IRevealedProperty,
 } from "../../../services/get-property-listing-acquisitions-revealed-properties.service";
 import { CircularProgress, Alert } from "@mui/material";
@@ -167,6 +168,34 @@ export function ContactSourcingDetails({
     }
   }, [acquisitionProcessId, auth.store.token]);
 
+  const handleUpdateSelectedRelation = async (
+    propertyId: string,
+    newRelation: string
+  ) => {
+    if (!acquisitionProcessId || !auth.store.token) {
+      return;
+    }
+
+    try {
+      await putRevealedProperty(
+        acquisitionProcessId,
+        propertyId,
+        { selectedRelation: newRelation },
+        auth.store.token
+      );
+      // Atualizar o estado local
+      setRevealedProperties((prev) =>
+        prev.map((prop) =>
+          prop.id === propertyId
+            ? { ...prop, selectedRelation: newRelation }
+            : prop
+        )
+      );
+    } catch (error) {
+      console.error("Erro ao atualizar relação da propriedade:", error);
+    }
+  };
+
   // Carregar propriedades reveladas, histórico de contatos e contatos quando o modal abrir
   useEffect(() => {
     if (open && acquisitionProcessId && auth.store.token) {
@@ -185,6 +214,13 @@ export function ContactSourcingDetails({
     loadContactHistory,
     loadContacts,
   ]);
+
+  // Recarregar contactHistory quando acquisitionProcessId mudar (útil quando captação é criada)
+  useEffect(() => {
+    if (acquisitionProcessId && auth.store.token) {
+      loadContactHistory();
+    }
+  }, [acquisitionProcessId, auth.store.token, loadContactHistory]);
 
   const handleRevealProperties = async () => {
     if (!acquisitionProcessId || !auth.store.token || !data.cpf) {
@@ -205,6 +241,14 @@ export function ContactSourcingDetails({
       );
       const owner = ownerResponse.data;
 
+      console.log("Resposta da API de busca por CPF:", owner);
+
+      // Verificar se a resposta é válida
+      if (!owner) {
+        setRevealError("Resposta inválida da API. Tente novamente.");
+        return;
+      }
+
       // 2. Extrair propriedades do resultado
       const properties: Array<{
         address: string;
@@ -217,47 +261,73 @@ export function ContactSourcingDetails({
       }> = [];
 
       // Propriedade como proprietário
-      if (owner.propertyAsOwner) {
+      if (owner.propertyAsOwner && owner.propertyAsOwner !== null) {
         const prop = owner.propertyAsOwner;
-        // Extrair informações do formattedAddress
-        const addressParts = prop.formattedAddress.split(",");
-        const streetAndNumber = addressParts[0]?.trim() || "";
-        const neighborhood = addressParts[1]?.trim() || "";
-        const cityState = addressParts[2]?.trim() || "";
-        const [city, state] = cityState.split(" - ");
 
-        properties.push({
-          address: streetAndNumber,
-          complement: prop.addressComplementId || undefined,
-          city: city || undefined,
-          state: state || undefined,
-          neighborhood: neighborhood || undefined,
-          selectedRelation: "owner",
-        });
+        // Verificar se formattedAddress existe
+        if (prop.formattedAddress) {
+          // Extrair informações do formattedAddress
+          const addressParts = prop.formattedAddress.split(",");
+          const streetAndNumber = addressParts[0]?.trim() || "";
+          const neighborhood = addressParts[1]?.trim() || "";
+          const cityState = addressParts[2]?.trim() || "";
+          const [city, state] = cityState.split(" - ");
+
+          // Só adicionar se tiver pelo menos o endereço
+          if (streetAndNumber) {
+            properties.push({
+              address: streetAndNumber,
+              complement: prop.addressComplementId || undefined,
+              city: city || undefined,
+              state: state || undefined,
+              neighborhood: neighborhood || undefined,
+              selectedRelation: "owner",
+            });
+          }
+        }
       }
 
       // Propriedade como residente
-      if (owner.propertyAsResident) {
+      if (owner.propertyAsResident && owner.propertyAsResident !== null) {
         const prop = owner.propertyAsResident;
-        const addressParts = prop.formattedAddress.split(",");
-        const streetAndNumber = addressParts[0]?.trim() || "";
-        const neighborhood = addressParts[1]?.trim() || "";
-        const cityState = addressParts[2]?.trim() || "";
-        const [city, state] = cityState.split(" - ");
 
-        properties.push({
-          address: streetAndNumber,
-          complement: prop.addressComplementId || undefined,
-          city: city || undefined,
-          state: state || undefined,
-          neighborhood: neighborhood || undefined,
-          selectedRelation: "resident",
-        });
+        // Verificar se formattedAddress existe
+        if (prop.formattedAddress) {
+          const addressParts = prop.formattedAddress.split(",");
+          const streetAndNumber = addressParts[0]?.trim() || "";
+          const neighborhood = addressParts[1]?.trim() || "";
+          const cityState = addressParts[2]?.trim() || "";
+          const [city, state] = cityState.split(" - ");
+
+          // Só adicionar se tiver pelo menos o endereço
+          if (streetAndNumber) {
+            properties.push({
+              address: streetAndNumber,
+              complement: prop.addressComplementId || undefined,
+              city: city || undefined,
+              state: state || undefined,
+              neighborhood: neighborhood || undefined,
+              selectedRelation: "resident",
+            });
+          }
+        }
       }
+
+      console.log("Propriedades extraídas:", properties);
+      console.log("Número de propriedades:", properties.length);
+      console.log("owner.propertyAsOwner:", owner.propertyAsOwner);
+      console.log("owner.propertyAsResident:", owner.propertyAsResident);
 
       // 3. Criar propriedades reveladas
       if (properties.length > 0) {
-        await postRevealedPropertiesMultiple(
+        console.log("Fazendo POST para criar propriedades reveladas...");
+        console.log("acquisitionProcessId:", acquisitionProcessId);
+        console.log("Payload:", {
+          cpf: data.cpf.replace(/\D/g, ""),
+          properties: properties,
+        });
+
+        const response = await postRevealedPropertiesMultiple(
           acquisitionProcessId,
           {
             cpf: data.cpf.replace(/\D/g, ""), // Apenas números
@@ -266,9 +336,16 @@ export function ContactSourcingDetails({
           auth.store.token
         );
 
+        console.log("Resposta do POST:", response);
+
+        // Limpar erro após sucesso
+        setRevealError(null);
+
         // 4. Recarregar propriedades reveladas
         await loadRevealedProperties();
       } else {
+        console.log("Nenhuma propriedade encontrada para criar");
+        console.log("owner completo:", JSON.stringify(owner, null, 2));
         setRevealError("Nenhuma propriedade encontrada para este CPF.");
       }
     } catch (error: unknown) {
@@ -383,8 +460,9 @@ export function ContactSourcingDetails({
   };
 
   const handleContactCreated = async () => {
-    // Recarregar contatos após criar um novo contato
+    // Recarregar contatos e histórico de contatos após criar um novo contato
     await loadContacts();
+    await loadContactHistory();
   };
 
   const formatCPF = (cpf: string | undefined | null) => {
@@ -1146,6 +1224,12 @@ export function ContactSourcingDetails({
                           label={
                             property.selectedRelation === "owner"
                               ? "Proprietário"
+                              : property.selectedRelation === "tenant"
+                              ? "Inquilino"
+                              : property.selectedRelation === "administrator"
+                              ? "Administrador"
+                              : property.selectedRelation === "other"
+                              ? "Outro"
                               : property.selectedRelation === "resident"
                               ? "Residente"
                               : property.selectedRelation
@@ -1158,10 +1242,22 @@ export function ContactSourcingDetails({
                             backgroundColor:
                               property.selectedRelation === "owner"
                                 ? theme.palette.success.light
+                                : property.selectedRelation === "tenant"
+                                ? theme.palette.warning.light
+                                : property.selectedRelation === "administrator"
+                                ? theme.palette.info.light
+                                : property.selectedRelation === "other"
+                                ? theme.palette.grey[300]
                                 : theme.palette.info.light,
                             color:
                               property.selectedRelation === "owner"
                                 ? theme.palette.success.dark
+                                : property.selectedRelation === "tenant"
+                                ? theme.palette.warning.dark
+                                : property.selectedRelation === "administrator"
+                                ? theme.palette.info.dark
+                                : property.selectedRelation === "other"
+                                ? theme.palette.grey[700]
                                 : theme.palette.info.dark,
                           }}
                         />
@@ -1178,13 +1274,23 @@ export function ContactSourcingDetails({
                           <Select
                             value={property.selectedRelation || "owner"}
                             displayEmpty
+                            onChange={(e) =>
+                              handleUpdateSelectedRelation(
+                                property.id,
+                                e.target.value
+                              )
+                            }
                             sx={{
                               borderRadius: 1,
                               fontSize: "0.75rem",
                             }}
                           >
                             <MenuItem value="owner">Proprietário</MenuItem>
-                            <MenuItem value="resident">Residente</MenuItem>
+                            <MenuItem value="tenant">Inquilino</MenuItem>
+                            <MenuItem value="administrator">
+                              Administrador
+                            </MenuItem>
+                            <MenuItem value="other">Outro</MenuItem>
                           </Select>
                         </FormControl>
                         <Button

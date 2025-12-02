@@ -155,24 +155,30 @@ export function SourcingComponent() {
     setIsPropertyModalOpen(true);
   };
 
-  const handleSaveProperty = (data: PropertySourcingData) => {
+  const handleSaveProperty = (data: PropertySourcingData, acquisitionId?: string) => {
     console.log("Dados da captação de imóvel:", data);
     setPropertyData(data);
+    if (acquisitionId) {
+      setAcquisitionProcessId(acquisitionId);
+      setAcquisitionStatus("IN_ACQUISITION");
+    }
     setIsPropertyModalOpen(false);
     setIsPropertyDetailsOpen(true);
-    // TODO: Implementar lógica de salvar captação de imóvel
   };
 
   const handleSelectContact = () => {
     setIsContactModalOpen(true);
   };
 
-  const handleSaveContact = (data: ContactSourcingData) => {
+  const handleSaveContact = (data: ContactSourcingData, acquisitionId?: string) => {
     console.log("Dados da captação de contato:", data);
     setContactData(data);
+    if (acquisitionId) {
+      setAcquisitionProcessId(acquisitionId);
+      setAcquisitionStatus("IN_ACQUISITION");
+    }
     setIsContactModalOpen(false);
     setIsContactDetailsOpen(true);
-    // TODO: Implementar lógica de salvar captação de contato
   };
 
   const handleSearchResidents = () => {

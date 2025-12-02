@@ -34,7 +34,7 @@ import { GOOGLE_CONFIG } from "../../config/google.constant";
 interface PropertySourcingModalProps {
   open: boolean;
   onClose: () => void;
-  onSave?: (data: PropertySourcingData) => void;
+  onSave?: (data: PropertySourcingData, acquisitionId?: string) => void;
 }
 
 export interface PropertySourcingData {
@@ -544,17 +544,18 @@ export function PropertySourcingModal({
         captureType: "property" as const,
       };
 
-      await postPropertyListingAcquisition(
+      const acquisitionResponse = await postPropertyListingAcquisition(
         auth.store.token,
         acquisitionPayload
       );
+      const acquisitionId = acquisitionResponse.data.id;
 
       // Limpar cache e atualizar os stages/acquisitions para aparecer imediatamente no Kanban
       clearPropertyListingAcquisitionsStagesCache();
       await mutate();
 
-      // Chamar callback se existir
-      onSave?.(formData);
+      // Chamar callback se existir, passando o ID da captação
+      onSave?.(formData, acquisitionId);
 
       // Limpar formulário
       handleClear();

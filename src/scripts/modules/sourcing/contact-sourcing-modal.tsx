@@ -26,7 +26,7 @@ import { mutate } from "swr";
 interface ContactSourcingModalProps {
   open: boolean;
   onClose: () => void;
-  onSave?: (data: ContactSourcingData) => void;
+  onSave?: (data: ContactSourcingData, acquisitionId?: string) => void;
 }
 
 export interface ContactSourcingData {
@@ -191,8 +191,8 @@ export function ContactSourcingModal({
       clearPropertyListingAcquisitionsStagesCache();
       await mutate();
 
-      // Chamar callback se existir
-      onSave?.(formData);
+      // Chamar callback se existir, passando o ID da captação
+      onSave?.(formData, acquisitionId);
 
       // Limpar formulário
       handleClear();
