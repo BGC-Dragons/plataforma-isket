@@ -17,6 +17,7 @@ import {
   type KanbanColumn,
   type ColumnId,
 } from "../../../modules/sourcing/kanban.component";
+import { ListView } from "../../../modules/sourcing/list-view.component";
 import { SourcingTypeModal } from "../../../modules/sourcing/sourcing-type-modal";
 import {
   PropertySourcingModal,
@@ -358,7 +359,7 @@ export function SourcingComponent() {
             width: "100%",
             minHeight: 0,
             backgroundColor: theme.palette.background.default,
-            overflow: "hidden",
+            overflow: viewMode === "list" ? "hidden" : "hidden",
             display: "flex",
             flexDirection: "column",
             pb: { xs: 8, sm: 0 }, // Adicionar padding bottom no mobile para os botões não cobrirem o conteúdo
@@ -373,18 +374,11 @@ export function SourcingComponent() {
               onAddColumn={handleAddColumn}
             />
           ) : (
-            <Box sx={{ p: 3 }}>
-              {/* TODO: Implementar visualização em lista */}
-              <Box
-                sx={{
-                  textAlign: "center",
-                  py: 8,
-                  color: theme.palette.text.secondary,
-                }}
-              >
-                Visualização em lista será implementada aqui
-              </Box>
-            </Box>
+            <ListView
+              columns={kanbanColumns}
+              onCardClick={handleCardClick}
+              onCardDelete={handleCardDelete}
+            />
           )}
         </Box>
 
