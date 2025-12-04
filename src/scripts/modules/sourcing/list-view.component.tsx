@@ -27,6 +27,7 @@ interface ListViewProps {
   columns?: KanbanColumn[];
   onCardClick?: (card: KanbanCardData) => void;
   onCardDelete?: (cardId: string, columnId: ColumnId) => void;
+  searchQuery?: string; // Prop para indicar busca ativa
 }
 
 // Função para mapear listing da API para KanbanCardData
@@ -80,6 +81,7 @@ export function ListView({
   columns: propsColumns,
   onCardClick,
   onCardDelete,
+  searchQuery = "",
 }: ListViewProps) {
   const theme = useTheme();
   const {
@@ -89,17 +91,58 @@ export function ListView({
   } = useGetPropertyListingAcquisitionsStages();
   const [localColumns, setLocalColumns] = useState<KanbanColumn[]>([]);
 
+  // Função para normalizar texto (remover acentos e espaços extras)
+  const normalizeText = (text: string): string => {
+    return text
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // Remove acentos
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, " "); // Normaliza espaços múltiplos
+  };
+
   // Mapear stages da API para columns
   useEffect(() => {
+    // Sempre priorizar dados da API quando disponíveis
     if (stages && stages.length > 0) {
       const mappedColumns = mapStagesToColumns(stages);
-      setLocalColumns(mappedColumns);
+      
+      // Se há busca ativa, filtrar os cards
+      if (searchQuery.trim()) {
+        const searchNormalized = normalizeText(searchQuery);
+        const filtered = mappedColumns.map((column) => ({
+          ...column,
+          cards: column.cards.filter((card) => {
+            if (!card.title) return false;
+            const cardTitle = normalizeText(card.title);
+            return cardTitle.includes(searchNormalized);
+          }),
+        }));
+        setLocalColumns(filtered);
+      } else {
+        setLocalColumns(mappedColumns);
+      }
     } else if (propsColumns) {
-      setLocalColumns(propsColumns);
+      // Fallback para props se não houver dados da API
+      // Se há busca ativa, filtrar os propsColumns também
+      if (searchQuery.trim()) {
+        const searchNormalized = normalizeText(searchQuery);
+        const filtered = propsColumns.map((column) => ({
+          ...column,
+          cards: column.cards.filter((card) => {
+            if (!card.title) return false;
+            const cardTitle = normalizeText(card.title);
+            return cardTitle.includes(searchNormalized);
+          }),
+        }));
+        setLocalColumns(filtered);
+      } else {
+        setLocalColumns(propsColumns);
+      }
     } else {
       setLocalColumns([]);
     }
-  }, [stages, propsColumns]);
+  }, [stages, propsColumns, searchQuery]);
 
   if (isLoading) {
     return (

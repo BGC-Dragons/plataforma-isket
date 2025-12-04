@@ -84,6 +84,7 @@ interface KanbanProps {
   onCardDelete?: (cardId: string, columnId: ColumnId) => void;
   onCardClick?: (card: KanbanCardData) => void;
   onAddColumn?: (column: Omit<KanbanColumn, "id" | "cards">) => void;
+  searchQuery?: string; // Prop para indicar busca ativa
 }
 
 const defaultColumns: KanbanColumn[] = [
@@ -457,6 +458,7 @@ export function Kanban({
   onCardMove,
   onCardDelete,
   onCardClick,
+  searchQuery = "",
 }: KanbanProps) {
   const theme = useTheme();
   const auth = useAuth();
@@ -493,18 +495,58 @@ export function Kanban({
     "home" | "person" | "trending" | "location"
   >("home");
 
+  // Função para normalizar texto (remover acentos e espaços extras)
+  const normalizeText = (text: string): string => {
+    return text
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // Remove acentos
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, " "); // Normaliza espaços múltiplos
+  };
+
   // Mapear stages da API para columns
   useEffect(() => {
+    // Sempre priorizar dados da API quando disponíveis
     if (stages && stages.length > 0) {
       const mappedColumns = mapStagesToColumns(stages);
-      setLocalColumns(mappedColumns);
+      
+      // Se há busca ativa, filtrar os cards
+      if (searchQuery.trim()) {
+        const searchNormalized = normalizeText(searchQuery);
+        const filtered = mappedColumns.map((column) => ({
+          ...column,
+          cards: column.cards.filter((card) => {
+            if (!card.title) return false;
+            const cardTitle = normalizeText(card.title);
+            return cardTitle.includes(searchNormalized);
+          }),
+        }));
+        setLocalColumns(filtered);
+      } else {
+        setLocalColumns(mappedColumns);
+      }
     } else if (propsColumns) {
       // Fallback para props se não houver dados da API
-      setLocalColumns(propsColumns);
+      // Se há busca ativa, filtrar os propsColumns também
+      if (searchQuery.trim()) {
+        const searchNormalized = normalizeText(searchQuery);
+        const filtered = propsColumns.map((column) => ({
+          ...column,
+          cards: column.cards.filter((card) => {
+            if (!card.title) return false;
+            const cardTitle = normalizeText(card.title);
+            return cardTitle.includes(searchNormalized);
+          }),
+        }));
+        setLocalColumns(filtered);
+      } else {
+        setLocalColumns(propsColumns);
+      }
     } else {
       setLocalColumns(defaultColumns);
     }
-  }, [stages, propsColumns]);
+  }, [stages, propsColumns, searchQuery]);
 
   // Configurar sensores para drag and drop
   // Adicionar activationConstraint para permitir cliques simples

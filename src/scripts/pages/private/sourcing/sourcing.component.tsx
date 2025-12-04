@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Box, useTheme, Button } from "@mui/material";
 import {
   Home,
@@ -42,6 +42,7 @@ export function SourcingComponent() {
   const theme = useTheme();
   const auth = useAuth();
   const [searchValue, setSearchValue] = useState("");
+  const [debouncedSearchValue, setDebouncedSearchValue] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPropertyModalOpen, setIsPropertyModalOpen] = useState(false);
@@ -66,7 +67,7 @@ export function SourcingComponent() {
   >(undefined);
 
   // Dados iniciais do Kanban (exemplo)
-  const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>([
+  const initialKanbanColumns: KanbanColumn[] = [
     {
       id: "property-sourcing",
       title: "Captação por imóvel",
@@ -145,7 +146,18 @@ export function SourcingComponent() {
         },
       ],
     },
-  ]);
+  ];
+
+  const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>(initialKanbanColumns);
+
+  // Debounce da busca para melhorar performance
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchValue(searchValue);
+    }, 300); // 300ms de delay
+
+    return () => clearTimeout(timer);
+  }, [searchValue]);
 
   const handleAddCapture = () => {
     setIsModalOpen(true);
@@ -297,7 +309,6 @@ export function SourcingComponent() {
 
   const handleSearchChange = (value: string) => {
     setSearchValue(value);
-    // TODO: Implementar lógica de pesquisa
   };
 
   const handleViewModeChange = (mode: ViewMode) => {
@@ -321,7 +332,7 @@ export function SourcingComponent() {
       const card = sourceColumn.cards.find((c) => c.id === cardId);
       if (!card) return prev;
 
-      return prev.map((col) => {
+      const updated = prev.map((col) => {
         if (col.id === sourceColumnId) {
           return {
             ...col,
@@ -336,17 +347,31 @@ export function SourcingComponent() {
         }
         return col;
       });
+
+      // Atualizar ref se não houver busca ativa
+      if (!debouncedSearchValue.trim()) {
+        originalKanbanColumnsRef.current = updated;
+      }
+
+      return updated;
     });
   };
 
   const handleCardDelete = (cardId: string, columnId: ColumnId) => {
-    setKanbanColumns((prev) =>
-      prev.map((col) =>
+    setKanbanColumns((prev) => {
+      const updated = prev.map((col) =>
         col.id === columnId
           ? { ...col, cards: col.cards.filter((c) => c.id !== cardId) }
           : col
-      )
-    );
+      );
+
+      // Atualizar ref se não houver busca ativa
+      if (!debouncedSearchValue.trim()) {
+        originalKanbanColumnsRef.current = updated;
+      }
+
+      return updated;
+    });
   };
 
   const handleAddColumn = (columnData: {
@@ -357,16 +382,25 @@ export function SourcingComponent() {
     // Gerar um ID único para a nova coluna
     const newId = `column-${Date.now()}` as ColumnId;
 
-    setKanbanColumns((prev) => [
-      ...prev,
-      {
-        id: newId,
-        title: columnData.title,
-        icon: columnData.icon,
-        color: columnData.color,
-        cards: [],
-      },
-    ]);
+    setKanbanColumns((prev) => {
+      const updated = [
+        ...prev,
+        {
+          id: newId,
+          title: columnData.title,
+          icon: columnData.icon,
+          color: columnData.color,
+          cards: [],
+        },
+      ];
+
+      // Atualizar ref se não houver busca ativa
+      if (!debouncedSearchValue.trim()) {
+        originalKanbanColumnsRef.current = updated;
+      }
+
+      return updated;
+    });
   };
 
   return (
@@ -423,12 +457,14 @@ export function SourcingComponent() {
               onCardDelete={handleCardDelete}
               onCardClick={handleCardClick}
               onAddColumn={handleAddColumn}
+              searchQuery={debouncedSearchValue}
             />
           ) : (
             <ListView
               columns={kanbanColumns}
               onCardClick={handleCardClick}
               onCardDelete={handleCardDelete}
+              searchQuery={debouncedSearchValue}
             />
           )}
         </Box>
