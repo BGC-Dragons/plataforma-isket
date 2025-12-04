@@ -96,6 +96,7 @@ export function PropertySourcingDetails({
   const [contactHistory, setContactHistory] = useState<
     IPropertyListingAcquisitionContactHistory[]
   >([]);
+  const [contactSearchQuery, setContactSearchQuery] = useState("");
   const [isLoadingContactHistory, setIsLoadingContactHistory] = useState(false);
   const [isAddingPhone, setIsAddingPhone] = useState<string | null>(null);
   const [isAddingEmail, setIsAddingEmail] = useState<string | null>(null);
@@ -126,6 +127,7 @@ export function PropertySourcingDetails({
       setOwners([]);
       setOwnersError(null);
       setIsLoadingOwners(false);
+      setContactSearchQuery(""); // Limpar busca ao abrir o modal
     }
   }, [open, data.address, data.number]);
 
@@ -258,20 +260,48 @@ export function PropertySourcingDetails({
     return nationalId;
   };
 
-  // Calcular créditos restantes de PROPERTY_VALUATION
-  const getRemainingPropertyValuationCredits = (): number => {
+  // Calcular créditos restantes de RESIDENT_SEARCH
+  const getRemainingResidentSearchCredits = (): number => {
     if (!purchases || purchases.length === 0) return 0;
 
     // Pegar a primeira compra ativa
     const purchase = purchases[0];
-    const propertyValuationUnit = purchase.remainingUnits.find(
-      (unit) => unit.type === "PROPERTY_VALUATION"
+    const residentSearchUnit = purchase.remainingUnits.find(
+      (unit) => unit.type === "RESIDENT_SEARCH"
     );
 
-    return propertyValuationUnit?.unitsRemaining || 0;
+    return residentSearchUnit?.unitsRemaining || 0;
   };
 
-  const remainingPropertyValuationCredits = getRemainingPropertyValuationCredits();
+  const remainingResidentSearchCredits = getRemainingResidentSearchCredits();
+
+  // Função para normalizar texto (remover acentos e espaços extras)
+  const normalizeText = (text: string): string => {
+    return text
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // Remove acentos
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, " "); // Normaliza espaços múltiplos
+  };
+
+  // Filtrar contatos por nome
+  const filteredContactHistory = contactHistory.filter((contact) => {
+    if (!contactSearchQuery.trim()) return true;
+
+    const searchNormalized = normalizeText(contactSearchQuery);
+
+    // Buscar por nome (normalizado)
+    if (contact.contactName) {
+      const contactName = contact.contactName
+        .replace(/\s+UNDEFINED$/i, "")
+        .trim();
+      const normalizedName = normalizeText(contactName);
+      if (normalizedName.includes(searchNormalized)) return true;
+    }
+
+    return false;
+  });
 
   const contactStatusOptions: { value: ContactStatus; label: string }[] = [
     { value: "UNDEFINED", label: "Indefinido" },
@@ -938,7 +968,7 @@ export function PropertySourcingDetails({
                     textAlign: "center",
                   }}
                 >
-                  Você possui <strong>{remainingPropertyValuationCredits}</strong>{" "}
+                  Você possui <strong>{remainingResidentSearchCredits}</strong>{" "}
                   <strong>créditos disponíveis</strong> para revelar
                   proprietários.
                 </Typography>
@@ -1185,6 +1215,8 @@ export function PropertySourcingDetails({
                 <TextField
                   placeholder="Buscar contato"
                   size="small"
+                  value={contactSearchQuery}
+                  onChange={(e) => setContactSearchQuery(e.target.value)}
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
@@ -1254,7 +1286,7 @@ export function PropertySourcingDetails({
                 >
                   <CircularProgress size={24} />
                 </Box>
-              ) : contactHistory.length === 0 ? (
+              ) : filteredContactHistory.length === 0 ? (
                 <Box
                   sx={{
                     textAlign: "center",
@@ -1263,12 +1295,14 @@ export function PropertySourcingDetails({
                   }}
                 >
                   <Typography variant="body2">
-                    Nenhum contato registrado ainda.
+                    {contactSearchQuery.trim()
+                      ? "Nenhum contato encontrado com os critérios de busca."
+                      : "Nenhum contato registrado ainda."}
                   </Typography>
                 </Box>
               ) : (
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                  {contactHistory.map((contact) => (
+                  {filteredContactHistory.map((contact) => (
                     <Paper
                       key={contact.id}
                       elevation={0}
