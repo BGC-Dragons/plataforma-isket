@@ -83,22 +83,42 @@ export function ContactSourcingModal({
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [formData, setFormData] = useState<ContactSourcingData>({
-    name: initialData?.name || "",
-    cpf: initialData?.cpf || "",
-    email: initialData?.email || "",
-    phone: initialData?.phone || "",
-    title: initialData?.title || "",
+    name: "",
+    cpf: "",
+    email: "",
+    phone: "",
+    title: "",
   });
 
-  // Atualizar formData quando initialData mudar
+  // Atualizar formData quando initialData mudar ou limpar quando modal fecha
   useEffect(() => {
-    if (initialData && open) {
+    if (!open) {
+      // Limpar formulário quando modal fecha
+      setFormData({
+        name: "",
+        cpf: "",
+        email: "",
+        phone: "",
+        title: "",
+      });
+      setSaveError(null);
+    } else if (initialData) {
+      // Preencher formulário apenas se houver initialData válido
       setFormData({
         name: initialData.name || "",
         cpf: initialData.cpf || "",
         email: initialData.email || "",
         phone: initialData.phone || "",
         title: initialData.title || "",
+      });
+    } else {
+      // Garantir que o formulário está limpo quando abre sem initialData
+      setFormData({
+        name: "",
+        cpf: "",
+        email: "",
+        phone: "",
+        title: "",
       });
     }
   }, [initialData, open]);

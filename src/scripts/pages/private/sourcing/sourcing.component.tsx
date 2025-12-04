@@ -179,6 +179,7 @@ export function SourcingComponent() {
   };
 
   const handleSelectContact = () => {
+    setContactData(null); // Limpar dados antes de abrir
     setIsContactModalOpen(true);
   };
 
