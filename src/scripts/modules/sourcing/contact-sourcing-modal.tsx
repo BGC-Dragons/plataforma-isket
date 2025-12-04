@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import {
   Dialog,
@@ -27,6 +27,7 @@ interface ContactSourcingModalProps {
   open: boolean;
   onClose: () => void;
   onSave?: (data: ContactSourcingData, acquisitionId?: string) => void;
+  initialData?: Partial<ContactSourcingData>; // Dados iniciais para preencher o formulário
 }
 
 export interface ContactSourcingData {
@@ -73,6 +74,7 @@ export function ContactSourcingModal({
   open,
   onClose,
   onSave,
+  initialData,
 }: ContactSourcingModalProps) {
   const theme = useTheme();
   const auth = useAuth();
@@ -81,12 +83,25 @@ export function ContactSourcingModal({
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [formData, setFormData] = useState<ContactSourcingData>({
-    name: "",
-    cpf: "",
-    email: "",
-    phone: "",
-    title: "",
+    name: initialData?.name || "",
+    cpf: initialData?.cpf || "",
+    email: initialData?.email || "",
+    phone: initialData?.phone || "",
+    title: initialData?.title || "",
   });
+
+  // Atualizar formData quando initialData mudar
+  useEffect(() => {
+    if (initialData && open) {
+      setFormData({
+        name: initialData.name || "",
+        cpf: initialData.cpf || "",
+        email: initialData.email || "",
+        phone: initialData.phone || "",
+        title: initialData.title || "",
+      });
+    }
+  }, [initialData, open]);
 
   const handleChange = (field: keyof ContactSourcingData, value: string) => {
     let formattedValue = value;
@@ -200,8 +215,11 @@ export function ContactSourcingModal({
       // Fechar modal
       onClose();
 
-      // Navegar para a página de captação
-      navigate("/captacao");
+      // Navegar para a página de captação apenas se não houver callback
+      // (se houver callback, o componente pai controla a navegação)
+      if (!onSave) {
+        navigate("/captacao");
+      }
     } catch (error: unknown) {
       console.error("Erro ao criar captação de contato:", error);
       if (error && typeof error === "object" && "response" in error) {

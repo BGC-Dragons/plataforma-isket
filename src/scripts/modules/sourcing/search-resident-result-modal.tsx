@@ -64,7 +64,10 @@ export function SearchResidentResultModal({
           borderRadius: 3,
           overflow: "hidden",
           boxShadow: theme.shadows[24],
+          height: "90vh",
           maxHeight: "90vh",
+          display: "flex",
+          flexDirection: "column",
         },
       }}
       BackdropProps={{
@@ -74,7 +77,14 @@ export function SearchResidentResultModal({
       }}
     >
       <DialogContent
-        sx={{ p: 0, display: "flex", flexDirection: "column", height: "100%" }}
+        sx={{
+          p: 0,
+          display: "flex",
+          flexDirection: "column",
+          height: "100%",
+          maxHeight: "100%",
+          overflow: "hidden",
+        }}
       >
         {/* Header */}
         <Box

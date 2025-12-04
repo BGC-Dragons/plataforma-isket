@@ -181,10 +181,15 @@ export function ResidentSearchModal({
 
   // Converter IPropertyOwner para ResidentResult
   const convertOwnerToResult = (owner: IPropertyOwner): ResidentResult => {
+    // Remover "undefined" do nome se lastName for undefined
+    const firstName = owner.firstName || "";
+    const lastName = owner.lastName || "";
+    const fullName = `${firstName} ${lastName}`.trim().replace(/\s+undefined\s*/gi, " ").trim();
+    
     return {
       id:
-        owner.id || `${owner.firstName}-${owner.lastName}-${owner.nationalId}`,
-      name: `${owner.firstName} ${owner.lastName}`.trim(),
+        owner.id || `${owner.firstName}-${owner.lastName || ""}-${owner.nationalId}`,
+      name: fullName || "Nome não informado",
       cpf: owner.nationalId,
     };
   };

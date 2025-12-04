@@ -44,6 +44,7 @@ import {
 import { ResidentSearchModal } from "./resident-search-modal";
 import type { ResidentResult } from "./search-resident-result-modal";
 import { postPropertyListingAcquisitionContactHistory } from "../../../services/post-property-listing-acquisition-contact-history.service";
+import { RevealContactModal } from "./reveal-contact-modal";
 import { getPropertyListingAcquisitionsContactHistory } from "../../../services/get-property-listing-acquisitions-contact-history.service";
 import { patchPropertyListingAcquisitionContactHistory } from "../../../services/patch-property-listing-acquisition-contact-history.service";
 import { deletePropertyListingAcquisitionContactHistory } from "../../../services/delete-property-listing-acquisition-contact-history.service";
@@ -54,6 +55,7 @@ import type {
   IPropertyListingAcquisitionContactHistory,
   ContactStatus,
 } from "../../../services/get-property-listing-acquisitions-contact-history.service";
+import { useGetPurchases } from "../../../services/get-purchases.service";
 
 interface PropertySourcingDetailsProps {
   open: boolean;
@@ -78,6 +80,7 @@ export function PropertySourcingDetails({
 }: PropertySourcingDetailsProps) {
   const theme = useTheme();
   const auth = useAuth();
+  const { data: purchases } = useGetPurchases();
   const [currentStatus, setCurrentStatus] = useState<
     "IN_ACQUISITION" | "DECLINED" | "ACQUIRED"
   >(acquisitionStatus || "IN_ACQUISITION");
@@ -88,6 +91,8 @@ export function PropertySourcingDetails({
   const [ownersError, setOwnersError] = useState<string | null>(null);
   const [isResidentSearchModalOpen, setIsResidentSearchModalOpen] =
     useState(false);
+  const [isRevealContactModalOpen, setIsRevealContactModalOpen] = useState(false);
+  const [selectedOwner, setSelectedOwner] = useState<IPropertyOwner | null>(null);
   const [contactHistory, setContactHistory] = useState<
     IPropertyListingAcquisitionContactHistory[]
   >([]);
@@ -252,6 +257,21 @@ export function PropertySourcingDetails({
     }
     return nationalId;
   };
+
+  // Calcular créditos restantes de PROPERTY_VALUATION
+  const getRemainingPropertyValuationCredits = (): number => {
+    if (!purchases || purchases.length === 0) return 0;
+
+    // Pegar a primeira compra ativa
+    const purchase = purchases[0];
+    const propertyValuationUnit = purchase.remainingUnits.find(
+      (unit) => unit.type === "PROPERTY_VALUATION"
+    );
+
+    return propertyValuationUnit?.unitsRemaining || 0;
+  };
+
+  const remainingPropertyValuationCredits = getRemainingPropertyValuationCredits();
 
   const contactStatusOptions: { value: ContactStatus; label: string }[] = [
     { value: "UNDEFINED", label: "Indefinido" },
@@ -918,7 +938,7 @@ export function PropertySourcingDetails({
                     textAlign: "center",
                   }}
                 >
-                  Você possui <strong>300</strong>{" "}
+                  Você possui <strong>{remainingPropertyValuationCredits}</strong>{" "}
                   <strong>créditos disponíveis</strong> para revelar
                   proprietários.
                 </Typography>
@@ -1091,6 +1111,10 @@ export function PropertySourcingDetails({
                       <Button
                         size="small"
                         variant="contained"
+                        onClick={() => {
+                          setSelectedOwner(owner);
+                          setIsRevealContactModalOpen(true);
+                        }}
                         sx={{
                           backgroundColor: "#1976d2",
                           color: theme.palette.common.white,
@@ -1647,6 +1671,18 @@ export function PropertySourcingDetails({
         open={isResidentSearchModalOpen}
         onClose={() => setIsResidentSearchModalOpen(false)}
         onSearchComplete={handleResidentSearchComplete}
+      />
+
+      {/* Modal de revelar contato */}
+      <RevealContactModal
+        open={isRevealContactModalOpen}
+        onClose={() => {
+          setIsRevealContactModalOpen(false);
+          setSelectedOwner(null);
+        }}
+        owner={selectedOwner}
+        acquisitionProcessId={acquisitionProcessId}
+        onContactCreated={loadContactHistory}
       />
 
       {/* Dialog de Telefones */}

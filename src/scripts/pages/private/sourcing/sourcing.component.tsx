@@ -207,9 +207,24 @@ export function SourcingComponent() {
     // TODO: Implementar lógica de criar captação
   };
 
-  const handleReveal = (resident: ResidentResult) => {
+  const handleReveal = async (resident: ResidentResult) => {
     console.log("Revelar dados de:", resident);
-    // TODO: Implementar lógica de revelar
+    
+    // Fechar o modal de resultados
+    setIsResidentResultModalOpen(false);
+    
+    // Criar dados de contato a partir do residente
+    const contactData: ContactSourcingData = {
+      name: resident.name.replace(/\s+UNDEFINED$/i, "").trim(), // Remover UNDEFINED se houver
+      cpf: resident.cpf.replace(/\D/g, ""), // Apenas números
+      email: "",
+      phone: "",
+      title: `Imóvel de ${resident.name.replace(/\s+UNDEFINED$/i, "").trim()}`,
+    };
+    
+    // Abrir o modal de captação por contato
+    setContactData(contactData);
+    setIsContactModalOpen(true);
   };
 
   const handleCardClick = async (card: KanbanCardData) => {
@@ -498,8 +513,12 @@ export function SourcingComponent() {
       {/* Modal de captação de contato */}
       <ContactSourcingModal
         open={isContactModalOpen}
-        onClose={() => setIsContactModalOpen(false)}
+        onClose={() => {
+          setIsContactModalOpen(false);
+          setContactData(null); // Limpar dados ao fechar
+        }}
         onSave={handleSaveContact}
+        initialData={contactData || undefined}
       />
 
       {/* Modal de detalhes de captação de imóvel */}
