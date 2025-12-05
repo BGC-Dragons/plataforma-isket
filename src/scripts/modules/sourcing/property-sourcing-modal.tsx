@@ -43,6 +43,7 @@ export interface PropertySourcingData {
   complement: string;
   propertyType: string;
   title: string;
+  formattedAddress?: string; // Endereço completo formatado para uso na API
 }
 
 const propertyTypes = [

@@ -194,8 +194,12 @@ export function PropertySourcingDetails({
         throw new Error("Número do endereço inválido");
       }
 
+      // Usar formattedAddress completo se disponível, senão construir do address + number
+      const formattedAddressForApi = data.formattedAddress || 
+        (data.address && data.number ? `${data.address}, ${data.number}` : data.address);
+
       const params = {
-        formattedAddress: data.address,
+        formattedAddress: formattedAddressForApi,
         streetNumber: streetNumber,
         propertyComplement: data.complement || null,
         // Se tiver coordenadas, adicionar (mas não temos no PropertySourcingData atual)

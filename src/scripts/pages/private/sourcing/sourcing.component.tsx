@@ -257,12 +257,42 @@ export function SourcingComponent() {
       // Se for um card de propriedade
       if (card.type === "property") {
         // Converter para PropertySourcingData
+        let address = acquisition.formattedAddress || "";
+        let number = acquisition.addressNumber?.toString() || "";
+
+        // Se não tiver número, tentar extrair do formattedAddress
+        if (!number && address) {
+          // O formattedAddress pode vir em formatos como:
+          // "RUA, NUMERO, BAIRRO, CIDADE - ESTADO, CEP"
+          // "RUA NUMERO, BAIRRO, CIDADE - ESTADO, CEP"
+          const addressParts = address.split(",").map((p) => p.trim());
+          
+          if (addressParts.length >= 2) {
+            // Formato: "RUA, NUMERO, ..."
+            const numberMatch = addressParts[1].match(/\d+/);
+            if (numberMatch) {
+              number = numberMatch[0];
+              // Remover o número do endereço para manter apenas a rua
+              address = addressParts[0];
+            }
+          } else if (addressParts.length === 1) {
+            // Formato: "RUA NUMERO"
+            const numberMatch = addressParts[0].match(/(\d+)/);
+            if (numberMatch) {
+              number = numberMatch[1];
+              address = addressParts[0].replace(/\d+.*/, "").trim();
+            }
+          }
+        }
+
         const propertyData: PropertySourcingData = {
-          address: acquisition.formattedAddress || "",
-          number: acquisition.addressNumber?.toString() || "",
+          address: address,
+          number: number,
           complement: acquisition.addressComplement || "",
           propertyType: "", // Não temos essa informação na captação
           title: acquisition.title || "",
+          // Armazenar o formattedAddress completo para usar na API
+          formattedAddress: acquisition.formattedAddress || "",
         };
 
         setPropertyData(propertyData);

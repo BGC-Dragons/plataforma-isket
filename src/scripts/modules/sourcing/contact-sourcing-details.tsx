@@ -47,6 +47,8 @@ import { patchPropertyListingAcquisitionContactHistory } from "../../../services
 import { CreateContactModal } from "./create-contact-modal";
 import { getPropertyListingAcquisitionContacts } from "../../../services/get-property-listing-acquisition-contacts.service";
 import type { IPropertyListingAcquisitionContact } from "../../../services/post-property-listing-acquisition-contact.service";
+import { useGetPurchases } from "../../../services/get-purchases.service";
+import { CreatePropertyCaptureModal } from "./create-property-capture-modal";
 
 interface ContactSourcingDetailsProps {
   open: boolean;
@@ -69,6 +71,7 @@ export function ContactSourcingDetails({
 }: ContactSourcingDetailsProps) {
   const theme = useTheme();
   const auth = useAuth();
+  const { data: purchases } = useGetPurchases();
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(data.title);
   const [isRevealingProperties, setIsRevealingProperties] = useState(false);
@@ -93,6 +96,10 @@ export function ContactSourcingDetails({
     IPropertyListingAcquisitionContact[]
   >([]);
   const [isLoadingContacts, setIsLoadingContacts] = useState(false);
+  const [isCreatePropertyCaptureModalOpen, setIsCreatePropertyCaptureModalOpen] =
+    useState(false);
+  const [selectedPropertyForCapture, setSelectedPropertyForCapture] =
+    useState<IRevealedProperty | null>(null);
 
   useEffect(() => {
     setEditedTitle(data.title);
@@ -206,6 +213,21 @@ export function ContactSourcingDetails({
       loadContactHistory();
     }
   }, [acquisitionProcessId, auth.store.token, loadContactHistory]);
+
+  // Calcular créditos restantes de RESIDENT_SEARCH
+  const getRemainingResidentSearchCredits = (): number => {
+    if (!purchases || purchases.length === 0) return 0;
+
+    // Pegar a primeira compra ativa
+    const purchase = purchases[0];
+    const residentSearchUnit = purchase.remainingUnits.find(
+      (unit) => unit.type === "RESIDENT_SEARCH"
+    );
+
+    return residentSearchUnit?.unitsRemaining || 0;
+  };
+
+  const remainingResidentSearchCredits = getRemainingResidentSearchCredits();
 
   const handleRevealProperties = async () => {
     if (!acquisitionProcessId || !auth.store.token || !data.cpf) {
@@ -688,6 +710,25 @@ export function ContactSourcingDetails({
     // Recarregar contatos e histórico de contatos após criar um novo contato
     await loadContacts();
     await loadContactHistory();
+  };
+
+  const handleCreateCapture = (property: IRevealedProperty) => {
+    setSelectedPropertyForCapture(property);
+    setIsCreatePropertyCaptureModalOpen(true);
+  };
+
+  const handleCaptureCreated = (captureId: string) => {
+    // Atualizar o estado da propriedade para mostrar "Captado"
+    if (selectedPropertyForCapture) {
+      setRevealedProperties((prev) =>
+        prev.map((prop) =>
+          prop.id === selectedPropertyForCapture.id
+            ? { ...prop, captureCreated: true, captureId }
+            : prop
+        )
+      );
+    }
+    setSelectedPropertyForCapture(null);
   };
 
   const formatCPF = (cpf: string | undefined | null) => {
@@ -1262,7 +1303,7 @@ export function ContactSourcingDetails({
                     textAlign: "center",
                   }}
                 >
-                  Você possui <strong>300</strong>{" "}
+                  Você possui <strong>{remainingResidentSearchCredits}</strong>{" "}
                   <strong>créditos disponíveis</strong> para revelar e/ou
                   atualizar imóveis.
                 </Typography>
@@ -1530,6 +1571,7 @@ export function ContactSourcingDetails({
                           size="small"
                           variant="contained"
                           disabled={property.captureCreated}
+                          onClick={() => handleCreateCapture(property)}
                           sx={{
                             backgroundColor: "#1976d2",
                             color: theme.palette.common.white,
@@ -1547,7 +1589,7 @@ export function ContactSourcingDetails({
                           }}
                         >
                           {property.captureCreated
-                            ? "Captação criada"
+                            ? "Captado"
                             : "Criar captação"}
                         </Button>
                       </Box>
@@ -1988,6 +2030,23 @@ export function ContactSourcingDetails({
           onClose={() => setIsCreateContactModalOpen(false)}
           acquisitionProcessId={acquisitionProcessId}
           onContactCreated={handleContactCreated}
+        />
+      )}
+
+      {/* Modal de Criar Captação de Imóvel */}
+      {selectedPropertyForCapture && (
+        <CreatePropertyCaptureModal
+          open={isCreatePropertyCaptureModalOpen}
+          onClose={() => {
+            setIsCreatePropertyCaptureModalOpen(false);
+            setSelectedPropertyForCapture(null);
+          }}
+          property={selectedPropertyForCapture}
+          contactName={data.name}
+          contactCpf={data.cpf}
+          contactPhones={mainPhones}
+          contactEmails={mainEmails}
+          onCaptureCreated={handleCaptureCreated}
         />
       )}
     </Dialog>
