@@ -10,6 +10,7 @@ export interface KanbanCardData {
   subtitle?: string;
   contact?: string;
   address?: string;
+  status?: "IN_ACQUISITION" | "DECLINED" | "ACQUIRED";
 }
 
 interface KanbanCardProps {

@@ -4,7 +4,6 @@ import { getHeader } from "./helpers/get-header-function";
 import type {
   IPropertyListingAcquisitionContactHistory,
   ContactStatus,
-  IContactNote,
 } from "./get-property-listing-acquisitions-contact-history.service";
 
 export interface IPostPropertyListingAcquisitionContactHistoryRequest {
@@ -15,7 +14,14 @@ export interface IPostPropertyListingAcquisitionContactHistoryRequest {
   emails?: string[];
   phones?: string[];
   contactDate: string; // ISO 8601
-  contactNotes?: string | Array<{ content: string; id?: string; createdAt?: string; updatedAt?: string }>;
+  contactNotes?:
+    | string
+    | Array<{
+        content: string;
+        id?: string;
+        createdAt?: string;
+        updatedAt?: string;
+      }>;
   status?: ContactStatus;
 }
 
@@ -39,4 +45,3 @@ export const postPropertyListingAcquisitionContactHistory = (
     }
   );
 };
-

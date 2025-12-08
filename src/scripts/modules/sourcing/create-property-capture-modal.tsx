@@ -28,7 +28,6 @@ import { mapPropertyTypeToApi } from "../../../services/helpers/map-property-typ
 import { postPropertyListingAcquisitionContactHistory } from "../../../services/post-property-listing-acquisition-contact-history.service";
 import { putRevealedProperty } from "../../../services/get-property-listing-acquisitions-revealed-properties.service";
 import type { IRevealedProperty } from "../../../services/get-property-listing-acquisitions-revealed-properties.service";
-import { mutate } from "swr";
 
 interface CreatePropertyCaptureModalProps {
   open: boolean;
@@ -113,7 +112,7 @@ export function CreatePropertyCaptureModal({
     if (open && property) {
       // Construir endereço formatado completo
       const addressParts: string[] = [];
-      
+
       // Usar rawAddress.formattedAddress se disponível, senão construir do address
       if (property.rawAddress?.formattedAddress) {
         addressParts.push(property.rawAddress.formattedAddress);
@@ -315,7 +314,6 @@ export function CreatePropertyCaptureModal({
       // Limpar cache e atualizar os stages/acquisitions
       clearPropertyListingAcquisitionsStagesCache();
       await mutateStages();
-      await mutate();
 
       // Chamar callback
       onCaptureCreated?.(acquisitionId);
@@ -335,9 +333,7 @@ export function CreatePropertyCaptureModal({
       } else if (error instanceof Error) {
         setError(error.message);
       } else {
-        setError(
-          "Erro inesperado ao criar captação. Tente novamente."
-        );
+        setError("Erro inesperado ao criar captação. Tente novamente.");
       }
     } finally {
       setIsCreating(false);
@@ -536,4 +532,3 @@ export function CreatePropertyCaptureModal({
     </Dialog>
   );
 }
-

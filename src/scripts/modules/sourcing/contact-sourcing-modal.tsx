@@ -21,7 +21,6 @@ import {
   clearPropertyListingAcquisitionsStagesCache,
 } from "../../../services/get-property-listing-acquisitions-stages.service";
 import { postPropertyListingAcquisitionContactHistory } from "../../../services/post-property-listing-acquisition-contact-history.service";
-import { mutate } from "swr";
 
 interface ContactSourcingModalProps {
   open: boolean;
@@ -208,7 +207,7 @@ export function ContactSourcingModal({
       // Criar histórico de contato (POST /property-listing-acquisitions/contact-history)
       const phones = formData.phone ? [formData.phone] : [];
       const emails = formData.email ? [formData.email] : [];
-      
+
       await postPropertyListingAcquisitionContactHistory(
         {
           acquisitionProcessId: acquisitionId,
@@ -332,6 +331,13 @@ export function ContactSourcingModal({
           >
             Preencha as informações do imóvel que deseja captar.
           </Typography>
+
+          {/* Error Message */}
+          {saveError && (
+            <Alert severity="error" sx={{ mb: 3 }}>
+              {saveError}
+            </Alert>
+          )}
 
           {/* Form Fields */}
           <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Box, useTheme, Button } from "@mui/material";
 import {
   Home,
@@ -148,7 +148,8 @@ export function SourcingComponent() {
     },
   ];
 
-  const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>(initialKanbanColumns);
+  const [kanbanColumns, setKanbanColumns] =
+    useState<KanbanColumn[]>(initialKanbanColumns);
   const originalKanbanColumnsRef = useRef<KanbanColumn[]>(initialKanbanColumns);
 
   // Debounce da busca para melhorar performance
@@ -168,7 +169,10 @@ export function SourcingComponent() {
     setIsPropertyModalOpen(true);
   };
 
-  const handleSaveProperty = (data: PropertySourcingData, acquisitionId?: string) => {
+  const handleSaveProperty = (
+    data: PropertySourcingData,
+    acquisitionId?: string
+  ) => {
     console.log("Dados da captação de imóvel:", data);
     setPropertyData(data);
     if (acquisitionId) {
@@ -184,7 +188,10 @@ export function SourcingComponent() {
     setIsContactModalOpen(true);
   };
 
-  const handleSaveContact = (data: ContactSourcingData, acquisitionId?: string) => {
+  const handleSaveContact = (
+    data: ContactSourcingData,
+    acquisitionId?: string
+  ) => {
     console.log("Dados da captação de contato:", data);
     setContactData(data);
     if (acquisitionId) {
@@ -218,10 +225,10 @@ export function SourcingComponent() {
 
   const handleReveal = async (resident: ResidentResult) => {
     console.log("Revelar dados de:", resident);
-    
+
     // Fechar o modal de resultados
     setIsResidentResultModalOpen(false);
-    
+
     // Criar dados de contato a partir do residente
     const contactData: ContactSourcingData = {
       name: resident.name.replace(/\s+UNDEFINED$/i, "").trim(), // Remover UNDEFINED se houver
@@ -230,7 +237,7 @@ export function SourcingComponent() {
       phone: "",
       title: `Imóvel de ${resident.name.replace(/\s+UNDEFINED$/i, "").trim()}`,
     };
-    
+
     // Abrir o modal de captação por contato
     setContactData(contactData);
     setIsContactModalOpen(true);
@@ -262,7 +269,7 @@ export function SourcingComponent() {
           // "RUA, NUMERO, BAIRRO, CIDADE - ESTADO, CEP"
           // "RUA NUMERO, BAIRRO, CIDADE - ESTADO, CEP"
           const addressParts = address.split(",").map((p) => p.trim());
-          
+
           if (addressParts.length >= 2) {
             // Formato: "RUA, NUMERO, ..."
             const numberMatch = addressParts[1].match(/\d+/);
