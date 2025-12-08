@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Box, useTheme, Button } from "@mui/material";
 import {
   Home,
@@ -149,6 +149,7 @@ export function SourcingComponent() {
   ];
 
   const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>(initialKanbanColumns);
+  const originalKanbanColumnsRef = useRef<KanbanColumn[]>(initialKanbanColumns);
 
   // Debounce da busca para melhorar performance
   useEffect(() => {
@@ -213,11 +214,6 @@ export function SourcingComponent() {
   const handleBackToSearch = () => {
     setIsResidentResultModalOpen(false);
     setIsResidentSearchModalOpen(true);
-  };
-
-  const handleCreateCapture = (resident: ResidentResult) => {
-    console.log("Criar captação para:", resident);
-    // TODO: Implementar lógica de criar captação
   };
 
   const handleReveal = async (resident: ResidentResult) => {
@@ -664,7 +660,6 @@ export function SourcingComponent() {
         onClose={() => setIsResidentResultModalOpen(false)}
         onBack={handleBackToSearch}
         results={residentSearchResults}
-        onCreateCapture={handleCreateCapture}
         onReveal={handleReveal}
       />
     </Box>

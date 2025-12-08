@@ -22,7 +22,6 @@ interface SearchResidentResultModalProps {
   onClose: () => void;
   onBack: () => void;
   results?: ResidentResult[];
-  onCreateCapture?: (resident: ResidentResult) => void;
   onReveal?: (resident: ResidentResult) => void;
 }
 
@@ -31,7 +30,6 @@ export function SearchResidentResultModal({
   onClose,
   onBack,
   results = [],
-  onCreateCapture,
   onReveal,
 }: SearchResidentResultModalProps) {
   const theme = useTheme();
@@ -228,7 +226,7 @@ export function SearchResidentResultModal({
                   </Typography>
                 </Box>
 
-                {/* Botões */}
+                {/* Botão */}
                 <Box
                   sx={{
                     display: "flex",
@@ -236,23 +234,6 @@ export function SearchResidentResultModal({
                     flexShrink: 0,
                   }}
                 >
-                  <Button
-                    variant="contained"
-                    onClick={() => onCreateCapture?.(resident)}
-                    sx={{
-                      textTransform: "none",
-                      borderRadius: 1.5,
-                      px: 2,
-                      py: 0.75,
-                      fontSize: "0.75rem",
-                      backgroundColor: theme.palette.primary.main,
-                      "&:hover": {
-                        backgroundColor: theme.palette.primary.dark,
-                      },
-                    }}
-                  >
-                    Criar captação
-                  </Button>
                   <Button
                     variant="contained"
                     onClick={() => onReveal?.(resident)}
@@ -268,7 +249,7 @@ export function SearchResidentResultModal({
                       },
                     }}
                   >
-                    Revelar
+                    Captar contato
                   </Button>
                 </Box>
               </Paper>

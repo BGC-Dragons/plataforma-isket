@@ -27,6 +27,7 @@ import { getPropertyOwnerFinderByDetails } from "../../../services/get-property-
 import { getPropertyOwnerFinderCompanyByRegistrationNumber } from "../../../services/get-property-owner-finder-company-by-registration-number.service";
 import type { IPropertyOwner } from "../../../services/get-property-owner-finder-by-address.service";
 import type { ResidentResult } from "./search-resident-result-modal";
+import { useGetPurchases } from "../../../services/get-purchases.service";
 
 interface ResidentSearchModalProps {
   open: boolean;
@@ -129,6 +130,7 @@ export function ResidentSearchModal({
 }: ResidentSearchModalProps) {
   const theme = useTheme();
   const auth = useAuth();
+  const { data: purchases } = useGetPurchases();
   const [formData, setFormData] = useState<ResidentSearchData>({
     nameOrCompany: "",
     street: "",
@@ -144,6 +146,21 @@ export function ResidentSearchModal({
   });
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+
+  // Calcular créditos restantes de RESIDENT_SEARCH
+  const getRemainingResidentSearchCredits = (): number => {
+    if (!purchases || purchases.length === 0) return 0;
+
+    // Pegar a primeira compra ativa
+    const purchase = purchases[0];
+    const residentSearchUnit = purchase.remainingUnits.find(
+      (unit) => unit.type === "RESIDENT_SEARCH"
+    );
+
+    return residentSearchUnit?.unitsRemaining || 0;
+  };
+
+  const remainingResidentSearchCredits = getRemainingResidentSearchCredits();
 
   const handleChange = (field: keyof ResidentSearchData, value: string) => {
     let formattedValue = value;
@@ -184,11 +201,15 @@ export function ResidentSearchModal({
     // Remover "undefined" do nome se lastName for undefined
     const firstName = owner.firstName || "";
     const lastName = owner.lastName || "";
-    const fullName = `${firstName} ${lastName}`.trim().replace(/\s+undefined\s*/gi, " ").trim();
-    
+    const fullName = `${firstName} ${lastName}`
+      .trim()
+      .replace(/\s+undefined\s*/gi, " ")
+      .trim();
+
     return {
       id:
-        owner.id || `${owner.firstName}-${owner.lastName || ""}-${owner.nationalId}`,
+        owner.id ||
+        `${owner.firstName}-${owner.lastName || ""}-${owner.nationalId}`,
       name: fullName || "Nome não informado",
       cpf: owner.nationalId,
     };
@@ -831,7 +852,7 @@ export function ResidentSearchModal({
                   mt: 0.25,
                 }}
               >
-                287 créditos disponíveis
+                {remainingResidentSearchCredits} créditos disponíveis
               </Typography>
             </>
           )}
