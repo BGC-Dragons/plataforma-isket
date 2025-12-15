@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Modal,
   Box,
@@ -19,7 +19,6 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
-  Chip,
   ToggleButton,
   ToggleButtonGroup,
   Divider,
@@ -31,10 +30,7 @@ import {
   ZoomOut,
   ExpandMore,
   ExpandLess,
-  CheckBox,
-  CheckBoxOutlineBlank,
 } from "@mui/icons-material";
-import type { IPropertyAd } from "../../../../services/post-property-ad-search.service";
 import {
   createInitialReportData,
   calculateSummary,
@@ -42,10 +38,10 @@ import {
   generateInitialAnalysis,
   formatCurrency,
   type ReportData,
-  type ReportProperty,
 } from "./report-generator";
 import { mapCalculationCriterionToAreaType } from "./evaluation-helpers";
 import { ReportTemplate } from "./report-template";
+import type { IPropertyAd } from "../../../services/post-property-ad-search.service";
 
 interface GenerateReportModalProps {
   open: boolean;
@@ -103,7 +99,10 @@ export function GenerateReportModal({
         reportAreaType
       );
       // Gera análises iniciais
-      initialData.analysis = generateInitialAnalysis(initialData, reportAreaType);
+      initialData.analysis = generateInitialAnalysis(
+        initialData,
+        reportAreaType
+      );
       setReportData(initialData);
       // Expande imóveis incluídos por padrão
       const includedIds = initialData.properties
@@ -183,6 +182,7 @@ export function GenerateReportModal({
   const handlePropertyChange = (
     propertyId: string,
     field: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     value: any
   ) => {
     if (!reportData) return;
@@ -200,14 +200,20 @@ export function GenerateReportModal({
             if (updated.totalArea > 0) {
               updated.pricePerM2Total = updated.price / updated.totalArea;
             }
-          } else if (field === "pricePerM2Usable" && updated.pricePerM2Usable > 0) {
+          } else if (
+            field === "pricePerM2Usable" &&
+            updated.pricePerM2Usable > 0
+          ) {
             if (updated.usableArea > 0) {
               updated.price = updated.pricePerM2Usable * updated.usableArea;
               if (updated.totalArea > 0) {
                 updated.pricePerM2Total = updated.price / updated.totalArea;
               }
             }
-          } else if (field === "pricePerM2Total" && updated.pricePerM2Total > 0) {
+          } else if (
+            field === "pricePerM2Total" &&
+            updated.pricePerM2Total > 0
+          ) {
             if (updated.totalArea > 0) {
               updated.price = updated.pricePerM2Total * updated.totalArea;
               if (updated.usableArea > 0) {
@@ -377,7 +383,9 @@ export function GenerateReportModal({
         </Box>
 
         {/* Content */}
-        <Box sx={{ display: "flex", flex: 1, overflow: "hidden", minHeight: 0 }}>
+        <Box
+          sx={{ display: "flex", flex: 1, overflow: "hidden", minHeight: 0 }}
+        >
           {/* Left Column - Form (40%) */}
           <Box
             sx={{
@@ -458,7 +466,9 @@ export function GenerateReportModal({
                     fullWidth
                     placeholder="Nome do responsável"
                     value={reportData.author}
-                    onChange={(e) => handleInputChange("author", e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("author", e.target.value)
+                    }
                   />
                   <TextField
                     label="Data"
@@ -612,11 +622,18 @@ export function GenerateReportModal({
                             onClick={(e) => e.stopPropagation()}
                           />
                           <Box sx={{ flex: 1 }}>
-                            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                            <Typography
+                              variant="subtitle2"
+                              sx={{ fontWeight: 600 }}
+                            >
                               {property.title}
                             </Typography>
-                            <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                              {property.address.neighborhood}, {property.address.city}
+                            <Typography
+                              variant="caption"
+                              sx={{ color: "text.secondary" }}
+                            >
+                              {property.address.neighborhood},{" "}
+                              {property.address.city}
                             </Typography>
                           </Box>
                           <Typography
@@ -628,14 +645,24 @@ export function GenerateReportModal({
                         </Box>
                       </AccordionSummary>
                       <AccordionDetails>
-                        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 2,
+                          }}
+                        >
                           <TextField
                             label="Título"
                             fullWidth
                             size="small"
                             value={property.title}
                             onChange={(e) =>
-                              handlePropertyChange(property.id, "title", e.target.value)
+                              handlePropertyChange(
+                                property.id,
+                                "title",
+                                e.target.value
+                              )
                             }
                           />
                           <TextField
@@ -803,7 +830,10 @@ export function GenerateReportModal({
                             />
                           </Box>
                           <Divider />
-                          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                          <Typography
+                            variant="subtitle2"
+                            sx={{ fontWeight: 600 }}
+                          >
                             Endereço Completo
                           </Typography>
                           <TextField
@@ -893,7 +923,10 @@ export function GenerateReportModal({
                             placeholder="Piscina, Academia, Churrasqueira, Varanda"
                             value={property.features.join(", ")}
                             onChange={(e) =>
-                              handlePropertyFeaturesChange(property.id, e.target.value)
+                              handlePropertyFeaturesChange(
+                                property.id,
+                                e.target.value
+                              )
                             }
                           />
                           <TextField
@@ -923,7 +956,7 @@ export function GenerateReportModal({
               <TabPanel value={activeTab} index={3}>
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   <Button
-                    variant="outlined"
+                    variant="contained"
                     size="small"
                     onClick={() => {
                       if (reportData) {
@@ -1001,7 +1034,10 @@ export function GenerateReportModal({
               <TabPanel value={activeTab} index={4}>
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
                   <Box>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                    <Typography
+                      variant="subtitle2"
+                      sx={{ fontWeight: 600, mb: 1 }}
+                    >
                       Cor Primária
                     </Typography>
                     <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
@@ -1031,7 +1067,10 @@ export function GenerateReportModal({
                   </Box>
 
                   <Box>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                    <Typography
+                      variant="subtitle2"
+                      sx={{ fontWeight: 600, mb: 1 }}
+                    >
                       Cor Secundária
                     </Typography>
                     <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
@@ -1071,14 +1110,21 @@ export function GenerateReportModal({
                     >
                       <MenuItem value="Inter, sans-serif">Inter</MenuItem>
                       <MenuItem value="'Roboto', sans-serif">Roboto</MenuItem>
-                      <MenuItem value="'Open Sans', sans-serif">Open Sans</MenuItem>
-                      <MenuItem value="'Montserrat', sans-serif">Montserrat</MenuItem>
+                      <MenuItem value="'Open Sans', sans-serif">
+                        Open Sans
+                      </MenuItem>
+                      <MenuItem value="'Montserrat', sans-serif">
+                        Montserrat
+                      </MenuItem>
                       <MenuItem value="'Poppins', sans-serif">Poppins</MenuItem>
                     </Select>
                   </FormControl>
 
                   <Box>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                    <Typography
+                      variant="subtitle2"
+                      sx={{ fontWeight: 600, mb: 1 }}
+                    >
                       Posição do Logo
                     </Typography>
                     <ToggleButtonGroup
@@ -1100,7 +1146,10 @@ export function GenerateReportModal({
                       <Checkbox
                         checked={reportData.styling.showCompanyInfo}
                         onChange={(e) =>
-                          handleStylingChange("showCompanyInfo", e.target.checked)
+                          handleStylingChange(
+                            "showCompanyInfo",
+                            e.target.checked
+                          )
                         }
                       />
                     }
