@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Modal,
   Box,
@@ -10,13 +10,28 @@ import {
   IconButton,
   useTheme,
   Paper,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
 } from "@mui/material";
 import { Close, PictureAsPdf, ZoomIn, ZoomOut } from "@mui/icons-material";
+import type { IPropertyAd } from "../../../../services/post-property-ad-search.service";
+import {
+  initializeReportData,
+  calculateSummary,
+  generatePDF,
+  type ReportData,
+  type ReportProperty,
+} from "./report-generator";
+import { mapCalculationCriterionToAreaType } from "./evaluation-helpers";
 
 interface GenerateReportModalProps {
   open: boolean;
   onClose: () => void;
   selectedCount: number;
+  selectedProperties?: IPropertyAd[];
+  calculationCriterion?: string;
 }
 
 interface TabPanelProps {
@@ -45,10 +60,33 @@ export function GenerateReportModal({
   open,
   onClose,
   selectedCount,
+  selectedProperties = [],
+  calculationCriterion = "area-total",
 }: GenerateReportModalProps) {
   const theme = useTheme();
   const [activeTab, setActiveTab] = useState(0);
   const [zoom, setZoom] = useState(40);
+  const [reportAreaType, setReportAreaType] = useState<"USABLE" | "TOTAL" | "BUILT">(
+    mapCalculationCriterionToAreaType(calculationCriterion)
+  );
+  const [reportProperties, setReportProperties] = useState<ReportProperty[]>([]);
+  const [reportData, setReportData] = useState<ReportData>({
+    title: "",
+    subtitle: "",
+    description: "",
+    author: "",
+    date: new Date().toLocaleDateString("pt-BR"),
+    properties: [],
+    summary: {
+      totalProperties: 0,
+      averagePrice: 0,
+      averagePricePerM2: 0,
+      averageUsableArea: 0,
+      averageTotalArea: 0,
+      priceRange: { min: 0, max: 0 },
+      areaRange: { min: 0, max: 0 },
+    },
+  });
   const [formData, setFormData] = useState({
     title: "",
     subtitle: "",
@@ -56,6 +94,31 @@ export function GenerateReportModal({
     author: "",
     date: new Date().toLocaleDateString("pt-BR"),
   });
+
+  // Inicializa dados do relatório quando o modal abre ou propriedades mudam
+  useEffect(() => {
+    if (open && selectedProperties.length > 0) {
+      const properties = initializeReportData(selectedProperties, reportAreaType);
+      setReportProperties(properties);
+      const summary = calculateSummary(properties, reportAreaType);
+      setReportData((prev) => ({
+        ...prev,
+        properties,
+        summary,
+      }));
+    }
+  }, [open, selectedProperties, reportAreaType]);
+
+  // Recalcula resumo quando área ou propriedades mudam
+  useEffect(() => {
+    if (reportProperties.length > 0) {
+      const summary = calculateSummary(reportProperties, reportAreaType);
+      setReportData((prev) => ({
+        ...prev,
+        summary,
+      }));
+    }
+  }, [reportProperties, reportAreaType]);
 
   const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
@@ -83,10 +146,18 @@ export function GenerateReportModal({
     });
   };
 
-  const handleGenerate = () => {
-    // TODO: Implementar geração de relatório
-    console.log("Gerar relatório", formData);
-  };
+  const handleGenerate = useCallback(() => {
+    const finalReportData: ReportData = {
+      ...reportData,
+      ...formData,
+    };
+
+    const filename = `${(formData.title || "relatorio-avaliacao")
+      .replace(/[^a-zA-Z0-9]/g, "-")
+      .toLowerCase()}-${new Date().toISOString().split("T")[0]}.pdf`;
+
+    generatePDF(finalReportData, filename);
+  }, [reportData, formData]);
 
   return (
     <Modal
@@ -166,6 +237,22 @@ export function GenerateReportModal({
 
             <TabPanel value={activeTab} index={0}>
               <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <FormControl fullWidth>
+                  <InputLabel>Tipo de Área</InputLabel>
+                  <Select
+                    value={reportAreaType}
+                    label="Tipo de Área"
+                    onChange={(e) =>
+                      setReportAreaType(
+                        e.target.value as "USABLE" | "TOTAL" | "BUILT"
+                      )
+                    }
+                  >
+                    <MenuItem value="TOTAL">Área Total</MenuItem>
+                    <MenuItem value="USABLE">Área Útil</MenuItem>
+                    <MenuItem value="BUILT">Área Construída</MenuItem>
+                  </Select>
+                </FormControl>
                 <TextField
                   label="Título do Relatório"
                   fullWidth
@@ -311,13 +398,31 @@ export function GenerateReportModal({
                   }}
                 >
                   <Typography variant="h3" sx={{ fontWeight: 700, mb: 1 }}>
-                    R$ 2.800.000
+                    {new Intl.NumberFormat("pt-BR", {
+                      style: "currency",
+                      currency: "BRL",
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 0,
+                    }).format(reportData.summary.averagePrice)}
                   </Typography>
                   <Typography variant="body1" sx={{ fontWeight: 600 }}>
                     VALOR DE AVALIAÇÃO
                   </Typography>
                   <Typography variant="body2" sx={{ mt: 1 }}>
-                    Estimativa baseada em área de (R$ 0,00/m²)
+                    Estimativa baseada em{" "}
+                    {reportAreaType === "USABLE"
+                      ? "área útil"
+                      : reportAreaType === "BUILT"
+                        ? "área construída"
+                        : "área total"}{" "}
+                    (
+                    {new Intl.NumberFormat("pt-BR", {
+                      style: "currency",
+                      currency: "BRL",
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 0,
+                    }).format(reportData.summary.averagePricePerM2)}
+                    /m²)
                   </Typography>
                 </Box>
 
@@ -331,17 +436,24 @@ export function GenerateReportModal({
                 >
                   <Paper sx={{ p: 2, textAlign: "center" }}>
                     <Typography variant="body2" sx={{ mb: 1 }}>
-                      {selectedCount} Imóveis avaliados
+                      {reportData.summary.totalProperties} Imóveis avaliados
                     </Typography>
                   </Paper>
                   <Paper sx={{ p: 2, textAlign: "center" }}>
                     <Typography variant="body2" sx={{ mb: 1 }}>
-                      R$ 0,00 Preço médio/m²
+                      {new Intl.NumberFormat("pt-BR", {
+                        style: "currency",
+                        currency: "BRL",
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0,
+                      }).format(reportData.summary.averagePricePerM2)}{" "}
+                      Preço médio/m²
                     </Typography>
                   </Paper>
                   <Paper sx={{ p: 2, textAlign: "center" }}>
                     <Typography variant="body2" sx={{ mb: 1 }}>
-                      Desv. Área útil (m²)
+                      {reportData.summary.areaRange.min}m² -{" "}
+                      {reportData.summary.areaRange.max}m² Faixa de área
                     </Typography>
                   </Paper>
                 </Box>

@@ -88,6 +88,7 @@ interface MetricCardsProps {
   averageTotalAreaRange: { min: number; max: number };
   bestDeal: number;
   bestDealPerM2: number;
+  areaType?: "USABLE" | "TOTAL" | "BUILT";
 }
 
 export function MetricCards({
@@ -97,6 +98,7 @@ export function MetricCards({
   averageTotalAreaRange,
   bestDeal,
   bestDealPerM2,
+  areaType = "TOTAL",
 }: MetricCardsProps) {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -129,7 +131,13 @@ export function MetricCards({
       <MetricCard
         title="Preço/m² médio"
         value={formatCurrency(averagePricePerM2)}
-        subtitle="Área total"
+        subtitle={
+          areaType === "USABLE"
+            ? "Área útil"
+            : areaType === "BUILT"
+              ? "Área construída"
+              : "Área total"
+        }
         icon={<AttachMoney sx={{ fontSize: 80 }} />}
       />
       <MetricCard

@@ -11,7 +11,7 @@ import {
   Chip,
   IconButton,
 } from "@mui/material";
-import { ViewModule, ViewList, SquareFoot, Bed, DirectionsCar } from "@mui/icons-material";
+import { ViewModule, ViewList, SquareFoot, Bed, DirectionsCar, Bathroom } from "@mui/icons-material";
 import { FilterBar } from "../../../modules/search/filter/filter-bar";
 import { MapComponent } from "../../../modules/search/map/map";
 import { EvaluationPropertyCard } from "../../../modules/evaluation/evaluation-property-card";
@@ -24,6 +24,7 @@ import {
   postPropertyAdSearch,
   type SortBy,
   type SortOrder,
+  type IPropertyAd,
 } from "../../../../services/post-property-ad-search.service";
 import { mapFiltersToApi } from "../../../../services/helpers/map-filters-to-api.helper";
 import { mapApiToPropertyDataArray } from "../../../../services/helpers/map-api-to-property-data.helper";
@@ -37,6 +38,14 @@ import {
   convertOverlayToGeoJSONPolygon,
   convertOverlayToGeoJSONCircle,
 } from "../../../modules/search/map/map-utils";
+import {
+  getTotalPrice,
+  getAreaValue,
+  getPricePerSquareMeter,
+  translatePropertyType,
+  mapCalculationCriterionToAreaType,
+} from "../../../modules/evaluation/evaluation-helpers";
+import { downloadXLSX } from "../../../modules/evaluation/excel-export";
 
 // Interface para os dados das propriedades
 interface PropertyData {
@@ -169,6 +178,8 @@ export function EvaluationComponent() {
   const [selectedProperties, setSelectedProperties] = useState<Set<string>>(
     new Set()
   );
+  // Cache global de todos os imóveis buscados (para manter dados completos da API)
+  const propertiesCache = useRef<Map<string, IPropertyAd>>(new Map());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sortBy] = useState<SortOption>("relevance");
@@ -182,6 +193,19 @@ export function EvaluationComponent() {
     useState("area-total");
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isAnalysisDrawerOpen, setIsAnalysisDrawerOpen] = useState(false);
+  
+  // Estados para métricas calculadas
+  const [totalValueAverage, setTotalValueAverage] = useState(0);
+  const [pricePerAreaAverage, setPricePerAreaAverage] = useState(0);
+  const [usableAreaAverage, setUsableAreaAverage] = useState(0);
+  const [totalAreaAverage, setTotalAreaAverage] = useState(0);
+  const [bestDeal, setBestDeal] = useState(0);
+  const [bestDealPerM2, setBestDealPerM2] = useState(0);
+  const [appraisalValue, setAppraisalValue] = useState(0);
+  const [averageTotalAreaRange, setAverageTotalAreaRange] = useState({
+    min: 0,
+    max: 0,
+  });
   const itemsPerPage = 18;
   const [neighborhoodsData, setNeighborhoodsData] = useState<
     INeighborhoodFull[]
@@ -816,11 +840,19 @@ export function EvaluationComponent() {
           sortConfig.sortBy,
           sortConfig.sortOrder
         );
+        
+        // Adiciona requireAreaInfo para obter dados de área
+        apiRequest.requireAreaInfo = true;
 
         const response = await postPropertyAdSearch(
           apiRequest,
           auth.store.token as string | undefined
         );
+
+        // Armazenar dados originais da API no cache global
+        response.data.data.forEach((ad: IPropertyAd) => {
+          propertiesCache.current.set(ad.id, ad);
+        });
 
         const propertyData = mapApiToPropertyDataArray(response.data.data);
         setProperties(propertyData);
@@ -987,11 +1019,19 @@ export function EvaluationComponent() {
           sortConfig.sortBy,
           sortConfig.sortOrder
         );
+        
+        // Adiciona requireAreaInfo para obter dados de área
+        apiRequest.requireAreaInfo = true;
 
         const response = await postPropertyAdSearch(
           apiRequest,
           auth.store.token as string | undefined
         );
+
+        // Armazenar dados originais da API no cache global
+        response.data.data.forEach((ad: IPropertyAd) => {
+          propertiesCache.current.set(ad.id, ad);
+        });
 
         const propertyData = mapApiToPropertyDataArray(response.data.data);
         setProperties(propertyData);
@@ -1006,7 +1046,7 @@ export function EvaluationComponent() {
         setLoading(false);
       }
     },
-    [sortBy, cityToCodeMap, itemsPerPage, auth.store.token, defaultCity]
+    [sortBy, cityToCodeMap, itemsPerPage, auth.store.token, defaultCity, selectedProperties]
   );
 
   // Buscar propriedades iniciais quando houver cidades disponíveis
@@ -1112,8 +1152,15 @@ export function EvaluationComponent() {
       const newSet = new Set(prev);
       if (selected) {
         newSet.add(id);
+        // Se o imóvel não está no cache, tentar buscar da lista atual
+        if (!propertiesCache.current.has(id)) {
+          // Tenta encontrar o imóvel na lista atual e adicionar ao cache
+          // Isso pode não funcionar se o imóvel não estiver na página atual
+          // Mas pelo menos tenta
+        }
       } else {
         newSet.delete(id);
+        // Não removemos do cache global, apenas do Set de selecionados
       }
       return newSet;
     });
@@ -1124,6 +1171,7 @@ export function EvaluationComponent() {
       if (checked) {
         const allIds = new Set(properties.map((p) => p.id));
         setSelectedProperties(allIds);
+        // Os dados já devem estar no cache da busca anterior
       } else {
         setSelectedProperties(new Set());
       }
@@ -1133,20 +1181,296 @@ export function EvaluationComponent() {
 
   const handleClearSelection = useCallback(() => {
     setSelectedProperties(new Set());
+    // Não limpa o cache global, apenas a seleção
   }, []);
 
+  // Função para calcular médias e métricas
+  const calculateAverages = useCallback(() => {
+    // Pega os imóveis selecionados do cache
+    const selectedAds = Array.from(selectedProperties);
+    const properties = selectedAds
+      .map((id) => propertiesCache.current.get(id))
+      .filter((ad): ad is IPropertyAd => ad !== undefined);
+
+    if (properties.length === 0) {
+      // Zera tudo se não houver imóveis
+      setTotalValueAverage(0);
+      setPricePerAreaAverage(0);
+      setUsableAreaAverage(0);
+      setTotalAreaAverage(0);
+      setBestDeal(0);
+      setBestDealPerM2(0);
+      setAppraisalValue(0);
+      setAverageTotalAreaRange({ min: 0, max: 0 });
+      return;
+    }
+
+    // Debug: verifica se os dados estão no cache
+    if (properties.length > 0) {
+      console.log("Calculando médias para", properties.length, "imóveis");
+      console.log("Cache tem", propertiesCache.current.size, "imóveis");
+      properties.forEach((ad) => {
+        const price = getTotalPrice(ad);
+        const totalArea = getAreaValue(ad, "TOTAL");
+        const usableArea = getAreaValue(ad, "USABLE");
+        console.log("Imóvel", ad.id, {
+          price,
+          totalArea,
+          usableArea,
+          areas: ad.area?.map((a) => `${a.areaType}: ${a.value}`) || [],
+          areaDetails: ad.area || [],
+          prices: ad.prices?.map((p) => `${p.businessModel}: ${p.total?.value || 0}`) || [],
+        });
+      });
+    }
+
+    // Mapeia o critério de cálculo para o tipo de área
+    const areaType = mapCalculationCriterionToAreaType(calculationCriterion);
+
+    // Arrays para coletar valores válidos
+    const totalAreas: number[] = [];
+    const usableAreas: number[] = [];
+    const totalValues: number[] = [];
+    const pricePerAreas: number[] = [];
+
+    // Itera sobre cada imóvel e coleta dados
+    properties.forEach((ad) => {
+      // Busca área total
+      const totalArea = getAreaValue(ad, "TOTAL");
+      if (totalArea > 0) {
+        totalAreas.push(totalArea);
+      }
+
+      // Busca área útil
+      const usableArea = getAreaValue(ad, "USABLE");
+      if (usableArea > 0) {
+        usableAreas.push(usableArea);
+      }
+
+      // Busca preço
+      const totalPrice = getTotalPrice(ad);
+      if (totalPrice > 0) {
+        totalValues.push(totalPrice);
+      }
+
+      // Calcula preço por m² usando a área selecionada
+      const areaValue = getAreaValue(ad, areaType);
+      if (totalPrice > 0 && areaValue > 0) {
+        const pricePerM2 = totalPrice / areaValue;
+        pricePerAreas.push(pricePerM2);
+      }
+    });
+
+    // Calcula as médias
+    const avgTotalValue =
+      totalValues.length > 0
+        ? Math.round(
+            totalValues.reduce((a, b) => a + b, 0) / totalValues.length
+          )
+        : 0;
+
+    const avgPricePerArea =
+      pricePerAreas.length > 0
+        ? Math.round(
+            pricePerAreas.reduce((a, b) => a + b, 0) / pricePerAreas.length
+          )
+        : 0;
+
+    const avgUsableArea =
+      usableAreas.length > 0
+        ? Math.round(
+            usableAreas.reduce((a, b) => a + b, 0) / usableAreas.length
+          )
+        : 0;
+
+    const avgTotalArea =
+      totalAreas.length > 0
+        ? Math.round(totalAreas.reduce((a, b) => a + b, 0) / totalAreas.length)
+        : 0;
+
+    // Encontra o melhor negócio (menor preço/m²)
+    const bestDealPricePerM2 =
+      pricePerAreas.length > 0 ? Math.min(...pricePerAreas) : 0;
+    const bestDealIndex = pricePerAreas.indexOf(bestDealPricePerM2);
+    const bestDealProperty =
+      bestDealIndex >= 0 ? properties[bestDealIndex] : null;
+    const bestDealValue = bestDealProperty
+      ? getTotalPrice(bestDealProperty)
+      : 0;
+
+    // Calcula faixa de área total
+    const areaRange =
+      totalAreas.length > 0
+        ? {
+            min: Math.min(...totalAreas),
+            max: Math.max(...totalAreas),
+          }
+        : { min: 0, max: 0 };
+
+    // Valor de avaliação (média de preços)
+    setTotalValueAverage(avgTotalValue);
+    setPricePerAreaAverage(avgPricePerArea);
+    setUsableAreaAverage(avgUsableArea);
+    setTotalAreaAverage(avgTotalArea);
+    setBestDeal(bestDealValue);
+    setBestDealPerM2(bestDealPricePerM2);
+    setAppraisalValue(avgTotalValue);
+    setAverageTotalAreaRange(areaRange);
+  }, [selectedProperties, calculationCriterion]);
+
+  // Computed properties para gráficos
+  const priceDistributionData = useMemo(() => {
+    const selectedAds = Array.from(selectedProperties);
+    const properties = selectedAds
+      .map((id) => propertiesCache.current.get(id))
+      .filter((ad): ad is IPropertyAd => ad !== undefined);
+
+    if (properties.length === 0) return [];
+
+    // Pega todos os preços
+    const prices = properties
+      .map((ad) => getTotalPrice(ad))
+      .filter((p) => p > 0);
+
+    if (prices.length === 0) return [];
+
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+    const range = max - min;
+
+    // Se todos os preços são iguais
+    if (range === 0) {
+      return [
+        {
+          label: formatCurrency(Math.round(min)),
+          value: prices.length,
+        },
+      ];
+    }
+
+    // Divide em 5 faixas
+    const bucketSize = range / 5;
+    const buckets = Array.from({ length: 5 }, (_, i) => ({
+      label: `${formatCurrency(
+        Math.round(min + i * bucketSize)
+      )} - ${formatCurrency(Math.round(min + (i + 1) * bucketSize))}`,
+      value: 0,
+    }));
+
+    // Distribui os preços nas faixas
+    prices.forEach((price) => {
+      // Calcula o índice da faixa
+      let bucketIndex = Math.floor((price - min) / bucketSize);
+      
+      // Se o preço for exatamente o máximo, coloca na última faixa
+      if (price >= max) {
+        bucketIndex = 4;
+      } else {
+        // Garante que o índice está dentro dos limites
+        bucketIndex = Math.max(0, Math.min(bucketIndex, 4));
+      }
+      
+      if (buckets[bucketIndex]) {
+        buckets[bucketIndex].value++;
+      }
+    });
+
+    // Retorna todas as faixas (mesmo as vazias) para melhor visualização
+    return buckets;
+  }, [selectedProperties]);
+
+  const pricePerM2Data = useMemo(() => {
+    const selectedAds = Array.from(selectedProperties);
+    const properties = selectedAds
+      .map((id) => propertiesCache.current.get(id))
+      .filter((ad): ad is IPropertyAd => ad !== undefined);
+
+    if (properties.length === 0) return [];
+
+    // Usa selectedAreaType para determinar qual área usar
+    const areaType = mapCalculationCriterionToAreaType(calculationCriterion);
+
+    return properties
+      .filter((ad) => {
+        const areaValue = getAreaValue(ad, areaType);
+        const price = getTotalPrice(ad);
+        return areaValue > 0 && price > 0;
+      })
+      .map((ad, index) => {
+        const address = ad.formattedAddress || ad.address?.street || "";
+        const neighborhood = ad.address?.neighborhood || "";
+        const shortAddress = `${address}, ${neighborhood}`.substring(0, 30);
+        const pricePerM2 = getPricePerSquareMeter(ad, areaType);
+        return {
+          label: shortAddress + (address.length > 30 ? "..." : ""),
+          value: Math.round(pricePerM2),
+        };
+      })
+      .filter((item) => item.value > 0) // Remove valores 0
+      .sort((a, b) => a.value - b.value);
+  }, [selectedProperties, calculationCriterion]);
+
+  const propertyTypeDistribution = useMemo(() => {
+    const selectedAds = Array.from(selectedProperties);
+    const properties = selectedAds
+      .map((id) => propertiesCache.current.get(id))
+      .filter((ad): ad is IPropertyAd => ad !== undefined);
+
+    if (properties.length === 0) return [];
+
+    const typeCount = properties.reduce(
+      (acc, ad) => {
+        const type = translatePropertyType(ad.propertyType) || "Outros";
+        acc[type] = (acc[type] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
+
+    const colors = [
+      "#2196F3",
+      "#4CAF50",
+      "#FFC107",
+      "#9C27B0",
+      "#F44336",
+    ];
+
+    return Object.entries(typeCount).map(([name, count], index) => ({
+      type: name,
+      count,
+      percentage: Math.round((count / properties.length) * 100),
+      color: colors[index % colors.length],
+    }));
+  }, [selectedProperties]);
+
+  // Recalcula médias quando seleção ou critério mudar
+  useEffect(() => {
+    calculateAverages();
+  }, [calculateAverages]);
+
   const handleAnalysisSummary = useCallback(() => {
+    calculateAverages();
     setIsAnalysisDrawerOpen(true);
-  }, []);
+  }, [calculateAverages]);
 
   const handleGenerateReport = useCallback(() => {
     setIsReportModalOpen(true);
   }, []);
 
   const handleExportExcel = useCallback(() => {
-    // TODO: Implementar exportação
-    console.log("Exportar Excel");
-  }, []);
+    // Pega os imóveis selecionados do cache
+    const selectedAds = Array.from(selectedProperties);
+    const properties = selectedAds
+      .map((id) => propertiesCache.current.get(id))
+      .filter((ad): ad is IPropertyAd => ad !== undefined);
+
+    if (properties.length === 0) {
+      console.warn("Nenhum imóvel selecionado para exportação");
+      return;
+    }
+
+    downloadXLSX(properties, calculationCriterion);
+  }, [selectedProperties, calculationCriterion]);
 
   const isAllSelected = useMemo(() => {
     return (
@@ -1656,6 +1980,14 @@ export function EvaluationComponent() {
                                         gap: 0.5,
                                       }}
                                     >
+                                      <Bathroom
+                                        sx={{
+                                          fontSize: 16,
+                                          color: getIconColor(
+                                            property.propertyType
+                                          ),
+                                        }}
+                                      />
                                       <Typography variant="body2">
                                         {property.bathrooms}{" "}
                                         {property.bathrooms === 1
@@ -1770,6 +2102,10 @@ export function EvaluationComponent() {
         open={isReportModalOpen}
         onClose={() => setIsReportModalOpen(false)}
         selectedCount={selectedProperties.size}
+        selectedProperties={Array.from(selectedProperties)
+          .map((id) => propertiesCache.current.get(id))
+          .filter((ad): ad is IPropertyAd => ad !== undefined)}
+        calculationCriterion={calculationCriterion}
       />
 
       {/* Drawer de Resumo da Análise */}
@@ -1777,6 +2113,16 @@ export function EvaluationComponent() {
         open={isAnalysisDrawerOpen}
         onClose={() => setIsAnalysisDrawerOpen(false)}
         selectedCount={selectedProperties.size}
+        appraisalValue={appraisalValue}
+        averagePricePerM2={pricePerAreaAverage}
+        averageTotalArea={totalAreaAverage}
+        averageTotalAreaRange={averageTotalAreaRange}
+        bestDeal={bestDeal}
+        bestDealPerM2={bestDealPerM2}
+        priceDistributionData={priceDistributionData}
+        propertyTypesData={propertyTypeDistribution}
+        pricePerM2Data={pricePerM2Data}
+        areaType={mapCalculationCriterionToAreaType(calculationCriterion)}
       />
     </Box>
   );

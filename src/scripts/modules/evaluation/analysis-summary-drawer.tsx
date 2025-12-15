@@ -31,6 +31,7 @@ interface AnalysisSummaryDrawerProps {
     color: string;
   }>;
   pricePerM2Data?: Array<{ label: string; value: number }>;
+  areaType?: "USABLE" | "TOTAL" | "BUILT";
 }
 
 export function AnalysisSummaryDrawer({
@@ -55,6 +56,7 @@ export function AnalysisSummaryDrawer({
     { type: "Loja", count: 1, percentage: 20, color: "#9C27B0" },
   ],
   pricePerM2Data = [{ label: "R$ 400 - R$ 99.9", value: 1 }],
+  areaType = "TOTAL",
 }: AnalysisSummaryDrawerProps) {
   const theme = useTheme();
 
@@ -128,6 +130,7 @@ export function AnalysisSummaryDrawer({
             averageTotalAreaRange={averageTotalAreaRange}
             bestDeal={bestDeal}
             bestDealPerM2={bestDealPerM2}
+            areaType={areaType}
           />
 
           {/* Charts */}
