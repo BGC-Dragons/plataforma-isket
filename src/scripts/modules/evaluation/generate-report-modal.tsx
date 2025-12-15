@@ -1243,7 +1243,7 @@ export function GenerateReportModal({
             borderTop: `1px solid ${theme.palette.divider}`,
           }}
         >
-          <Button onClick={onClose} variant="outlined">
+          <Button onClick={onClose} variant="contained">
             Cancelar
           </Button>
           <Button
