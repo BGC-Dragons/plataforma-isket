@@ -1,5 +1,9 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import html2canvas from "html2canvas";
+import React from "react";
+import { createRoot, Root } from "react-dom/client";
+import { ThemeProvider, createTheme } from "@mui/material/styles";
 import type { IPropertyAd } from "../../../services/post-property-ad-search.service";
 import {
   getTotalPrice,
@@ -8,6 +12,7 @@ import {
   translatePropertyType,
   mapCalculationCriterionToAreaType,
 } from "./evaluation-helpers";
+import { ReportTemplate } from "./report-template";
 
 export interface ReportProperty {
   id: string;
@@ -327,9 +332,257 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
 }
 
 /**
- * Gera o PDF do relatório
+ * Gera o PDF do relatório renderizando o componente React
  */
-export function generatePDF(reportData: ReportData, filename: string): void {
+export async function generatePDF(
+  reportData: ReportData,
+  filename: string
+): Promise<void> {
+  // Criar tema MUI padrão
+  const theme = createTheme();
+
+  // Criar elemento temporário para renderizar o componente
+  const tempDiv = document.createElement("div");
+  tempDiv.id = "pdf-export-temp";
+  tempDiv.style.position = "fixed";
+  tempDiv.style.left = "0";
+  tempDiv.style.top = "0";
+  tempDiv.style.width = "896px";
+  tempDiv.style.minHeight = "100px";
+  tempDiv.style.backgroundColor = "#ffffff";
+  tempDiv.style.zIndex = "99999";
+  tempDiv.style.overflow = "visible";
+  tempDiv.style.pointerEvents = "none";
+  document.body.appendChild(tempDiv);
+
+  let root: Root | null = null;
+
+  try {
+    // Renderizar o componente React com ThemeProvider
+    root = createRoot(tempDiv);
+    root.render(
+      React.createElement(
+        ThemeProvider,
+        { theme },
+        React.createElement(ReportTemplate, { reportData })
+      )
+    );
+
+    // Aguardar renderização usando requestAnimationFrame para garantir que o DOM foi atualizado
+    const waitForRender = async (maxAttempts = 20) => {
+      for (let i = 0; i < maxAttempts; i++) {
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+        
+        // Verificar se há conteúdo renderizado
+        const hasContent = tempDiv.children.length > 0 || tempDiv.querySelector("div") !== null;
+        if (hasContent) {
+          // Verificar se o elemento tem dimensões válidas
+          const firstChild = tempDiv.firstElementChild as HTMLElement;
+          const elementToCheck = firstChild || tempDiv;
+          const hasDimensions = 
+            (elementToCheck.scrollHeight > 0 || elementToCheck.offsetHeight > 0) &&
+            (elementToCheck.scrollWidth > 0 || elementToCheck.offsetWidth > 0);
+          
+          if (hasDimensions) {
+            console.log(`Renderização confirmada após ${i + 1} tentativas`);
+            return true;
+          }
+        }
+        
+        // Aguardar um pouco entre tentativas
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      return false;
+    };
+
+    const isRendered = await waitForRender();
+    if (!isRendered) {
+      console.error("Elemento temporário:", tempDiv);
+      console.error("HTML:", tempDiv.innerHTML);
+      console.error("Children:", tempDiv.children.length);
+      throw new Error("Componente não foi renderizado corretamente após múltiplas tentativas");
+    }
+
+    // Aguardar todas as imagens carregarem
+    const images = tempDiv.querySelectorAll("img");
+    if (images.length > 0) {
+      console.log(`Aguardando carregamento de ${images.length} imagem(ns)...`);
+      await Promise.all(
+        Array.from(images).map(
+          (img) =>
+            new Promise<void>((resolve) => {
+              if (img.complete && img.naturalHeight > 0) {
+                resolve();
+              } else {
+                const timeout = setTimeout(() => {
+                  console.warn("Timeout ao carregar imagem:", img.src);
+                  resolve();
+                }, 5000); // Timeout de 5s
+                img.onload = () => {
+                  clearTimeout(timeout);
+                  resolve();
+                };
+                img.onerror = () => {
+                  clearTimeout(timeout);
+                  console.warn("Erro ao carregar imagem:", img.src);
+                  resolve(); // Continuar mesmo se a imagem falhar
+                };
+              }
+            })
+        )
+      );
+      console.log("Todas as imagens processadas");
+    }
+
+    // Aguardar mais um pouco para garantir que tudo está estável
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    // Determinar o elemento correto para capturar
+    // O React 18 com createRoot renderiza diretamente no elemento, então usamos tempDiv
+    // Mas verificamos se há um primeiro filho com conteúdo significativo
+    let elementToCapture: HTMLElement = tempDiv;
+    
+    if (tempDiv.firstElementChild) {
+      const firstChild = tempDiv.firstElementChild as HTMLElement;
+      // Se o primeiro filho tem dimensões significativas, usamos ele
+      if (firstChild.scrollHeight > 100 || firstChild.offsetHeight > 100) {
+        elementToCapture = firstChild;
+        console.log("Usando firstElementChild para captura");
+      } else {
+        console.log("Usando tempDiv para captura (firstElementChild muito pequeno)");
+      }
+    } else {
+      console.log("Usando tempDiv para captura (sem firstElementChild)");
+    }
+    
+    // Verificar dimensões finais
+    const elementWidth = elementToCapture.scrollWidth || elementToCapture.offsetWidth || 896;
+    const elementHeight = elementToCapture.scrollHeight || elementToCapture.offsetHeight || 1000;
+    
+    if (elementWidth === 0 || elementHeight === 0) {
+      throw new Error(`Elemento tem dimensões inválidas: ${elementWidth}x${elementHeight}`);
+    }
+    
+    console.log("Capturando elemento:", {
+      element: elementToCapture.tagName,
+      width: elementWidth,
+      height: elementHeight,
+      scrollWidth: elementToCapture.scrollWidth,
+      scrollHeight: elementToCapture.scrollHeight,
+      offsetWidth: elementToCapture.offsetWidth,
+      offsetHeight: elementToCapture.offsetHeight,
+    });
+
+    // Capturar o elemento com html2canvas
+    const canvas = await html2canvas(elementToCapture, {
+      scale: 2, // Maior qualidade
+      useCORS: true,
+      logging: false, // Desabilitar logs em produção (pode ser true para debug)
+      backgroundColor: "#ffffff",
+      width: elementWidth,
+      height: elementHeight,
+      windowWidth: elementWidth,
+      windowHeight: elementHeight,
+      allowTaint: true,
+      removeContainer: false,
+      onclone: (clonedDoc) => {
+        // Garantir que o elemento clonado tenha as mesmas dimensões
+        const clonedElement = clonedDoc.getElementById("pdf-export-temp");
+        if (clonedElement) {
+          (clonedElement as HTMLElement).style.width = `${elementWidth}px`;
+          (clonedElement as HTMLElement).style.height = `${elementHeight}px`;
+        }
+      },
+    });
+    
+    console.log("Canvas gerado:", {
+      width: canvas.width,
+      height: canvas.height,
+    });
+
+    // Verificar se o canvas tem conteúdo
+    if (canvas.width === 0 || canvas.height === 0) {
+      throw new Error("Canvas está vazio");
+    }
+
+    // Converter canvas para PDF
+    const imgData = canvas.toDataURL("image/png", 1.0);
+    
+    // Verificar se a imagem foi gerada
+    if (!imgData || imgData === "data:,") {
+      throw new Error("Falha ao gerar imagem do canvas");
+    }
+
+    const pdf = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+    });
+
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+    
+    // Converter pixels do canvas para mm
+    // html2canvas com scale: 2 significa que cada pixel CSS = 2 pixels no canvas
+    // 1 pixel CSS a 96 DPI = 0.264583 mm
+    // Então: canvas pixels / 2 * 0.264583 = mm
+    const pxToMm = 0.264583;
+    const imgWidthMm = (canvas.width / 2) * pxToMm;
+    const imgHeightMm = (canvas.height / 2) * pxToMm;
+    
+    // Calcular escala para caber na largura da página A4 (mantendo proporção)
+    const scale = pdfWidth / imgWidthMm;
+    const scaledWidth = pdfWidth;
+    const scaledHeight = imgHeightMm * scale;
+
+    // Adicionar primeira página
+    pdf.addImage(imgData, "PNG", 0, 0, scaledWidth, scaledHeight, undefined, "FAST");
+    
+    // Adicionar páginas adicionais se necessário
+    let heightLeft = scaledHeight - pdfHeight;
+    while (heightLeft > 0) {
+      pdf.addPage();
+      const yPosition = -(scaledHeight - heightLeft);
+      pdf.addImage(
+        imgData,
+        "PNG",
+        0,
+        yPosition,
+        scaledWidth,
+        scaledHeight,
+        undefined,
+        "FAST"
+      );
+      heightLeft -= pdfHeight;
+    }
+
+    // Salvar o PDF
+    pdf.save(filename);
+  } catch (error) {
+    console.error("Erro ao gerar PDF:", error);
+    // Mostrar erro mais detalhado
+    if (error instanceof Error) {
+      console.error("Detalhes do erro:", error.message);
+      console.error("Stack:", error.stack);
+    }
+    throw error;
+  } finally {
+    // Limpar
+    if (root) {
+      root.unmount();
+    }
+    if (tempDiv.parentNode) {
+      document.body.removeChild(tempDiv);
+    }
+  }
+}
+
+/**
+ * Gera o PDF do relatório (versão antiga - mantida para compatibilidade)
+ * @deprecated Use a nova versão assíncrona que renderiza o componente React
+ */
+function generatePDFLegacy(reportData: ReportData, filename: string): void {
   const doc = new jsPDF();
   let yPosition = 20;
   const pageWidth = doc.internal.pageSize.getWidth();

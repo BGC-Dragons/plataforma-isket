@@ -194,6 +194,11 @@ export function EvaluationComponent() {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isAnalysisDrawerOpen, setIsAnalysisDrawerOpen] = useState(false);
   
+  // Refs para controle de paginação
+  const previousPage = useRef(1);
+  const isInitialMount = useRef(true);
+  const isFetchingInitial = useRef(false); // Flag para indicar que está fazendo busca inicial
+  
   // Estados para métricas calculadas
   const [totalValueAverage, setTotalValueAverage] = useState(0);
   const [pricePerAreaAverage, setPricePerAreaAverage] = useState(0);
@@ -1057,6 +1062,9 @@ export function EvaluationComponent() {
         Object.keys(cityToCodeMap).length > 0 &&
         !currentFilters
       ) {
+        // Marcar que está fazendo busca inicial para evitar interferência do useEffect de paginação
+        isFetchingInitial.current = true;
+        
         const initialFilters: FilterState = {
           search: "",
           cities: [],
@@ -1116,6 +1124,11 @@ export function EvaluationComponent() {
         };
 
         await applyFilters(initialFilters);
+        
+        // Marcar que a busca inicial terminou após um pequeno delay
+        setTimeout(() => {
+          isFetchingInitial.current = false;
+        }, 100);
       }
     };
 
@@ -1127,17 +1140,88 @@ export function EvaluationComponent() {
     applyFilters,
   ]);
 
-  // Paginação
-  const paginatedProperties = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return properties.slice(startIndex, endIndex);
-  }, [properties, currentPage]);
-
+  // Buscar propriedades quando a página muda
   useEffect(() => {
-    const total = Math.ceil(properties.length / itemsPerPage);
-    setTotalPages(total);
-  }, [properties.length]);
+    // Não fazer nada se está fazendo busca inicial (para evitar interferência)
+    if (isFetchingInitial.current) {
+      return;
+    }
+
+    // Pular a busca na página 1 apenas durante o mount inicial (já é tratado pelo useEffect de busca inicial)
+    // Mas permitir busca se voltou para página 1 de outra página
+    if (isInitialMount.current && currentPage === 1 && !currentFilters) {
+      isInitialMount.current = false;
+      previousPage.current = currentPage;
+      return;
+    }
+
+    // Marcar que o mount inicial já passou
+    isInitialMount.current = false;
+
+    // Se a página mudou, fazer a busca
+    if (previousPage.current !== currentPage) {
+      if (currentFilters) {
+        // Se há filtros, buscar com os filtros aplicados
+        fetchProperties(currentFilters, currentPage);
+      } else {
+        // Se não há filtros, fazer busca inicial com a página correta
+        const fetchInitialPage = async () => {
+          setLoading(true);
+          setError(null);
+
+          try {
+            const sortConfig = mapSortOptionToApi(sortBy);
+            
+            const apiRequest: any = {
+              page: currentPage,
+              size: itemsPerPage,
+              requireAreaInfo: true,
+            };
+
+            if (defaultCity && cityToCodeMap[defaultCity]) {
+              apiRequest.cities = [cityToCodeMap[defaultCity]];
+            }
+
+            if (sortConfig.sortBy) {
+              apiRequest.sortBy = sortConfig.sortBy;
+            }
+            if (sortConfig.sortOrder) {
+              apiRequest.sortOrder = sortConfig.sortOrder;
+            }
+
+            const response = await postPropertyAdSearch(
+              apiRequest,
+              auth.store.token as string | undefined
+            );
+
+            // Armazenar dados originais da API no cache global
+            response.data.data.forEach((ad: IPropertyAd) => {
+              propertiesCache.current.set(ad.id, ad);
+            });
+
+            const propertyData = mapApiToPropertyDataArray(response.data.data);
+            setProperties(propertyData);
+            setTotalPages(response.data.meta.lastPage);
+            setError(null);
+          } catch (error) {
+            console.error("Erro ao buscar propriedades:", error);
+            const errorMessage = getErrorMessage(error);
+            setError(errorMessage);
+            setProperties([]);
+            setTotalPages(1);
+          } finally {
+            setLoading(false);
+          }
+        };
+
+        fetchInitialPage();
+      }
+    }
+
+    // Atualizar página anterior
+    previousPage.current = currentPage;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage]);
 
   // Handlers
   const handleFilterChange = useCallback(
@@ -1183,6 +1267,26 @@ export function EvaluationComponent() {
     setSelectedProperties(new Set());
     // Não limpa o cache global, apenas a seleção
   }, []);
+
+  // Handler para clique em bairro no mapa
+  const handleNeighborhoodClick = useCallback(
+    (neighborhood: INeighborhoodFull) => {
+      if (!currentFilters) return;
+
+      // Adicionar o bairro aos filtros se ainda não estiver selecionado
+      const neighborhoodName = neighborhood.name;
+      const currentNeighborhoods = currentFilters.neighborhoods || [];
+
+      if (!currentNeighborhoods.includes(neighborhoodName)) {
+        const updatedFilters: FilterState = {
+          ...currentFilters,
+          neighborhoods: [...currentNeighborhoods, neighborhoodName],
+        };
+        applyFilters(updatedFilters);
+      }
+    },
+    [currentFilters, applyFilters]
+  );
 
   // Função para calcular médias e métricas
   const calculateAverages = useCallback(() => {
@@ -1693,7 +1797,7 @@ export function EvaluationComponent() {
                   },
                 }}
               >
-                {paginatedProperties.length > 0 ? (
+                {properties.length > 0 ? (
                   viewMode === "cards" ? (
                     <Box
                       sx={{
@@ -1707,7 +1811,7 @@ export function EvaluationComponent() {
                         gap: 2,
                       }}
                     >
-                      {paginatedProperties.map((property) => (
+                      {properties.map((property) => (
                         <EvaluationPropertyCard
                           key={property.id}
                           id={property.id}
@@ -1736,7 +1840,7 @@ export function EvaluationComponent() {
                         gap: 1,
                       }}
                     >
-                      {paginatedProperties.map((property, index) => (
+                      {properties.map((property, index) => (
                         <Paper
                           key={property.id}
                           sx={{
@@ -2081,6 +2185,7 @@ export function EvaluationComponent() {
                 undefined
               }
               useMapSearch={true}
+              onNeighborhoodClick={handleNeighborhoodClick}
             />
           </Box>
         </Box>

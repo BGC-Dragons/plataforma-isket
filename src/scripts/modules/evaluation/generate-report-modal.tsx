@@ -83,9 +83,13 @@ export function GenerateReportModal({
   const theme = useTheme();
   const [activeTab, setActiveTab] = useState(0);
   const [previewScale, setPreviewScale] = useState(0.6);
-  const [reportAreaType, setReportAreaType] = useState<
-    "USABLE" | "TOTAL" | "BUILT"
-  >(mapCalculationCriterionToAreaType(calculationCriterion));
+  const [reportAreaType, setReportAreaType] = useState<"USABLE" | "TOTAL">(
+    mapCalculationCriterionToAreaType(calculationCriterion) === "BUILT"
+      ? "TOTAL"
+      : (mapCalculationCriterionToAreaType(calculationCriterion) as
+          | "USABLE"
+          | "TOTAL")
+  );
   const [expandedProperties, setExpandedProperties] = useState<Set<string>>(
     new Set()
   );
@@ -118,6 +122,7 @@ export function GenerateReportModal({
       const summary = calculateSummary(reportData.properties, reportAreaType);
       setReportData((prev) => (prev ? { ...prev, summary } : null));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reportData?.properties, reportAreaType]);
 
   const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
@@ -319,14 +324,19 @@ export function GenerateReportModal({
   const handleZoomIn = () => adjustPreviewScale(0.1);
   const handleZoomOut = () => adjustPreviewScale(-0.1);
 
-  const handleGenerate = useCallback(() => {
+  const handleGenerate = useCallback(async () => {
     if (!reportData) return;
 
     const filename = `${(reportData.title || "relatorio-avaliacao")
       .replace(/[^a-zA-Z0-9]/g, "-")
       .toLowerCase()}-${new Date().toISOString().split("T")[0]}.pdf`;
 
-    generatePDF(reportData, filename);
+    try {
+      await generatePDF(reportData, filename);
+    } catch (error) {
+      console.error("Erro ao gerar PDF:", error);
+      // Você pode adicionar uma notificação de erro aqui se desejar
+    }
   }, [reportData]);
 
   if (!reportData) {
@@ -424,14 +434,11 @@ export function GenerateReportModal({
                       value={reportAreaType}
                       label="Tipo de Área"
                       onChange={(e) =>
-                        setReportAreaType(
-                          e.target.value as "USABLE" | "TOTAL" | "BUILT"
-                        )
+                        setReportAreaType(e.target.value as "USABLE" | "TOTAL")
                       }
                     >
                       <MenuItem value="TOTAL">Área Total</MenuItem>
                       <MenuItem value="USABLE">Área Útil</MenuItem>
-                      <MenuItem value="BUILT">Área Construída</MenuItem>
                     </Select>
                   </FormControl>
                   <TextField

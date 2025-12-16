@@ -128,7 +128,6 @@ export function EvaluationActionBar({
             >
               <MenuItem value="area-total">Área total</MenuItem>
               <MenuItem value="area-util">Área útil</MenuItem>
-              <MenuItem value="area-construida">Área construída</MenuItem>
             </Select>
           </FormControl>
           <Tooltip title="Informações sobre o critério de cálculo">
