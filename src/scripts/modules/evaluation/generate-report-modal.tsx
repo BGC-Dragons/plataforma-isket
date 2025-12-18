@@ -103,10 +103,7 @@ export function GenerateReportModal({
         reportAreaType
       );
       // Gera análises iniciais
-      initialData.analysis = generateInitialAnalysis(
-        initialData,
-        reportAreaType
-      );
+      initialData.analysis = generateInitialAnalysis(initialData);
       setReportData(initialData);
       // Expande imóveis incluídos por padrão
       const includedIds = initialData.properties
@@ -967,10 +964,7 @@ export function GenerateReportModal({
                     size="small"
                     onClick={() => {
                       if (reportData) {
-                        const analysis = generateInitialAnalysis(
-                          reportData,
-                          reportAreaType
-                        );
+                        const analysis = generateInitialAnalysis(reportData);
                         setReportData((prev) =>
                           prev ? { ...prev, analysis } : null
                         );

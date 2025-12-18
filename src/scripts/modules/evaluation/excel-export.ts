@@ -26,6 +26,7 @@ function formatCurrency(value: number): string {
 export function prepareExportData(
   properties: IPropertyAd[],
   calculationCriterion: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): any[] {
   const areaType = mapCalculationCriterionToAreaType(calculationCriterion);
 
@@ -39,7 +40,8 @@ export function prepareExportData(
     return {
       ID: property.id,
       Título: property.title || "",
-      Tipo: translatePropertyType(property.propertyType) || property.propertyType,
+      Tipo:
+        translatePropertyType(property.propertyType) || property.propertyType,
       Endereço: property.formattedAddress || "",
       Bairro: property.address?.neighborhood || "",
       Cidade: property.address?.city || "",
@@ -63,8 +65,8 @@ export function prepareExportData(
         areaType === "USABLE"
           ? "Área Útil"
           : areaType === "BUILT"
-            ? "Área Construída"
-            : "Área Total",
+          ? "Área Construída"
+          : "Área Total",
 
       // Características
       Quartos: property.rooms || 0,
@@ -151,21 +153,21 @@ export function downloadXLSX(
   XLSX.utils.book_append_sheet(wb, ws, "Imóveis Selecionados");
 
   // Gera nome do arquivo
-  const fileName = `imoveis_selecionados_${new Date()
-    .toISOString()
-    .split("T")[0]}.xlsx`;
+  const fileName = `imoveis_selecionados_${
+    new Date().toISOString().split("T")[0]
+  }.xlsx`;
 
   // Faz download
   XLSX.writeFile(wb, fileName);
 
+  const areaType = mapCalculationCriterionToAreaType(calculationCriterion);
   console.log(
     `XLSX gerado com ${exportData.length} imóveis usando ${
       areaType === "USABLE"
         ? "Área Útil"
         : areaType === "BUILT"
-          ? "Área Construída"
-          : "Área Total"
+        ? "Área Construída"
+        : "Área Total"
     }`
   );
 }
-

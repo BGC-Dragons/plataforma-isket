@@ -1,8 +1,7 @@
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import html2canvas from "html2canvas";
 import React from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import type { IPropertyAd } from "../../../services/post-property-ad-search.service";
 import {
@@ -10,7 +9,6 @@ import {
   getAreaValue,
   getPricePerSquareMeter,
   translatePropertyType,
-  mapCalculationCriterionToAreaType,
 } from "./evaluation-helpers";
 import { ReportTemplate } from "./report-template";
 
@@ -125,8 +123,7 @@ export function formatDate(dateString: string): string {
  * Inicializa os dados do relatório a partir dos imóveis selecionados
  */
 export function initializeReportData(
-  properties: IPropertyAd[],
-  areaType: "USABLE" | "TOTAL" | "BUILT"
+  properties: IPropertyAd[]
 ): ReportProperty[] {
   return properties.map((ad) => {
     return {
@@ -164,7 +161,7 @@ export function createInitialReportData(
   properties: IPropertyAd[],
   areaType: "USABLE" | "TOTAL" | "BUILT" = "TOTAL"
 ): ReportData {
-  const reportProperties = initializeReportData(properties, areaType);
+  const reportProperties = initializeReportData(properties);
   const summary = calculateSummary(reportProperties, areaType);
 
   return {
@@ -207,8 +204,7 @@ export function createInitialReportData(
  * Gera análises iniciais automaticamente baseado nos dados dos imóveis
  */
 export function generateInitialAnalysis(
-  reportData: ReportData,
-  areaType: "USABLE" | "TOTAL" | "BUILT" = "TOTAL"
+  reportData: ReportData
 ): ReportAnalysis {
   const includedProperties = reportData.properties.filter(
     (p) => p.includeInReport
@@ -225,10 +221,18 @@ export function generateInitialAnalysis(
   }
 
   // Visão geral do mercado
-  const marketOverview = `Este relatório analisa ${includedProperties.length} imóveis selecionados, com preços variando entre ${formatCurrency(reportData.summary.priceRange.min)} e ${formatCurrency(reportData.summary.priceRange.max)}.`;
+  const marketOverview = `Este relatório analisa ${
+    includedProperties.length
+  } imóveis selecionados, com preços variando entre ${formatCurrency(
+    reportData.summary.priceRange.min
+  )} e ${formatCurrency(reportData.summary.priceRange.max)}.`;
 
   // Análise de preços
-  const priceAnalysis = `O preço médio dos imóveis analisados é de ${formatCurrency(reportData.summary.averagePrice)}, com preço por metro quadrado médio de ${formatCurrency(reportData.summary.averagePricePerM2)}.`;
+  const priceAnalysis = `O preço médio dos imóveis analisados é de ${formatCurrency(
+    reportData.summary.averagePrice
+  )}, com preço por metro quadrado médio de ${formatCurrency(
+    reportData.summary.averagePricePerM2
+  )}.`;
 
   // Análise de localização
   const neighborhoods = [
@@ -238,7 +242,9 @@ export function generateInitialAnalysis(
   ];
   const locationAnalysis =
     neighborhoods.length > 0
-      ? `Os imóveis estão distribuídos em ${neighborhoods.length} bairro(s): ${neighborhoods.join(", ")}.`
+      ? `Os imóveis estão distribuídos em ${
+          neighborhoods.length
+        } bairro(s): ${neighborhoods.join(", ")}.`
       : "Análise de localização baseada nos imóveis selecionados.";
 
   return {
@@ -273,7 +279,9 @@ export function calculateSummary(
 
   const prices = includedProperties.map((p) => p.price).filter((p) => p > 0);
   const pricesPerM2 = includedProperties
-    .map((p) => (areaType === "USABLE" ? p.pricePerM2Usable : p.pricePerM2Total))
+    .map((p) =>
+      areaType === "USABLE" ? p.pricePerM2Usable : p.pricePerM2Total
+    )
     .filter((p) => p > 0);
   const usableAreas = includedProperties
     .map((p) => p.usableArea)
@@ -373,23 +381,25 @@ export async function generatePDF(
       for (let i = 0; i < maxAttempts; i++) {
         await new Promise((resolve) => requestAnimationFrame(resolve));
         await new Promise((resolve) => requestAnimationFrame(resolve));
-        
+
         // Verificar se há conteúdo renderizado
-        const hasContent = tempDiv.children.length > 0 || tempDiv.querySelector("div") !== null;
+        const hasContent =
+          tempDiv.children.length > 0 || tempDiv.querySelector("div") !== null;
         if (hasContent) {
           // Verificar se o elemento tem dimensões válidas
           const firstChild = tempDiv.firstElementChild as HTMLElement;
           const elementToCheck = firstChild || tempDiv;
-          const hasDimensions = 
-            (elementToCheck.scrollHeight > 0 || elementToCheck.offsetHeight > 0) &&
+          const hasDimensions =
+            (elementToCheck.scrollHeight > 0 ||
+              elementToCheck.offsetHeight > 0) &&
             (elementToCheck.scrollWidth > 0 || elementToCheck.offsetWidth > 0);
-          
+
           if (hasDimensions) {
             console.log(`Renderização confirmada após ${i + 1} tentativas`);
             return true;
           }
         }
-        
+
         // Aguardar um pouco entre tentativas
         await new Promise((resolve) => setTimeout(resolve, 50));
       }
@@ -401,7 +411,9 @@ export async function generatePDF(
       console.error("Elemento temporário:", tempDiv);
       console.error("HTML:", tempDiv.innerHTML);
       console.error("Children:", tempDiv.children.length);
-      throw new Error("Componente não foi renderizado corretamente após múltiplas tentativas");
+      throw new Error(
+        "Componente não foi renderizado corretamente após múltiplas tentativas"
+      );
     }
 
     // Aguardar todas as imagens carregarem
@@ -442,7 +454,7 @@ export async function generatePDF(
     // O React 18 com createRoot renderiza diretamente no elemento, então usamos tempDiv
     // Mas verificamos se há um primeiro filho com conteúdo significativo
     let elementToCapture: HTMLElement = tempDiv;
-    
+
     if (tempDiv.firstElementChild) {
       const firstChild = tempDiv.firstElementChild as HTMLElement;
       // Se o primeiro filho tem dimensões significativas, usamos ele
@@ -450,20 +462,26 @@ export async function generatePDF(
         elementToCapture = firstChild;
         console.log("Usando firstElementChild para captura");
       } else {
-        console.log("Usando tempDiv para captura (firstElementChild muito pequeno)");
+        console.log(
+          "Usando tempDiv para captura (firstElementChild muito pequeno)"
+        );
       }
     } else {
       console.log("Usando tempDiv para captura (sem firstElementChild)");
     }
-    
+
     // Verificar dimensões finais
-    const elementWidth = elementToCapture.scrollWidth || elementToCapture.offsetWidth || 896;
-    const elementHeight = elementToCapture.scrollHeight || elementToCapture.offsetHeight || 1000;
-    
+    const elementWidth =
+      elementToCapture.scrollWidth || elementToCapture.offsetWidth || 896;
+    const elementHeight =
+      elementToCapture.scrollHeight || elementToCapture.offsetHeight || 1000;
+
     if (elementWidth === 0 || elementHeight === 0) {
-      throw new Error(`Elemento tem dimensões inválidas: ${elementWidth}x${elementHeight}`);
+      throw new Error(
+        `Elemento tem dimensões inválidas: ${elementWidth}x${elementHeight}`
+      );
     }
-    
+
     console.log("Capturando elemento:", {
       element: elementToCapture.tagName,
       width: elementWidth,
@@ -495,7 +513,7 @@ export async function generatePDF(
         }
       },
     });
-    
+
     console.log("Canvas gerado:", {
       width: canvas.width,
       height: canvas.height,
@@ -508,7 +526,7 @@ export async function generatePDF(
 
     // Converter canvas para PDF
     const imgData = canvas.toDataURL("image/png", 1.0);
-    
+
     // Verificar se a imagem foi gerada
     if (!imgData || imgData === "data:,") {
       throw new Error("Falha ao gerar imagem do canvas");
@@ -522,7 +540,7 @@ export async function generatePDF(
 
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
-    
+
     // Converter pixels do canvas para mm
     // html2canvas com scale: 2 significa que cada pixel CSS = 2 pixels no canvas
     // 1 pixel CSS a 96 DPI = 0.264583 mm
@@ -530,15 +548,24 @@ export async function generatePDF(
     const pxToMm = 0.264583;
     const imgWidthMm = (canvas.width / 2) * pxToMm;
     const imgHeightMm = (canvas.height / 2) * pxToMm;
-    
+
     // Calcular escala para caber na largura da página A4 (mantendo proporção)
     const scale = pdfWidth / imgWidthMm;
     const scaledWidth = pdfWidth;
     const scaledHeight = imgHeightMm * scale;
 
     // Adicionar primeira página
-    pdf.addImage(imgData, "PNG", 0, 0, scaledWidth, scaledHeight, undefined, "FAST");
-    
+    pdf.addImage(
+      imgData,
+      "PNG",
+      0,
+      0,
+      scaledWidth,
+      scaledHeight,
+      undefined,
+      "FAST"
+    );
+
     // Adicionar páginas adicionais se necessário
     let heightLeft = scaledHeight - pdfHeight;
     while (heightLeft > 0) {
@@ -582,6 +609,7 @@ export async function generatePDF(
  * Gera o PDF do relatório (versão antiga - mantida para compatibilidade)
  * @deprecated Use a nova versão assíncrona que renderiza o componente React
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function generatePDFLegacy(reportData: ReportData, filename: string): void {
   const doc = new jsPDF();
   let yPosition = 20;
@@ -592,7 +620,6 @@ function generatePDFLegacy(reportData: ReportData, filename: string): void {
 
   // Cores personalizadas
   const primaryRgb = hexToRgb(reportData.styling.primaryColor);
-  const secondaryRgb = hexToRgb(reportData.styling.secondaryColor);
 
   // Função auxiliar para verificar se precisa de nova página
   const checkNewPage = (requiredSpace: number) => {
@@ -611,7 +638,7 @@ function generatePDFLegacy(reportData: ReportData, filename: string): void {
       // Tentar adicionar logo (pode falhar se URL não for acessível)
       // Por limitações do jsPDF, vamos apenas reservar espaço
       logoX = margin + 50;
-    } catch (e) {
+    } catch {
       // Logo não pôde ser carregado, continuar sem ele
     }
   }
@@ -672,7 +699,11 @@ function generatePDFLegacy(reportData: ReportData, filename: string): void {
     : "Autor: Não informado";
   const dateText = `Data: ${formatDate(reportData.date)}`;
   doc.text(authorText, margin, yPosition);
-  doc.text(dateText, pageWidth - margin - doc.getTextWidth(dateText), yPosition);
+  doc.text(
+    dateText,
+    pageWidth - margin - doc.getTextWidth(dateText),
+    yPosition
+  );
   yPosition += 10;
 
   // Linha divisória
@@ -729,7 +760,9 @@ function generatePDFLegacy(reportData: ReportData, filename: string): void {
   doc.setFontSize(10);
   const areaTypeLabel =
     reportData.summary.averagePricePerM2 > 0
-      ? `Estimativa baseada em ${formatCurrency(reportData.summary.averagePricePerM2)}/m²`
+      ? `Estimativa baseada em ${formatCurrency(
+          reportData.summary.averagePricePerM2
+        )}/m²`
       : "Estimativa baseada em área";
   doc.text(areaTypeLabel, pageWidth / 2, yPosition + 26, { align: "center" });
   yPosition += 40;
@@ -1006,16 +1039,12 @@ function generatePDFLegacy(reportData: ReportData, filename: string): void {
       { align: "center" }
     );
     if (reportData.company.name) {
-      doc.text(
-        reportData.company.name,
-        pageWidth / 2,
-        pageHeight - 5,
-        { align: "center" }
-      );
+      doc.text(reportData.company.name, pageWidth / 2, pageHeight - 5, {
+        align: "center",
+      });
     }
   }
 
   // Salva o PDF
   doc.save(filename);
 }
-

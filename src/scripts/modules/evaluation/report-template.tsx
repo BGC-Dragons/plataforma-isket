@@ -27,21 +27,6 @@ export function ReportTemplate({ reportData }: ReportTemplateProps) {
     (p) => p.includeInReport
   );
 
-  // Converter cor hex para RGB para aplicar no estilo
-  const hexToRgb = (hex: string) => {
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result
-      ? {
-          r: parseInt(result[1], 16),
-          g: parseInt(result[2], 16),
-          b: parseInt(result[3], 16),
-        }
-      : { r: 38, g: 35, b: 83 };
-  };
-
-  const primaryRgb = hexToRgb(reportData.styling.primaryColor);
-  const secondaryRgb = hexToRgb(reportData.styling.secondaryColor);
-
   return (
     <Box
       sx={{
@@ -296,7 +281,13 @@ export function ReportTemplate({ reportData }: ReportTemplateProps) {
         </Box>
 
         {/* Faixas de valores */}
-        <Box sx={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 2 }}>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: "repeat(2, 1fr)",
+            gap: 2,
+          }}
+        >
           <Paper sx={{ p: 2 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
               Faixa de Preços
@@ -346,7 +337,7 @@ export function ReportTemplate({ reportData }: ReportTemplateProps) {
             Detalhes dos Imóveis
           </Typography>
 
-          {includedProperties.map((property, index) => (
+          {includedProperties.map((property) => (
             <Paper
               key={property.id}
               sx={{
@@ -366,7 +357,14 @@ export function ReportTemplate({ reportData }: ReportTemplateProps) {
                 }}
               >
                 <Box sx={{ flex: 1 }}>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      mb: 1,
+                    }}
+                  >
                     <Typography variant="h6" sx={{ fontWeight: 600 }}>
                       {property.title}
                     </Typography>
@@ -407,7 +405,10 @@ export function ReportTemplate({ reportData }: ReportTemplateProps) {
 
               {/* Descrição */}
               {property.description && (
-                <Typography variant="body2" sx={{ mb: 2, color: "text.secondary" }}>
+                <Typography
+                  variant="body2"
+                  sx={{ mb: 2, color: "text.secondary" }}
+                >
                   {property.description}
                 </Typography>
               )}
@@ -425,8 +426,20 @@ export function ReportTemplate({ reportData }: ReportTemplateProps) {
                 }}
               >
                 <Box>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.5 }}>
-                    <Bed sx={{ fontSize: 16, color: reportData.styling.primaryColor }} />
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 0.5,
+                      mb: 0.5,
+                    }}
+                  >
+                    <Bed
+                      sx={{
+                        fontSize: 16,
+                        color: reportData.styling.primaryColor,
+                      }}
+                    />
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>
                       Quartos
                     </Typography>
@@ -434,9 +447,19 @@ export function ReportTemplate({ reportData }: ReportTemplateProps) {
                   <Typography variant="h6">{property.rooms}</Typography>
                 </Box>
                 <Box>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.5 }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 0.5,
+                      mb: 0.5,
+                    }}
+                  >
                     <Bathtub
-                      sx={{ fontSize: 16, color: reportData.styling.primaryColor }}
+                      sx={{
+                        fontSize: 16,
+                        color: reportData.styling.primaryColor,
+                      }}
                     />
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>
                       Banheiros
@@ -445,9 +468,19 @@ export function ReportTemplate({ reportData }: ReportTemplateProps) {
                   <Typography variant="h6">{property.bathrooms}</Typography>
                 </Box>
                 <Box>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.5 }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 0.5,
+                      mb: 0.5,
+                    }}
+                  >
                     <DirectionsCar
-                      sx={{ fontSize: 16, color: reportData.styling.primaryColor }}
+                      sx={{
+                        fontSize: 16,
+                        color: reportData.styling.primaryColor,
+                      }}
                     />
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>
                       Vagas
@@ -456,9 +489,19 @@ export function ReportTemplate({ reportData }: ReportTemplateProps) {
                   <Typography variant="h6">{property.parking}</Typography>
                 </Box>
                 <Box>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.5 }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 0.5,
+                      mb: 0.5,
+                    }}
+                  >
                     <SquareFoot
-                      sx={{ fontSize: 16, color: reportData.styling.primaryColor }}
+                      sx={{
+                        fontSize: 16,
+                        color: reportData.styling.primaryColor,
+                      }}
                     />
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>
                       Área Útil
@@ -467,9 +510,19 @@ export function ReportTemplate({ reportData }: ReportTemplateProps) {
                   <Typography variant="h6">{property.usableArea}m²</Typography>
                 </Box>
                 <Box>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.5 }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 0.5,
+                      mb: 0.5,
+                    }}
+                  >
                     <SquareFoot
-                      sx={{ fontSize: 16, color: reportData.styling.primaryColor }}
+                      sx={{
+                        fontSize: 16,
+                        color: reportData.styling.primaryColor,
+                      }}
                     />
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>
                       Área Total
@@ -489,7 +542,10 @@ export function ReportTemplate({ reportData }: ReportTemplateProps) {
                 }}
               >
                 <Paper sx={{ p: 2, backgroundColor: theme.palette.grey[50] }}>
-                  <Typography variant="body2" sx={{ mb: 0.5, color: "text.secondary" }}>
+                  <Typography
+                    variant="body2"
+                    sx={{ mb: 0.5, color: "text.secondary" }}
+                  >
                     Preço/m² Útil
                   </Typography>
                   <Typography variant="h6" sx={{ fontWeight: 600 }}>
@@ -497,7 +553,10 @@ export function ReportTemplate({ reportData }: ReportTemplateProps) {
                   </Typography>
                 </Paper>
                 <Paper sx={{ p: 2, backgroundColor: theme.palette.grey[50] }}>
-                  <Typography variant="body2" sx={{ mb: 0.5, color: "text.secondary" }}>
+                  <Typography
+                    variant="body2"
+                    sx={{ mb: 0.5, color: "text.secondary" }}
+                  >
                     Preço/m² Total
                   </Typography>
                   <Typography variant="h6" sx={{ fontWeight: 600 }}>
@@ -513,17 +572,22 @@ export function ReportTemplate({ reportData }: ReportTemplateProps) {
                 </Typography>
                 <Typography variant="body2">
                   {property.address.street}
-                  {property.address.neighborhood && `, ${property.address.neighborhood}`}
+                  {property.address.neighborhood &&
+                    `, ${property.address.neighborhood}`}
                   {property.address.city && `, ${property.address.city}`}
                   {property.address.state && ` - ${property.address.state}`}
-                  {property.address.postalCode && `, CEP: ${property.address.postalCode}`}
+                  {property.address.postalCode &&
+                    `, CEP: ${property.address.postalCode}`}
                 </Typography>
               </Box>
 
               {/* Características */}
               {property.features && property.features.length > 0 && (
                 <Box sx={{ mb: 2 }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{ fontWeight: 600, mb: 1 }}
+                  >
                     Características
                   </Typography>
                   <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
@@ -552,9 +616,19 @@ export function ReportTemplate({ reportData }: ReportTemplateProps) {
                     mb: 2,
                   }}
                 >
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      mb: 1,
+                    }}
+                  >
                     <Business
-                      sx={{ fontSize: 16, color: reportData.styling.primaryColor }}
+                      sx={{
+                        fontSize: 16,
+                        color: reportData.styling.primaryColor,
+                      }}
                     />
                     <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
                       Observações Específicas
@@ -572,7 +646,10 @@ export function ReportTemplate({ reportData }: ReportTemplateProps) {
               {/* Imagens */}
               {property.images && property.images.length > 0 && (
                 <Box>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{ fontWeight: 600, mb: 1 }}
+                  >
                     Imagens
                   </Typography>
                   <Box
@@ -618,7 +695,9 @@ export function ReportTemplate({ reportData }: ReportTemplateProps) {
           {/* Visão Geral */}
           {reportData.analysis.marketOverview && (
             <Paper sx={{ p: 3, mb: 2 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+              <Box
+                sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}
+              >
                 <TrendingUp
                   sx={{ fontSize: 24, color: reportData.styling.primaryColor }}
                 />
@@ -638,7 +717,9 @@ export function ReportTemplate({ reportData }: ReportTemplateProps) {
           {/* Análise de Preços */}
           {reportData.analysis.priceAnalysis && (
             <Paper sx={{ p: 3, mb: 2 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+              <Box
+                sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}
+              >
                 <AttachMoney
                   sx={{ fontSize: 24, color: reportData.styling.primaryColor }}
                 />
@@ -658,7 +739,9 @@ export function ReportTemplate({ reportData }: ReportTemplateProps) {
           {/* Análise de Localização */}
           {reportData.analysis.locationAnalysis && (
             <Paper sx={{ p: 3, mb: 2 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+              <Box
+                sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}
+              >
                 <LocationOn
                   sx={{ fontSize: 24, color: reportData.styling.primaryColor }}
                 />
@@ -685,7 +768,9 @@ export function ReportTemplate({ reportData }: ReportTemplateProps) {
                 borderLeft: `4px solid #4caf50`,
               }}
             >
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+              <Box
+                sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}
+              >
                 <Lightbulb sx={{ fontSize: 24, color: "#4caf50" }} />
                 <Typography variant="h6" sx={{ fontWeight: 600 }}>
                   Recomendações
@@ -709,7 +794,9 @@ export function ReportTemplate({ reportData }: ReportTemplateProps) {
                 borderLeft: `4px solid ${reportData.styling.primaryColor}`,
               }}
             >
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+              <Box
+                sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}
+              >
                 <CheckCircle
                   sx={{ fontSize: 24, color: reportData.styling.primaryColor }}
                 />
@@ -749,4 +836,3 @@ export function ReportTemplate({ reportData }: ReportTemplateProps) {
     </Box>
   );
 }
-
