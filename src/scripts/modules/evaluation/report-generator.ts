@@ -1,8 +1,3 @@
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
-import React from "react";
-import { createRoot, type Root } from "react-dom/client";
-import { ThemeProvider, createTheme } from "@mui/material/styles";
 import type { IPropertyAd } from "../../../services/post-property-ad-search.service";
 import {
   getTotalPrice,
@@ -10,7 +5,6 @@ import {
   getPricePerSquareMeter,
   translatePropertyType,
 } from "./evaluation-helpers";
-import { ReportTemplate } from "./report-template";
 
 export interface ReportProperty {
   id: string;
@@ -326,725 +320,896 @@ export function calculateSummary(
 }
 
 /**
- * Converte cor hex para RGB
+ * Escapa HTML para prevenir XSS
  */
-function hexToRgb(hex: string): { r: number; g: number; b: number } {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return result
-    ? {
-        r: parseInt(result[1], 16),
-        g: parseInt(result[2], 16),
-        b: parseInt(result[3], 16),
-      }
-    : { r: 38, g: 35, b: 83 };
-}
-
-/**
- * Gera o PDF do relatório renderizando o componente React
- */
-export async function generatePDF(
-  reportData: ReportData,
-  filename: string
-): Promise<void> {
-  // Criar tema MUI padrão
-  const theme = createTheme();
-
-  // Criar elemento temporário para renderizar o componente
-  const tempDiv = document.createElement("div");
-  tempDiv.id = "pdf-export-temp";
-  tempDiv.style.position = "fixed";
-  tempDiv.style.left = "0";
-  tempDiv.style.top = "0";
-  tempDiv.style.width = "896px";
-  tempDiv.style.minHeight = "100px";
-  tempDiv.style.backgroundColor = "#ffffff";
-  tempDiv.style.zIndex = "99999";
-  tempDiv.style.overflow = "visible";
-  tempDiv.style.pointerEvents = "none";
-  document.body.appendChild(tempDiv);
-
-  let root: Root | null = null;
-
-  try {
-    // Renderizar o componente React com ThemeProvider
-    root = createRoot(tempDiv);
-    root.render(
-      React.createElement(
-        ThemeProvider,
-        { theme },
-        React.createElement(ReportTemplate, { reportData })
-      )
-    );
-
-    // Aguardar renderização usando requestAnimationFrame para garantir que o DOM foi atualizado
-    const waitForRender = async (maxAttempts = 20) => {
-      for (let i = 0; i < maxAttempts; i++) {
-        await new Promise((resolve) => requestAnimationFrame(resolve));
-        await new Promise((resolve) => requestAnimationFrame(resolve));
-
-        // Verificar se há conteúdo renderizado
-        const hasContent =
-          tempDiv.children.length > 0 || tempDiv.querySelector("div") !== null;
-        if (hasContent) {
-          // Verificar se o elemento tem dimensões válidas
-          const firstChild = tempDiv.firstElementChild as HTMLElement;
-          const elementToCheck = firstChild || tempDiv;
-          const hasDimensions =
-            (elementToCheck.scrollHeight > 0 ||
-              elementToCheck.offsetHeight > 0) &&
-            (elementToCheck.scrollWidth > 0 || elementToCheck.offsetWidth > 0);
-
-          if (hasDimensions) {
-            console.log(`Renderização confirmada após ${i + 1} tentativas`);
-            return true;
-          }
-        }
-
-        // Aguardar um pouco entre tentativas
-        await new Promise((resolve) => setTimeout(resolve, 50));
-      }
-      return false;
-    };
-
-    const isRendered = await waitForRender();
-    if (!isRendered) {
-      console.error("Elemento temporário:", tempDiv);
-      console.error("HTML:", tempDiv.innerHTML);
-      console.error("Children:", tempDiv.children.length);
-      throw new Error(
-        "Componente não foi renderizado corretamente após múltiplas tentativas"
-      );
-    }
-
-    // Aguardar todas as imagens carregarem
-    const images = tempDiv.querySelectorAll("img");
-    if (images.length > 0) {
-      console.log(`Aguardando carregamento de ${images.length} imagem(ns)...`);
-      await Promise.all(
-        Array.from(images).map(
-          (img) =>
-            new Promise<void>((resolve) => {
-              if (img.complete && img.naturalHeight > 0) {
-                resolve();
-              } else {
-                const timeout = setTimeout(() => {
-                  console.warn("Timeout ao carregar imagem:", img.src);
-                  resolve();
-                }, 5000); // Timeout de 5s
-                img.onload = () => {
-                  clearTimeout(timeout);
-                  resolve();
-                };
-                img.onerror = () => {
-                  clearTimeout(timeout);
-                  console.warn("Erro ao carregar imagem:", img.src);
-                  resolve(); // Continuar mesmo se a imagem falhar
-                };
-              }
-            })
-        )
-      );
-      console.log("Todas as imagens processadas");
-    }
-
-    // Aguardar mais um pouco para garantir que tudo está estável
-    await new Promise((resolve) => setTimeout(resolve, 300));
-
-    // Determinar o elemento correto para capturar
-    // O React 18 com createRoot renderiza diretamente no elemento, então usamos tempDiv
-    // Mas verificamos se há um primeiro filho com conteúdo significativo
-    let elementToCapture: HTMLElement = tempDiv;
-
-    if (tempDiv.firstElementChild) {
-      const firstChild = tempDiv.firstElementChild as HTMLElement;
-      // Se o primeiro filho tem dimensões significativas, usamos ele
-      if (firstChild.scrollHeight > 100 || firstChild.offsetHeight > 100) {
-        elementToCapture = firstChild;
-        console.log("Usando firstElementChild para captura");
-      } else {
-        console.log(
-          "Usando tempDiv para captura (firstElementChild muito pequeno)"
-        );
-      }
-    } else {
-      console.log("Usando tempDiv para captura (sem firstElementChild)");
-    }
-
-    // Verificar dimensões finais
-    const elementWidth =
-      elementToCapture.scrollWidth || elementToCapture.offsetWidth || 896;
-    const elementHeight =
-      elementToCapture.scrollHeight || elementToCapture.offsetHeight || 1000;
-
-    if (elementWidth === 0 || elementHeight === 0) {
-      throw new Error(
-        `Elemento tem dimensões inválidas: ${elementWidth}x${elementHeight}`
-      );
-    }
-
-    console.log("Capturando elemento:", {
-      element: elementToCapture.tagName,
-      width: elementWidth,
-      height: elementHeight,
-      scrollWidth: elementToCapture.scrollWidth,
-      scrollHeight: elementToCapture.scrollHeight,
-      offsetWidth: elementToCapture.offsetWidth,
-      offsetHeight: elementToCapture.offsetHeight,
-    });
-
-    // Capturar o elemento com html2canvas
-    const canvas = await html2canvas(elementToCapture, {
-      scale: 2, // Maior qualidade
-      useCORS: true,
-      logging: false, // Desabilitar logs em produção (pode ser true para debug)
-      backgroundColor: "#ffffff",
-      width: elementWidth,
-      height: elementHeight,
-      windowWidth: elementWidth,
-      windowHeight: elementHeight,
-      allowTaint: true,
-      removeContainer: false,
-      onclone: (clonedDoc) => {
-        // Garantir que o elemento clonado tenha as mesmas dimensões
-        const clonedElement = clonedDoc.getElementById("pdf-export-temp");
-        if (clonedElement) {
-          (clonedElement as HTMLElement).style.width = `${elementWidth}px`;
-          (clonedElement as HTMLElement).style.height = `${elementHeight}px`;
-        }
-      },
-    });
-
-    console.log("Canvas gerado:", {
-      width: canvas.width,
-      height: canvas.height,
-    });
-
-    // Verificar se o canvas tem conteúdo
-    if (canvas.width === 0 || canvas.height === 0) {
-      throw new Error("Canvas está vazio");
-    }
-
-    // Converter canvas para PDF
-    const imgData = canvas.toDataURL("image/png", 1.0);
-
-    // Verificar se a imagem foi gerada
-    if (!imgData || imgData === "data:,") {
-      throw new Error("Falha ao gerar imagem do canvas");
-    }
-
-    const pdf = new jsPDF({
-      orientation: "portrait",
-      unit: "mm",
-      format: "a4",
-    });
-
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = pdf.internal.pageSize.getHeight();
-
-    // Converter pixels do canvas para mm
-    // html2canvas com scale: 2 significa que cada pixel CSS = 2 pixels no canvas
-    // 1 pixel CSS a 96 DPI = 0.264583 mm
-    // Então: canvas pixels / 2 * 0.264583 = mm
-    const pxToMm = 0.264583;
-    const imgWidthMm = (canvas.width / 2) * pxToMm;
-    const imgHeightMm = (canvas.height / 2) * pxToMm;
-
-    // Calcular escala para caber na largura da página A4 (mantendo proporção)
-    const scale = pdfWidth / imgWidthMm;
-    const scaledWidth = pdfWidth;
-    const scaledHeight = imgHeightMm * scale;
-
-    // Adicionar primeira página
-    pdf.addImage(
-      imgData,
-      "PNG",
-      0,
-      0,
-      scaledWidth,
-      scaledHeight,
-      undefined,
-      "FAST"
-    );
-
-    // Adicionar páginas adicionais se necessário
-    let heightLeft = scaledHeight - pdfHeight;
-    while (heightLeft > 0) {
-      pdf.addPage();
-      const yPosition = -(scaledHeight - heightLeft);
-      pdf.addImage(
-        imgData,
-        "PNG",
-        0,
-        yPosition,
-        scaledWidth,
-        scaledHeight,
-        undefined,
-        "FAST"
-      );
-      heightLeft -= pdfHeight;
-    }
-
-    // Salvar o PDF
-    pdf.save(filename);
-  } catch (error) {
-    console.error("Erro ao gerar PDF:", error);
-    // Mostrar erro mais detalhado
-    if (error instanceof Error) {
-      console.error("Detalhes do erro:", error.message);
-      console.error("Stack:", error.stack);
-    }
-    throw error;
-  } finally {
-    // Limpar
-    if (root) {
-      root.unmount();
-    }
-    if (tempDiv.parentNode) {
-      document.body.removeChild(tempDiv);
-    }
-  }
-}
-
-/**
- * Gera o PDF do relatório (versão antiga - mantida para compatibilidade)
- * @deprecated Use a nova versão assíncrona que renderiza o componente React
- */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function generatePDFLegacy(reportData: ReportData, filename: string): void {
-  const doc = new jsPDF();
-  let yPosition = 20;
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 20;
-  const contentWidth = pageWidth - 2 * margin;
-
-  // Cores personalizadas
-  const primaryRgb = hexToRgb(reportData.styling.primaryColor);
-
-  // Função auxiliar para verificar se precisa de nova página
-  const checkNewPage = (requiredSpace: number) => {
-    if (yPosition + requiredSpace > pageHeight - margin) {
-      doc.addPage();
-      yPosition = margin;
-      return true;
-    }
-    return false;
+function escapeHtml(text: string): string {
+  if (!text) return "";
+  const map: Record<string, string> = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;",
   };
+  return text.replace(/[&<>"']/g, (m) => map[m]);
+}
 
-  // Header com logo
-  let logoX = margin;
-  if (reportData.company.logo && reportData.styling.logoPosition === "left") {
-    try {
-      // Tentar adicionar logo (pode falhar se URL não for acessível)
-      // Por limitações do jsPDF, vamos apenas reservar espaço
-      logoX = margin + 50;
-    } catch {
-      // Logo não pôde ser carregado, continuar sem ele
-    }
-  }
-
-  // Título e subtítulo
-  doc.setFontSize(20);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(primaryRgb.r, primaryRgb.g, primaryRgb.b);
-  doc.text(
-    reportData.title || "Relatório de Avaliação Imobiliária",
-    logoX,
-    yPosition,
-    { maxWidth: contentWidth - (logoX - margin) }
-  );
-  yPosition += 10;
-
-  doc.setFontSize(14);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(0, 0, 0);
-  doc.text(
-    reportData.subtitle || "Análise Comparativa de Mercado",
-    logoX,
-    yPosition,
-    { maxWidth: contentWidth - (logoX - margin) }
-  );
-  yPosition += 10;
-
-  // Informações da empresa (se habilitado)
-  if (reportData.styling.showCompanyInfo) {
-    const companyInfo: string[] = [];
-    if (reportData.company.address) {
-      companyInfo.push(`Endereço: ${reportData.company.address}`);
-    }
-    if (reportData.company.phone) {
-      companyInfo.push(`Telefone: ${reportData.company.phone}`);
-    }
-    if (reportData.company.email) {
-      companyInfo.push(`E-mail: ${reportData.company.email}`);
-    }
-    if (reportData.company.website) {
-      companyInfo.push(`Website: ${reportData.company.website}`);
-    }
-
-    if (companyInfo.length > 0) {
-      doc.setFontSize(9);
-      companyInfo.forEach((info) => {
-        doc.text(info, margin, yPosition, { maxWidth: contentWidth });
-        yPosition += 4;
-      });
-      yPosition += 5;
-    }
-  }
-
-  // Autor e Data
-  doc.setFontSize(10);
-  const authorText = reportData.author
-    ? `Autor: ${reportData.author}`
-    : "Autor: Não informado";
-  const dateText = `Data: ${formatDate(reportData.date)}`;
-  doc.text(authorText, margin, yPosition);
-  doc.text(
-    dateText,
-    pageWidth - margin - doc.getTextWidth(dateText),
-    yPosition
-  );
-  yPosition += 10;
-
-  // Linha divisória
-  doc.setDrawColor(primaryRgb.r, primaryRgb.g, primaryRgb.b);
-  doc.setLineWidth(0.5);
-  doc.line(margin, yPosition, pageWidth - margin, yPosition);
-  yPosition += 10;
-
-  // Descrição
-  if (reportData.description) {
-    checkNewPage(20);
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("Descrição do Relatório", margin, yPosition);
-    yPosition += 7;
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    const descriptionLines = doc.splitTextToSize(
-      reportData.description,
-      contentWidth
-    );
-    descriptionLines.forEach((line: string) => {
-      checkNewPage(5);
-      doc.text(line, margin, yPosition);
-      yPosition += 5;
-    });
-    yPosition += 5;
-  }
-
-  // Resumo Executivo
-  checkNewPage(60);
-  doc.setFontSize(16);
-  doc.setFont("helvetica", "bold");
-  doc.text("Resumo Executivo", margin, yPosition);
-  yPosition += 10;
-
-  // Box de valor de avaliação
-  checkNewPage(35);
-  doc.setFillColor(primaryRgb.r, primaryRgb.g, primaryRgb.b);
-  doc.roundedRect(margin, yPosition, contentWidth, 30, 3, 3, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(24);
-  doc.setFont("helvetica", "bold");
-  doc.text(
-    formatCurrency(reportData.summary.averagePrice),
-    pageWidth / 2,
-    yPosition + 12,
-    { align: "center" }
-  );
-  doc.setFontSize(12);
-  doc.text("VALOR DE AVALIAÇÃO", pageWidth / 2, yPosition + 20, {
-    align: "center",
-  });
-  doc.setFontSize(10);
-  const areaTypeLabel =
-    reportData.summary.averagePricePerM2 > 0
-      ? `Estimativa baseada em ${formatCurrency(
-          reportData.summary.averagePricePerM2
-        )}/m²`
-      : "Estimativa baseada em área";
-  doc.text(areaTypeLabel, pageWidth / 2, yPosition + 26, { align: "center" });
-  yPosition += 40;
-
-  doc.setTextColor(0, 0, 0);
-
-  // Métricas
-  checkNewPage(20);
-  const metrics = [
-    {
-      label: "Imóveis avaliados",
-      value: reportData.summary.totalProperties.toString(),
-    },
-    {
-      label: "Preço médio/m²",
-      value: formatCurrency(reportData.summary.averagePricePerM2),
-    },
-    {
-      label: "Área útil média",
-      value: `${Math.round(reportData.summary.averageUsableArea)}m²`,
-    },
-  ];
-
-  doc.setFontSize(10);
-  const metricWidth = contentWidth / 3;
-  metrics.forEach((metric, index) => {
-    const x = margin + index * metricWidth;
-    doc.setFont("helvetica", "bold");
-    doc.text(metric.value, x + metricWidth / 2, yPosition, {
-      align: "center",
-    });
-    doc.setFont("helvetica", "normal");
-    const labelLines = doc.splitTextToSize(metric.label, metricWidth - 10);
-    labelLines.forEach((line: string, lineIndex: number) => {
-      doc.text(line, x + metricWidth / 2, yPosition + 5 + lineIndex * 4, {
-        align: "center",
-      });
-    });
-  });
-  yPosition += 15;
-
-  // Faixas de valores
-  checkNewPage(25);
-  const rangeWidth = contentWidth / 2;
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "bold");
-  doc.text("Faixa de Preços", margin, yPosition);
-  doc.text("Faixa de Área Útil", margin + rangeWidth, yPosition);
-  yPosition += 5;
-  doc.setFont("helvetica", "normal");
-  doc.text(
-    `Menor: ${formatCurrency(reportData.summary.priceRange.min)}`,
-    margin,
-    yPosition
-  );
-  doc.text(
-    `Menor: ${reportData.summary.areaRange.min}m²`,
-    margin + rangeWidth,
-    yPosition
-  );
-  yPosition += 4;
-  doc.text(
-    `Maior: ${formatCurrency(reportData.summary.priceRange.max)}`,
-    margin,
-    yPosition
-  );
-  doc.text(
-    `Maior: ${reportData.summary.areaRange.max}m²`,
-    margin + rangeWidth,
-    yPosition
-  );
-  yPosition += 10;
-
-  // Detalhes dos Imóveis
+/**
+ * Gera HTML completo do relatório para impressão
+ */
+function generatePrintableHTML(reportData: ReportData): string {
   const includedProperties = reportData.properties.filter(
     (p) => p.includeInReport
   );
 
-  if (includedProperties.length > 0) {
-    checkNewPage(20);
-    doc.setFontSize(16);
-    doc.setFont("helvetica", "bold");
-    doc.text("Detalhes dos Imóveis", margin, yPosition);
-    yPosition += 10;
-
-    includedProperties.forEach((prop, index) => {
-      checkNewPage(80);
-      if (index > 0) {
-        yPosition += 5;
+  // CSS inline completo
+  const css = `
+    <style>
+      @page {
+        size: A4;
+        margin: 15mm;
       }
+      
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      
+      body {
+        font-family: ${reportData.styling.fontFamily};
+        color: #000000;
+        background-color: #ffffff;
+        line-height: 1.6;
+        -webkit-print-color-adjust: exact !important;
+        color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      
+      .container {
+        max-width: 896px;
+        width: 100%;
+        margin: 0 auto;
+        padding: 32px;
+        background-color: #ffffff;
+      }
+      
+      .header {
+        border-bottom: 3px solid ${reportData.styling.primaryColor};
+        padding-bottom: 24px;
+        margin-bottom: 32px;
+      }
+      
+      .header-content {
+        display: flex;
+        align-items: center;
+        justify-content: ${
+          reportData.styling.logoPosition === "center"
+            ? "center"
+            : "space-between"
+        };
+        flex-direction: ${
+          reportData.styling.logoPosition === "center" ? "column" : "row"
+        };
+        gap: 16px;
+        margin-bottom: 16px;
+      }
+      
+      .logo {
+        height: 64px;
+        max-width: 200px;
+        object-fit: contain;
+      }
+      
+      .title-section {
+        flex: 1;
+        text-align: center;
+      }
+      
+      .title {
+        font-size: 32px;
+        font-weight: 700;
+        color: ${reportData.styling.primaryColor};
+        margin-bottom: 8px;
+      }
+      
+      .subtitle {
+        font-size: 20px;
+        color: #666666;
+        font-weight: 400;
+      }
+      
+      .company-info {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid ${reportData.styling.secondaryColor};
+      }
+      
+      .company-info-item {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 14px;
+      }
+      
+      .header-footer {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid ${reportData.styling.secondaryColor};
+      }
+      
+      .description-box {
+        padding: 24px;
+        margin-bottom: 32px;
+        background-color: #f5f5f5;
+        border-left: 4px solid ${reportData.styling.primaryColor};
+      }
+      
+      .description-title {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 8px;
+      }
+      
+      .description-text {
+        white-space: pre-line;
+        line-height: 1.8;
+      }
+      
+      .section-title {
+        font-size: 24px;
+        font-weight: 700;
+        margin-bottom: 24px;
+      }
+      
+      .evaluation-box {
+        padding: 32px;
+        margin-bottom: 24px;
+        background-color: ${reportData.styling.primaryColor};
+        color: #ffffff;
+        text-align: center;
+        border-radius: 8px;
+      }
+      
+      .evaluation-value {
+        font-size: 48px;
+        font-weight: 700;
+        margin-bottom: 8px;
+      }
+      
+      .evaluation-label {
+        font-size: 20px;
+        font-weight: 600;
+        margin-bottom: 16px;
+      }
+      
+      .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+      
+      .metric-card {
+        padding: 16px;
+        text-align: center;
+        background-color: #ffffff;
+        border: 1px solid #e0e0e0;
+        border-radius: 4px;
+      }
+      
+      .metric-value {
+        font-size: 24px;
+        font-weight: 700;
+        margin-bottom: 8px;
+      }
+      
+      .metric-label {
+        font-size: 14px;
+        color: #666666;
+      }
+      
+      .ranges-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+      }
+      
+      .range-card {
+        padding: 16px;
+        background-color: #ffffff;
+        border: 1px solid #e0e0e0;
+        border-radius: 4px;
+      }
+      
+      .range-title {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 8px;
+      }
+      
+      .property-card {
+        padding: 24px;
+        margin-bottom: 24px;
+        border: 1px solid ${reportData.styling.secondaryColor};
+        border-radius: 8px;
+        page-break-inside: avoid;
+      }
+      
+      .property-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 16px;
+      }
+      
+      .property-title-section {
+        flex: 1;
+      }
+      
+      .property-title-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      
+      .property-title {
+        font-size: 18px;
+        font-weight: 600;
+      }
+      
+      .property-type-chip {
+        display: inline-block;
+        padding: 4px 12px;
+        background-color: ${reportData.styling.primaryColor};
+        color: #ffffff;
+        font-size: 12px;
+        font-weight: 600;
+        border-radius: 16px;
+      }
+      
+      .property-location {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        color: #666666;
+        font-size: 14px;
+      }
+      
+      .property-price {
+        font-size: 24px;
+        font-weight: 700;
+        color: ${reportData.styling.primaryColor};
+      }
+      
+      .property-features-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 16px;
+        margin-bottom: 16px;
+        padding: 16px;
+        background-color: #f5f5f5;
+        border-radius: 4px;
+      }
+      
+      .property-feature {
+        text-align: center;
+      }
+      
+      .property-feature-label {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        margin-bottom: 4px;
+        font-size: 14px;
+        font-weight: 600;
+      }
+      
+      .property-feature-value {
+        font-size: 18px;
+        font-weight: 600;
+      }
+      
+      .property-prices-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+        margin-bottom: 16px;
+      }
+      
+      .property-price-card {
+        padding: 16px;
+        background-color: #f5f5f5;
+        border-radius: 4px;
+      }
+      
+      .property-price-label {
+        font-size: 14px;
+        margin-bottom: 4px;
+        color: #666666;
+      }
+      
+      .property-price-value {
+        font-size: 18px;
+        font-weight: 600;
+      }
+      
+      .property-features-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+      
+      .feature-chip {
+        display: inline-block;
+        padding: 4px 12px;
+        background-color: ${reportData.styling.secondaryColor};
+        border: 1px solid ${reportData.styling.primaryColor};
+        font-size: 12px;
+        border-radius: 16px;
+      }
+      
+      .property-notes {
+        padding: 16px;
+        background-color: #e3f2fd;
+        border-left: 4px solid ${reportData.styling.primaryColor};
+        margin-bottom: 16px;
+      }
+      
+      .property-notes-title {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 8px;
+      }
+      
+      .property-notes-text {
+        white-space: pre-line;
+        line-height: 1.8;
+        font-size: 14px;
+      }
+      
+      .property-images {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+      }
+      
+      .property-image {
+        width: 100%;
+        height: 120px;
+        object-fit: cover;
+        border-radius: 4px;
+        border: 1px solid ${reportData.styling.secondaryColor};
+      }
+      
+      .analysis-section {
+        margin-bottom: 32px;
+      }
+      
+      .analysis-card {
+        padding: 24px;
+        margin-bottom: 16px;
+        background-color: #ffffff;
+        border: 1px solid #e0e0e0;
+        border-radius: 4px;
+      }
+      
+      .analysis-card-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+      
+      .analysis-card-title {
+        font-size: 18px;
+        font-weight: 600;
+      }
+      
+      .analysis-card-content {
+        white-space: pre-line;
+        line-height: 1.8;
+      }
+      
+      .analysis-recommendations {
+        background-color: #e8f5e9;
+        border-left: 4px solid #4caf50;
+      }
+      
+      .analysis-conclusion {
+        background-color: #e3f2fd;
+        border-left: 4px solid ${reportData.styling.primaryColor};
+      }
+      
+      .footer {
+        margin-top: 32px;
+        padding-top: 24px;
+        border-top: 2px solid ${reportData.styling.secondaryColor};
+        text-align: center;
+      }
+      
+      .footer-text {
+        font-size: 14px;
+        color: #666666;
+        margin-bottom: 8px;
+      }
+      
+      .footer-company {
+        font-size: 14px;
+        font-weight: 600;
+      }
+      
+      @media print {
+        body {
+          -webkit-print-color-adjust: exact !important;
+          color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        
+        .page-break {
+          page-break-before: always;
+        }
+        
+        .avoid-break {
+          page-break-inside: avoid;
+          break-inside: avoid;
+        }
+        
+        .property-card {
+          page-break-inside: avoid;
+        }
+      }
+    </style>
+  `;
 
-      // Título do imóvel
-      doc.setFontSize(12);
-      doc.setFont("helvetica", "bold");
-      doc.text(prop.title.substring(0, 50), margin, yPosition);
-      yPosition += 6;
+  // HTML do header
+  const headerHtml = `
+    <div class="header">
+      <div class="header-content">
+        ${
+          reportData.styling.logoPosition !== "right" && reportData.company.logo
+            ? `<img src="${escapeHtml(
+                reportData.company.logo
+              )}" alt="${escapeHtml(reportData.company.name)}" class="logo" />`
+            : ""
+        }
+        <div class="title-section">
+          <h1 class="title">${escapeHtml(
+            reportData.title || "Relatório de Avaliação Imobiliária"
+          )}</h1>
+          <h2 class="subtitle">${escapeHtml(
+            reportData.subtitle || "Análise Comparativa de Mercado"
+          )}</h2>
+        </div>
+        ${
+          reportData.styling.logoPosition === "right" && reportData.company.logo
+            ? `<img src="${escapeHtml(
+                reportData.company.logo
+              )}" alt="${escapeHtml(reportData.company.name)}" class="logo" />`
+            : ""
+        }
+      </div>
+      ${
+        reportData.styling.showCompanyInfo
+          ? `
+        <div class="company-info">
+          ${
+            reportData.company.address
+              ? `<div class="company-info-item">📍 ${escapeHtml(
+                  reportData.company.address
+                )}</div>`
+              : ""
+          }
+          ${
+            reportData.company.phone
+              ? `<div class="company-info-item">📞 ${escapeHtml(
+                  reportData.company.phone
+                )}</div>`
+              : ""
+          }
+          ${
+            reportData.company.email
+              ? `<div class="company-info-item">✉️ ${escapeHtml(
+                  reportData.company.email
+                )}</div>`
+              : ""
+          }
+          ${
+            reportData.company.website
+              ? `<div class="company-info-item">🌐 ${escapeHtml(
+                  reportData.company.website
+                )}</div>`
+              : ""
+          }
+        </div>
+        `
+          : ""
+      }
+      <div class="header-footer">
+        ${
+          reportData.author
+            ? `<div>Autor: ${escapeHtml(reportData.author)}</div>`
+            : ""
+        }
+        <div>Data: ${formatDate(reportData.date)}</div>
+      </div>
+    </div>
+  `;
 
-      // Tipo e localização
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "normal");
-      doc.text(
-        `${prop.propertyType} - ${prop.address.neighborhood}, ${prop.address.city}`,
-        margin,
-        yPosition
+  // HTML da descrição
+  const descriptionHtml = reportData.description
+    ? `
+    <div class="description-box">
+      <div class="description-title">Descrição do Relatório</div>
+      <div class="description-text">${escapeHtml(reportData.description)}</div>
+    </div>
+  `
+    : "";
+
+  // HTML do resumo executivo
+  const summaryHtml = `
+    <div class="section-title">Resumo Executivo</div>
+    <div class="evaluation-box">
+      <div class="evaluation-value">${formatCurrency(
+        reportData.summary.averagePrice
+      )}</div>
+      <div class="evaluation-label">VALOR DE AVALIAÇÃO</div>
+      <div>Estimativa baseada em ${formatCurrency(
+        reportData.summary.averagePricePerM2
+      )}/m²</div>
+    </div>
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-value">${reportData.summary.totalProperties}</div>
+        <div class="metric-label">Imóveis analisados</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-value">${formatCurrency(
+          reportData.summary.averagePricePerM2
+        )}</div>
+        <div class="metric-label">Preço/m² médio</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-value">${Math.round(
+          reportData.summary.averageUsableArea
+        )}m²</div>
+        <div class="metric-label">Área útil média</div>
+      </div>
+    </div>
+    <div class="ranges-grid">
+      <div class="range-card">
+        <div class="range-title">Faixa de Preços</div>
+        <div>Menor: ${formatCurrency(reportData.summary.priceRange.min)}</div>
+        <div>Maior: ${formatCurrency(reportData.summary.priceRange.max)}</div>
+        <div style="margin-top: 8px; font-weight: 500;">
+          Variação: ${formatCurrency(
+            reportData.summary.priceRange.max -
+              reportData.summary.priceRange.min
+          )}
+        </div>
+      </div>
+      <div class="range-card">
+        <div class="range-title">Faixa de Área Útil</div>
+        <div>Menor: ${reportData.summary.areaRange.min}m²</div>
+        <div>Maior: ${reportData.summary.areaRange.max}m²</div>
+        <div style="margin-top: 8px; font-weight: 500;">
+          Variação: ${
+            reportData.summary.areaRange.max - reportData.summary.areaRange.min
+          }m²
+        </div>
+      </div>
+    </div>
+  `;
+
+  // HTML dos imóveis
+  const propertiesHtml =
+    includedProperties.length > 0
+      ? `
+    <div class="section-title">Detalhes dos Imóveis</div>
+    ${includedProperties
+      .map(
+        (property) => `
+      <div class="property-card avoid-break">
+        <div class="property-header">
+          <div class="property-title-section">
+            <div class="property-title-row">
+              <div class="property-title">${escapeHtml(property.title)}</div>
+              <span class="property-type-chip">${escapeHtml(
+                property.propertyType
+              )}</span>
+            </div>
+            <div class="property-location">
+              📍 ${escapeHtml(property.address.neighborhood)}, ${escapeHtml(
+          property.address.city
+        )}
+            </div>
+          </div>
+          <div class="property-price">${formatCurrency(property.price)}</div>
+        </div>
+        ${
+          property.description
+            ? `<div style="margin-bottom: 16px; color: #666666; font-size: 14px;">${escapeHtml(
+                property.description
+              )}</div>`
+            : ""
+        }
+        <div class="property-features-grid">
+          <div class="property-feature">
+            <div class="property-feature-label">🛏️ Quartos</div>
+            <div class="property-feature-value">${property.rooms}</div>
+          </div>
+          <div class="property-feature">
+            <div class="property-feature-label">🚿 Banheiros</div>
+            <div class="property-feature-value">${property.bathrooms}</div>
+          </div>
+          <div class="property-feature">
+            <div class="property-feature-label">🚗 Vagas</div>
+            <div class="property-feature-value">${property.parking}</div>
+          </div>
+          <div class="property-feature">
+            <div class="property-feature-label">📐 Área Útil</div>
+            <div class="property-feature-value">${property.usableArea}m²</div>
+          </div>
+          <div class="property-feature">
+            <div class="property-feature-label">📐 Área Total</div>
+            <div class="property-feature-value">${property.totalArea}m²</div>
+          </div>
+        </div>
+        <div class="property-prices-grid">
+          <div class="property-price-card">
+            <div class="property-price-label">Preço/m² Útil</div>
+            <div class="property-price-value">${formatCurrency(
+              property.pricePerM2Usable
+            )}</div>
+          </div>
+          <div class="property-price-card">
+            <div class="property-price-label">Preço/m² Total</div>
+            <div class="property-price-value">${formatCurrency(
+              property.pricePerM2Total
+            )}</div>
+          </div>
+        </div>
+        <div style="margin-bottom: 16px;">
+          <div class="range-title">Endereço Completo</div>
+          <div>${escapeHtml(
+            [
+              property.address.street,
+              property.address.neighborhood,
+              property.address.city,
+              property.address.state,
+              property.address.postalCode,
+            ]
+              .filter(Boolean)
+              .join(", ")
+          )}</div>
+        </div>
+        ${
+          property.features && property.features.length > 0
+            ? `
+          <div style="margin-bottom: 16px;">
+            <div class="range-title">Características</div>
+            <div class="property-features-list">
+              ${property.features
+                .map(
+                  (f) => `<span class="feature-chip">${escapeHtml(f)}</span>`
+                )
+                .join("")}
+            </div>
+          </div>
+          `
+            : ""
+        }
+        ${
+          property.customNotes
+            ? `
+          <div class="property-notes">
+            <div class="property-notes-title">🏢 Observações Específicas</div>
+            <div class="property-notes-text">${escapeHtml(
+              property.customNotes
+            )}</div>
+          </div>
+          `
+            : ""
+        }
+        ${
+          property.images && property.images.length > 0
+            ? `
+          <div>
+            <div class="range-title" style="margin-bottom: 8px;">Imagens</div>
+            <div class="property-images">
+              ${property.images
+                .slice(0, 4)
+                .map(
+                  (img) =>
+                    `<img src="${escapeHtml(img)}" alt="${escapeHtml(
+                      property.title
+                    )}" class="property-image" onerror="this.style.display='none'" />`
+                )
+                .join("")}
+            </div>
+          </div>
+          `
+            : ""
+        }
+      </div>
+    `
+      )
+      .join("")}
+  `
+      : "";
+
+  // HTML da análise
+  const analysisHtml = reportData.styling.showAnalysis
+    ? `
+    <div class="section-title">Análise de Mercado</div>
+    ${
+      reportData.analysis.marketOverview
+        ? `
+      <div class="analysis-card">
+        <div class="analysis-card-header">
+          <span>📈</span>
+          <div class="analysis-card-title">Visão Geral do Mercado</div>
+        </div>
+        <div class="analysis-card-content">${escapeHtml(
+          reportData.analysis.marketOverview
+        )}</div>
+      </div>
+      `
+        : ""
+    }
+    ${
+      reportData.analysis.priceAnalysis
+        ? `
+      <div class="analysis-card">
+        <div class="analysis-card-header">
+          <span>💰</span>
+          <div class="analysis-card-title">Análise de Preços</div>
+        </div>
+        <div class="analysis-card-content">${escapeHtml(
+          reportData.analysis.priceAnalysis
+        )}</div>
+      </div>
+      `
+        : ""
+    }
+    ${
+      reportData.analysis.locationAnalysis
+        ? `
+      <div class="analysis-card">
+        <div class="analysis-card-header">
+          <span>📍</span>
+          <div class="analysis-card-title">Análise de Localização</div>
+        </div>
+        <div class="analysis-card-content">${escapeHtml(
+          reportData.analysis.locationAnalysis
+        )}</div>
+      </div>
+      `
+        : ""
+    }
+    ${
+      reportData.analysis.recommendations
+        ? `
+      <div class="analysis-card analysis-recommendations">
+        <div class="analysis-card-header">
+          <span>💡</span>
+          <div class="analysis-card-title">Recomendações</div>
+        </div>
+        <div class="analysis-card-content">${escapeHtml(
+          reportData.analysis.recommendations
+        )}</div>
+      </div>
+      `
+        : ""
+    }
+    ${
+      reportData.analysis.conclusion
+        ? `
+      <div class="analysis-card analysis-conclusion">
+        <div class="analysis-card-header">
+          <span>✅</span>
+          <div class="analysis-card-title">Conclusão</div>
+        </div>
+        <div class="analysis-card-content">${escapeHtml(
+          reportData.analysis.conclusion
+        )}</div>
+      </div>
+      `
+        : ""
+    }
+  `
+    : "";
+
+  // HTML do footer
+  const footerHtml = `
+    <div class="footer">
+      <div class="footer-text">Relatório gerado em ${formatDate(
+        new Date().toISOString()
+      )}</div>
+      ${
+        reportData.company.name
+          ? `<div class="footer-company">${escapeHtml(
+              reportData.company.name
+            )}</div>`
+          : ""
+      }
+    </div>
+  `;
+
+  // HTML completo
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>${escapeHtml(
+      reportData.title || "Relatório de Avaliação Imobiliária"
+    )}</title>
+    ${css}
+  </head>
+  <body>
+    <div class="container">
+      ${headerHtml}
+      ${descriptionHtml}
+      ${summaryHtml}
+      ${propertiesHtml}
+      ${analysisHtml}
+      ${footerHtml}
+    </div>
+  </body>
+</html>`;
+}
+
+/**
+ * Gera o PDF do relatório usando window.print()
+ */
+export async function generatePDF(
+  reportData: ReportData,
+  filename?: string
+): Promise<void> {
+  try {
+    console.log("Iniciando geração de PDF...");
+
+    // 1. Criar nova janela para impressão
+    const printWindow = window.open("", "_blank", "width=1200,height=800");
+
+    if (!printWindow) {
+      throw new Error(
+        "Popup bloqueado. Permita popups para gerar o relatório."
       );
-      yPosition += 6;
-
-      // Preço
-      doc.setFontSize(14);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(primaryRgb.r, primaryRgb.g, primaryRgb.b);
-      doc.text(formatCurrency(prop.price), margin, yPosition);
-      doc.setTextColor(0, 0, 0);
-      yPosition += 8;
-
-      // Características
-      doc.setFontSize(9);
-      const characteristics = [
-        `Quartos: ${prop.rooms}`,
-        `Banheiros: ${prop.bathrooms}`,
-        `Vagas: ${prop.parking}`,
-        `Área Útil: ${prop.usableArea}m²`,
-        `Área Total: ${prop.totalArea}m²`,
-        `Preço/m² Útil: ${formatCurrency(prop.pricePerM2Usable)}`,
-        `Preço/m² Total: ${formatCurrency(prop.pricePerM2Total)}`,
-      ];
-      characteristics.forEach((char) => {
-        doc.text(char, margin, yPosition);
-        yPosition += 4;
-      });
-      yPosition += 3;
-
-      // Endereço completo
-      const fullAddress = [
-        prop.address.street,
-        prop.address.neighborhood,
-        prop.address.city,
-        prop.address.state,
-        prop.address.postalCode,
-      ]
-        .filter(Boolean)
-        .join(", ");
-      if (fullAddress) {
-        doc.text(`Endereço: ${fullAddress}`, margin, yPosition, {
-          maxWidth: contentWidth,
-        });
-        yPosition += 5;
-      }
-
-      // Características adicionais
-      if (prop.features && prop.features.length > 0) {
-        doc.text(
-          `Características: ${prop.features.join(", ")}`,
-          margin,
-          yPosition,
-          { maxWidth: contentWidth }
-        );
-        yPosition += 5;
-      }
-
-      // Observações
-      if (prop.customNotes) {
-        doc.setFont("helvetica", "italic");
-        const notesLines = doc.splitTextToSize(prop.customNotes, contentWidth);
-        notesLines.forEach((line: string) => {
-          doc.text(line, margin, yPosition);
-          yPosition += 4;
-        });
-        doc.setFont("helvetica", "normal");
-        yPosition += 3;
-      }
-    });
-  }
-
-  // Análise de Mercado
-  if (reportData.styling.showAnalysis) {
-    checkNewPage(30);
-    doc.setFontSize(16);
-    doc.setFont("helvetica", "bold");
-    doc.text("Análise de Mercado", margin, yPosition);
-    yPosition += 10;
-
-    const analysisSections = [
-      {
-        title: "Visão Geral do Mercado",
-        content: reportData.analysis.marketOverview,
-      },
-      {
-        title: "Análise de Preços",
-        content: reportData.analysis.priceAnalysis,
-      },
-      {
-        title: "Análise de Localização",
-        content: reportData.analysis.locationAnalysis,
-      },
-    ];
-
-    analysisSections.forEach((section) => {
-      if (section.content) {
-        checkNewPage(20);
-        doc.setFontSize(12);
-        doc.setFont("helvetica", "bold");
-        doc.text(section.title, margin, yPosition);
-        yPosition += 6;
-        doc.setFontSize(10);
-        doc.setFont("helvetica", "normal");
-        const lines = doc.splitTextToSize(section.content, contentWidth);
-        lines.forEach((line: string) => {
-          checkNewPage(5);
-          doc.text(line, margin, yPosition);
-          yPosition += 5;
-        });
-        yPosition += 5;
-      }
-    });
-
-    // Recomendações
-    if (reportData.analysis.recommendations) {
-      checkNewPage(20);
-      doc.setFillColor(232, 245, 233); // Verde claro
-      doc.roundedRect(margin, yPosition, contentWidth, 0, 3, 3, "F");
-      doc.setFontSize(12);
-      doc.setFont("helvetica", "bold");
-      doc.text("Recomendações", margin + 5, yPosition + 6);
-      yPosition += 8;
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "normal");
-      const lines = doc.splitTextToSize(
-        reportData.analysis.recommendations,
-        contentWidth - 10
-      );
-      lines.forEach((line: string) => {
-        checkNewPage(5);
-        doc.text(line, margin + 5, yPosition);
-        yPosition += 5;
-      });
-      yPosition += 5;
     }
 
-    // Conclusão
-    if (reportData.analysis.conclusion) {
-      checkNewPage(20);
-      doc.setFillColor(227, 242, 253); // Azul claro
-      doc.roundedRect(margin, yPosition, contentWidth, 0, 3, 3, "F");
-      doc.setFontSize(12);
-      doc.setFont("helvetica", "bold");
-      doc.text("Conclusão", margin + 5, yPosition + 6);
-      yPosition += 8;
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "normal");
-      const lines = doc.splitTextToSize(
-        reportData.analysis.conclusion,
-        contentWidth - 10
-      );
-      lines.forEach((line: string) => {
-        checkNewPage(5);
-        doc.text(line, margin + 5, yPosition);
-        yPosition += 5;
-      });
-      yPosition += 5;
-    }
-  }
+    // 2. Gerar conteúdo HTML completo
+    const htmlContent = generatePrintableHTML(reportData);
 
-  // Footer
-  const totalPages = doc.getNumberOfPages();
-  for (let i = 1; i <= totalPages; i++) {
-    doc.setPage(i);
-    doc.setFontSize(8);
-    doc.setTextColor(128, 128, 128);
-    doc.text(
-      `Relatório gerado em ${formatDate(new Date().toISOString())}`,
-      pageWidth / 2,
-      pageHeight - 10,
-      { align: "center" }
-    );
-    if (reportData.company.name) {
-      doc.text(reportData.company.name, pageWidth / 2, pageHeight - 5, {
-        align: "center",
-      });
-    }
-  }
+    // 3. Escrever conteúdo na nova janela
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
 
-  // Salva o PDF
-  doc.save(filename);
+    // 4. Aguardar carregamento básico e imprimir
+    setTimeout(() => {
+      // Configurar título do documento
+      printWindow.document.title =
+        filename ||
+        `relatorio-avaliacao-${new Date().toISOString().split("T")[0]}`;
+
+      console.log("Iniciando impressão...");
+
+      // Disparar impressão
+      printWindow.print();
+
+      console.log("PDF aberto para impressão");
+    }, 1500); // Aguarda 1.5 segundos apenas
+  } catch (error) {
+    console.error("Erro ao gerar PDF:", error);
+    throw error;
+  }
 }

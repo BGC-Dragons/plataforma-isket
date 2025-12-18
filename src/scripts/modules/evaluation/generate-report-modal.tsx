@@ -94,6 +94,7 @@ export function GenerateReportModal({
     new Set()
   );
   const [reportData, setReportData] = useState<ReportData | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   // Inicializa dados do relatório quando o modal abre
   useEffect(() => {
@@ -329,10 +330,16 @@ export function GenerateReportModal({
       .toLowerCase()}-${new Date().toISOString().split("T")[0]}.pdf`;
 
     try {
+      setIsGenerating(true);
       await generatePDF(reportData, filename);
     } catch (error) {
       console.error("Erro ao gerar PDF:", error);
       // Você pode adicionar uma notificação de erro aqui se desejar
+    } finally {
+      // Resetar após disparar print (não espera o usuário salvar)
+      setTimeout(() => {
+        setIsGenerating(false);
+      }, 2000);
     }
   }, [reportData]);
 
@@ -1250,15 +1257,29 @@ export function GenerateReportModal({
           <Button
             onClick={handleGenerate}
             variant="contained"
-            startIcon={<PictureAsPdf />}
+            disabled={isGenerating}
+            startIcon={
+              <PictureAsPdf
+                sx={{
+                  animation: isGenerating ? "spin 1s linear infinite" : "none",
+                  "@keyframes spin": {
+                    "0%": { transform: "rotate(0deg)" },
+                    "100%": { transform: "rotate(360deg)" },
+                  },
+                }}
+              />
+            }
             sx={{
               backgroundColor: theme.palette.primary.main,
               "&:hover": {
                 backgroundColor: theme.palette.primary.dark,
               },
+              "&:disabled": {
+                opacity: 0.6,
+              },
             }}
           >
-            Exportar PDF
+            {isGenerating ? "Gerando..." : "Exportar PDF"}
           </Button>
         </Box>
       </Paper>
