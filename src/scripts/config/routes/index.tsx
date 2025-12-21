@@ -17,6 +17,7 @@ import { ManagementComponent } from "../../pages/private/management/management.c
 import { SearchComponent } from "../../pages/private/search/search.component";
 import { SourcingComponent } from "../../pages/private/sourcing/sourcing.component";
 import { EvaluationComponent } from "../../pages/private/evaluation/evaluation.component";
+import { AnalysesComponent } from "../../pages/private/analyses/analyses.component";
 
 // Página temporária do Dashboard
 function DashboardPage() {
@@ -107,26 +108,7 @@ function DashboardPage() {
 function AnalisesPage() {
   return (
     <PrivateLayout>
-      <Box sx={{ maxWidth: "1200px", mx: "auto" }}>
-        <Paper
-          elevation={8}
-          sx={{
-            padding: "3rem",
-            textAlign: "center",
-            borderRadius: 4,
-            background: "background.paper",
-            border: "1px solid",
-            borderColor: "divider",
-          }}
-        >
-          <Typography variant="h3" gutterBottom>
-            📊 Análises
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Página de análises em desenvolvimento...
-          </Typography>
-        </Paper>
-      </Box>
+      <AnalysesComponent />
     </PrivateLayout>
   );
 }

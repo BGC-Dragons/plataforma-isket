@@ -94,6 +94,7 @@ interface MapProps {
   token?: string;
   useMapSearch?: boolean; // Se true, usa busca do mapa ao invés de properties
   onNeighborhoodClick?: (neighborhood: INeighborhoodFull) => void; // Callback quando um bairro é clicado
+  heatmapData?: number[][]; // Array de [longitude, latitude] para heatmap
 }
 
 // Configurações do mapa
@@ -149,6 +150,7 @@ export function MapComponent({
   token: tokenProp,
   useMapSearch = true, // Por padrão usa busca do mapa
   onNeighborhoodClick,
+  heatmapData,
 }: MapProps) {
   // Fallback: pegar token do localStorage se não foi passado via props
   const token =
@@ -186,6 +188,7 @@ export function MapComponent({
     []
   );
   const [map, setMap] = useState<google.maps.Map | null>(null);
+  const heatmapLayerRef = useRef<google.maps.visualization.HeatmapLayer | null>(null);
   const [freehandActive, setFreehandActive] = useState<boolean>(false);
   const isMouseDownRef = useRef<boolean>(false);
   const freehandPolylineRef = useRef<google.maps.Polyline | null>(null);
@@ -239,7 +242,7 @@ export function MapComponent({
   // Carrega o script do Google Maps
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: GOOGLE_CONFIG.MAPS_API_KEY,
-    libraries: ["places", "drawing", "geometry"],
+    libraries: ["places", "drawing", "geometry", "visualization"],
     id: "google-maps-script",
   });
 
@@ -1647,6 +1650,79 @@ export function MapComponent({
     center,
     zoom,
   ]);
+
+  // Efeito para criar e atualizar o heatmap
+  useEffect(() => {
+    if (!map || !heatmapData || !isLoaded) {
+      // Limpar heatmap se não há dados
+      if (heatmapLayerRef.current) {
+        heatmapLayerRef.current.setMap(null);
+        heatmapLayerRef.current = null;
+      }
+      return;
+    }
+
+    // Verificar se a biblioteca de visualização está disponível
+    if (!window.google?.maps?.visualization) {
+      console.warn("Google Maps Visualization library not loaded");
+      return;
+    }
+
+    // Converter dados de [longitude, latitude] para google.maps.LatLng
+    const heatmapPoints = heatmapData
+      .filter((coord) => coord.length === 2 && !isNaN(coord[0]) && !isNaN(coord[1]))
+      .map((coord) => {
+        // API retorna [longitude, latitude], Google Maps usa {lat, lng}
+        return new google.maps.LatLng(coord[1], coord[0]);
+      });
+
+    if (heatmapPoints.length === 0) {
+      // Limpar heatmap se não há pontos válidos
+      if (heatmapLayerRef.current) {
+        heatmapLayerRef.current.setMap(null);
+        heatmapLayerRef.current = null;
+      }
+      return;
+    }
+
+    // Se já existe um heatmap layer, atualizar os dados
+    if (heatmapLayerRef.current) {
+      heatmapLayerRef.current.setData(heatmapPoints);
+    } else {
+      // Criar novo heatmap layer
+      const newHeatmapLayer = new google.maps.visualization.HeatmapLayer({
+        data: heatmapPoints,
+        map: map,
+        radius: 20,
+        opacity: 0.6,
+        gradient: [
+          "rgba(0, 255, 255, 0)",
+          "rgba(0, 255, 255, 1)",
+          "rgba(0, 191, 255, 1)",
+          "rgba(0, 127, 255, 1)",
+          "rgba(0, 63, 255, 1)",
+          "rgba(0, 0, 255, 1)",
+          "rgba(0, 0, 223, 1)",
+          "rgba(0, 0, 191, 1)",
+          "rgba(0, 0, 159, 1)",
+          "rgba(0, 0, 127, 1)",
+          "rgba(63, 0, 91, 1)",
+          "rgba(127, 0, 63, 1)",
+          "rgba(191, 0, 31, 1)",
+          "rgba(255, 0, 0, 1)",
+        ],
+      });
+      heatmapLayerRef.current = newHeatmapLayer;
+    }
+
+    // Cleanup: remover heatmap quando componente desmontar ou dados mudarem
+    return () => {
+      if (heatmapLayerRef.current) {
+        heatmapLayerRef.current.setMap(null);
+        heatmapLayerRef.current = null;
+      }
+    };
+  }, [map, heatmapData, isLoaded]);
 
   // Limpar estados de endereço quando não há mais busca por endereço nos filtros
   useEffect(() => {
