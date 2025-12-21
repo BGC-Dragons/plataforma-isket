@@ -14,6 +14,7 @@ import type { ISearchDemandNeighborhoodRankingItem } from "../../../services/pos
 
 interface RankingDemandAccordionProps {
   data: ISearchDemandNeighborhoodRankingItem[];
+  selectedNeighborhoods?: string[]; // Bairros selecionados no filtro
   loading?: boolean;
   expanded?: boolean;
   onChange?: (expanded: boolean) => void;
@@ -21,6 +22,7 @@ interface RankingDemandAccordionProps {
 
 export function RankingDemandAccordion({
   data,
+  selectedNeighborhoods = [],
   loading = false,
   expanded = false,
   onChange,
@@ -28,10 +30,27 @@ export function RankingDemandAccordion({
   const theme = useTheme();
   const navigate = useNavigate();
 
+  // Filtrar dados para mostrar apenas bairros selecionados (ou todos se nenhum selecionado)
+  // Usar comparação case-insensitive e trim para garantir matching correto
+  const normalizeName = (name: string) => name.trim().toLowerCase();
+
+  const filteredData =
+    selectedNeighborhoods.length > 0
+      ? data.filter((item) => {
+          const normalizedItemName = normalizeName(item.neighborhood);
+          return selectedNeighborhoods.some(
+            (selected) => normalizeName(selected) === normalizedItemName
+          );
+        })
+      : data;
+
+  // Ordenar por count (maior para menor)
+  const sortedData = [...filteredData].sort((a, b) => b.count - a.count);
+
   const handleCaptureClick = (neighborhood: string) => {
     // Remove sufixos após hífen se houver
     const cleanNeighborhood = neighborhood.split("-")[0].trim();
-    
+
     // Navega para a página de busca com o filtro de bairro
     navigate("/pesquisar-anuncios", {
       state: {
@@ -75,13 +94,19 @@ export function RankingDemandAccordion({
           <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
             <CircularProgress size={40} />
           </Box>
-        ) : !data || data.length === 0 ? (
+        ) : !sortedData || sortedData.length === 0 ? (
           <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
             Sem dados para o filtro selecionado
           </Typography>
         ) : (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            {data.map((item, index) => (
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" },
+              gap: 2,
+            }}
+          >
+            {sortedData.map((item, index) => (
               <Box
                 key={item.neighborhood}
                 sx={{
@@ -92,20 +117,38 @@ export function RankingDemandAccordion({
                   borderRadius: 2,
                   backgroundColor: theme.palette.background.paper,
                   border: `1px solid ${theme.palette.divider}`,
+                  gap: 2,
                 }}
               >
-                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    flex: 1,
+                    minWidth: 0,
+                  }}
+                >
                   <Typography
                     variant="h6"
                     sx={{
                       fontWeight: 600,
                       color: theme.palette.primary.main,
-                      minWidth: 40,
+                      minWidth: 30,
+                      flexShrink: 0,
                     }}
                   >
                     {index + 1}.
                   </Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      fontWeight: 500,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
                     {item.neighborhood}
                   </Typography>
                 </Box>
@@ -118,7 +161,8 @@ export function RankingDemandAccordion({
                     color: theme.palette.primary.contrastText,
                     textTransform: "none",
                     fontWeight: 600,
-                    px: 3,
+                    px: 2,
+                    flexShrink: 0,
                     "&:hover": {
                       backgroundColor: theme.palette.primary.dark,
                     },
@@ -134,4 +178,3 @@ export function RankingDemandAccordion({
     </Accordion>
   );
 }
-

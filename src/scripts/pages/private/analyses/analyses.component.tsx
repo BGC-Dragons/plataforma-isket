@@ -46,6 +46,104 @@ const getLastThreeMonthsPeriod = () => {
   };
 };
 
+// Calcular cityBounds a partir dos dados das cidades
+const calculateCityBoundsFromCities = (
+  cities: ICityFull[]
+): { value: { north: number; east: number; south: number; west: number } } | undefined => {
+  if (cities.length === 0) {
+    return undefined;
+  }
+
+  const allCoordinates: Array<{ lat: number; lng: number }> = [];
+
+  cities.forEach((city) => {
+    if (!city.geo?.geometry) return;
+    const geometry = city.geo.geometry;
+    if (geometry.type === "Polygon") {
+      const coords = geometry.coordinates as number[][][];
+      coords[0]?.forEach((coord) => {
+        allCoordinates.push({ lat: coord[1], lng: coord[0] });
+      });
+    } else if (geometry.type === "MultiPolygon") {
+      const coords = geometry.coordinates as number[][][][];
+      coords.forEach((polygon) => {
+        polygon[0]?.forEach((coord) => {
+          allCoordinates.push({ lat: coord[1], lng: coord[0] });
+        });
+      });
+    }
+  });
+
+  if (allCoordinates.length === 0) {
+    return undefined;
+  }
+
+  const lats = allCoordinates.map((c) => c.lat);
+  const lngs = allCoordinates.map((c) => c.lng);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs);
+  const maxLng = Math.max(...lngs);
+
+  return {
+    value: {
+      north: maxLat,
+      east: maxLng,
+      south: minLat,
+      west: minLng,
+    },
+  };
+};
+
+// Calcular bounds a partir dos dados dos bairros
+const calculateBoundsFromNeighborhoods = (
+  neighborhoods: INeighborhoodFull[]
+): { value: { north: number; east: number; south: number; west: number } } | undefined => {
+  if (neighborhoods.length === 0) {
+    return undefined;
+  }
+
+  const allCoordinates: Array<{ lat: number; lng: number }> = [];
+
+  neighborhoods.forEach((neighborhood) => {
+    if (!neighborhood.geo?.geometry) return;
+    const geometry = neighborhood.geo.geometry;
+    if (geometry.type === "Polygon") {
+      const coords = geometry.coordinates as number[][][];
+      coords[0]?.forEach((coord) => {
+        allCoordinates.push({ lat: coord[1], lng: coord[0] });
+      });
+    } else if (geometry.type === "MultiPolygon") {
+      const coords = geometry.coordinates as number[][][][];
+      coords.forEach((polygon) => {
+        polygon[0]?.forEach((coord) => {
+          allCoordinates.push({ lat: coord[1], lng: coord[0] });
+        });
+      });
+    }
+  });
+
+  if (allCoordinates.length === 0) {
+    return undefined;
+  }
+
+  const lats = allCoordinates.map((c) => c.lat);
+  const lngs = allCoordinates.map((c) => c.lng);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs);
+  const maxLng = Math.max(...lngs);
+
+  return {
+    value: {
+      north: maxLat,
+      east: maxLng,
+      south: minLat,
+      west: minLng,
+    },
+  };
+};
+
 export function AnalysesComponent() {
   const theme = useTheme();
   const location = useLocation();
@@ -169,20 +267,39 @@ export function AnalysesComponent() {
 
   // Buscar dados de análises
   const loadAnalyticsData = useCallback(
-    async (filters: ILocalFilterState) => {
+    async (filters: ILocalFilterState, citiesForBounds?: ICityFull[], neighborhoodsForBounds?: INeighborhoodFull[]) => {
       if (!auth.store.token) return;
 
       const period = getLastThreeMonthsPeriod();
       const apiFilters = mapFiltersToApi(filters, cityToCodeMap, 1, 1, "price", "asc");
+
+      // Calcular bounds: priorizar bairros selecionados, depois cidades
+      const neighborhoodsToUse = neighborhoodsForBounds || neighborhoodsData;
+      const citiesToUse = citiesForBounds || citiesData;
+      
+      let cityBounds;
+      if (neighborhoodsToUse.length > 0) {
+        // Se há bairros selecionados, usar bounds dos bairros
+        cityBounds = calculateBoundsFromNeighborhoods(neighborhoodsToUse);
+      } else if (citiesToUse.length > 0) {
+        // Se não há bairros, usar bounds das cidades
+        cityBounds = calculateCityBoundsFromCities(citiesToUse);
+      }
+
+      // Incluir cityBounds no payload se disponível
+      const basePayload = {
+        ...apiFilters,
+        startDate: period.startDate,
+        endDate: period.endDate,
+        ...(cityBounds && { cityBounds }),
+      };
 
       try {
         // Buscar ranking de demanda
         setLoadingNeighborhoodRanking(true);
         const demandResponse = await postAnalyticsSearchDemandNeighborhoodRanking(
           {
-            ...apiFilters,
-            startDate: period.startDate,
-            endDate: period.endDate,
+            ...basePayload,
             refAuthType: "PUBLIC",
           },
           auth.store.token
@@ -199,11 +316,7 @@ export function AnalysesComponent() {
         // Buscar oferta por tipo
         setLoadingSupplyByType(true);
         const supplyResponse = await postAnalyticsSupplyByPropertyType(
-          {
-            ...apiFilters,
-            startDate: period.startDate,
-            endDate: period.endDate,
-          },
+          basePayload,
           auth.store.token
         );
         setSupplyByType(supplyResponse.data.data || []);
@@ -218,9 +331,7 @@ export function AnalysesComponent() {
         // Buscar heatmap de demanda
         const heatmapResponse = await postAnalyticsSearchDemandHeatMap(
           {
-            ...apiFilters,
-            startDate: period.startDate,
-            endDate: period.endDate,
+            ...basePayload,
             refAuthType: "PUBLIC",
           },
           auth.store.token
@@ -250,31 +361,16 @@ export function AnalysesComponent() {
       //   setLoadingAgencyRanking(false);
       // }
     },
-    [auth.store.token, cityToCodeMap]
-  );
-
-  // Aplicar filtros
-  const applyFilters = useCallback(
-    async (filters: ILocalFilterState) => {
-      setCurrentFilters(filters);
-      await loadAnalyticsData(filters);
-
-      // Buscar dados geoespaciais
-      if (!filters.addressCoordinates) {
-        await fetchCitiesData(filters);
-        await fetchNeighborhoodsData(filters);
-      }
-    },
-    [loadAnalyticsData]
+    [auth.store.token, cityToCodeMap, neighborhoodsData, citiesData]
   );
 
   // Buscar dados de cidades
   // Quando apenas cidades são selecionadas (sem bairros), usa o endpoint individual que retorna geo completo
   const fetchCitiesData = useCallback(
-    async (filters: ILocalFilterState) => {
+    async (filters: ILocalFilterState): Promise<ICityFull[]> => {
       if (filters.cities.length === 0) {
         setCitiesData([]);
-        return;
+        return [];
       }
 
       try {
@@ -285,9 +381,10 @@ export function AnalysesComponent() {
 
         if (cityStateCodes.length === 0) {
           setCitiesData([]);
-          return;
+          return [];
         }
 
+        let cities: ICityFull[] = [];
         // Se não há bairros selecionados, buscar cada cidade individualmente pelo endpoint que retorna geo completo
         // Isso garante que temos os dados geoespaciais da cidade
         if (filters.neighborhoods.length === 0) {
@@ -295,7 +392,7 @@ export function AnalysesComponent() {
             getCityByCode(code, auth.store.token as string | undefined)
           );
           const cityResponses = await Promise.all(cityPromises);
-          const cities = cityResponses.map((response) => response.data);
+          cities = cityResponses.map((response) => response.data);
           setCitiesData(cities);
         } else {
           // Se há bairros selecionados, usar findMany (mais eficiente)
@@ -303,11 +400,14 @@ export function AnalysesComponent() {
             { cityStateCodes },
             auth.store.token as string | undefined
           );
-          setCitiesData(response.data);
+          cities = response.data;
+          setCitiesData(cities);
         }
+        return cities;
       } catch (error) {
         console.error("Erro ao buscar dados das cidades:", error);
         setCitiesData([]);
+        return [];
       }
     },
     [cityToCodeMap, auth.store.token]
@@ -364,6 +464,53 @@ export function AnalysesComponent() {
     [cityToCodeMap, auth.store.token]
   );
 
+  // Aplicar filtros (definido após fetchCitiesData e fetchNeighborhoodsData)
+  const applyFilters = useCallback(
+    async (filters: ILocalFilterState) => {
+      setCurrentFilters(filters);
+
+      // Buscar dados geoespaciais primeiro (para ter dados disponíveis para calcular bounds)
+      let fetchedCities: ICityFull[] = [];
+      let fetchedNeighborhoods: INeighborhoodFull[] = [];
+      
+      if (!filters.addressCoordinates) {
+        fetchedCities = await fetchCitiesData(filters);
+        await fetchNeighborhoodsData(filters);
+        
+        // Se há bairros selecionados, buscar os dados dos bairros selecionados
+        if (filters.neighborhoods.length > 0) {
+          // Buscar todos os bairros das cidades
+          const cityStateCodes = filters.cities
+            .map((city) => cityToCodeMap[city])
+            .filter((code): code is string => Boolean(code));
+          
+          if (cityStateCodes.length > 0) {
+            try {
+              const response = await getNeighborhoods(
+                cityStateCodes,
+                auth.store.token as string | undefined
+              );
+              // Filtrar apenas os bairros selecionados
+              fetchedNeighborhoods = response.data.filter((neighborhood) =>
+                filters.neighborhoods.includes(neighborhood.name)
+              );
+            } catch (error) {
+              console.error("Erro ao buscar bairros selecionados:", error);
+            }
+          }
+        }
+      }
+
+      // Buscar dados de análises com bounds corretos
+      await loadAnalyticsData(
+        filters,
+        fetchedCities.length > 0 ? fetchedCities : undefined,
+        fetchedNeighborhoods.length > 0 ? fetchedNeighborhoods : undefined
+      );
+    },
+    [loadAnalyticsData, fetchCitiesData, fetchNeighborhoodsData, cityToCodeMap, auth.store.token]
+  );
+
   // Ref para rastrear cidades anteriores e evitar buscas duplicadas
   const previousCitiesRef = useRef<string>("");
 
@@ -413,6 +560,34 @@ export function AnalysesComponent() {
       fetchNeighborhoodsData(currentFilters);
     }
   }, [currentFilters, fetchNeighborhoodsData]);
+
+  // Efeito para recarregar dados de análises quando neighborhoodsData ou citiesData mudarem
+  // Isso garante que cityBounds seja recalculado corretamente quando bairros são selecionados
+  // Usar ref para evitar recarregamentos desnecessários
+  const lastNeighborhoodsKeyRef = useRef<string>("");
+  const lastCitiesKeyRef = useRef<string>("");
+  
+  useEffect(() => {
+    if (!currentFilters || currentFilters.addressCoordinates) {
+      return;
+    }
+
+    // Criar chaves para comparar mudanças
+    const neighborhoodsKey = neighborhoodsData.map(n => n.name || "").sort().join(",");
+    const citiesKey = citiesData.map(c => c.cityStateCode || "").sort().join(",");
+    
+    // Só recarregar se realmente mudou
+    if (
+      lastNeighborhoodsKeyRef.current !== neighborhoodsKey ||
+      lastCitiesKeyRef.current !== citiesKey
+    ) {
+      lastNeighborhoodsKeyRef.current = neighborhoodsKey;
+      lastCitiesKeyRef.current = citiesKey;
+      
+      // Recarregar dados com bounds atualizados
+      loadAnalyticsData(currentFilters, citiesData, neighborhoodsData);
+    }
+  }, [neighborhoodsData, citiesData, currentFilters, loadAnalyticsData]);
 
   // Efeito para centralizar o mapa quando há busca por endereço (prioridade máxima)
   useEffect(() => {
@@ -871,6 +1046,7 @@ export function AnalysesComponent() {
             <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
               <RankingDemandAccordion
                 data={neighborhoodRanking}
+                selectedNeighborhoods={currentFilters?.neighborhoods || []}
                 loading={loadingNeighborhoodRanking}
                 expanded={rankingExpanded}
                 onChange={setRankingExpanded}
@@ -922,7 +1098,7 @@ export function AnalysesComponent() {
                   localStorage.getItem("auth_token") ||
                   undefined
                 }
-                useMapSearch={true}
+                useMapSearch={false}
                 onNeighborhoodClick={handleNeighborhoodClick}
                 heatmapData={heatmapData}
               />
