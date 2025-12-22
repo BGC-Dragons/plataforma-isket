@@ -1017,6 +1017,20 @@ export function AnalysesComponent() {
               display: "flex",
               flexDirection: "column",
               overflowY: "auto",
+              "&::-webkit-scrollbar": {
+                width: 6,
+              },
+              "&::-webkit-scrollbar-track": {
+                backgroundColor: theme.palette.grey[200],
+                borderRadius: 3,
+              },
+              "&::-webkit-scrollbar-thumb": {
+                backgroundColor: theme.palette.grey[400],
+                borderRadius: 3,
+                "&:hover": {
+                  backgroundColor: theme.palette.grey[600],
+                },
+              },
             }}
           >
             {/* Título */}
