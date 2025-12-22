@@ -201,6 +201,28 @@ export const theme = createTheme({
           gap: 1,
         },
       },
+      defaultProps: {
+        MenuProps: {
+          PaperProps: {
+            sx: {
+              "&::-webkit-scrollbar": {
+                width: 6,
+              },
+              "&::-webkit-scrollbar-track": {
+                backgroundColor: "#e0e0e0", // grey[200]
+                borderRadius: 3,
+              },
+              "&::-webkit-scrollbar-thumb": {
+                backgroundColor: "#bdbdbd", // grey[400]
+                borderRadius: 3,
+                "&:hover": {
+                  backgroundColor: "#757575", // grey[600]
+                },
+              },
+            },
+          },
+        },
+      },
     },
     MuiMenuItem: {
       styleOverrides: {
@@ -228,17 +250,17 @@ export const theme = createTheme({
           maxHeight: "200px !important",
           overflow: "auto !important",
           "&::-webkit-scrollbar": {
-            width: "8px",
+            width: 6,
           },
           "&::-webkit-scrollbar-track": {
-            background: COLORS.LIGHT,
-            borderRadius: "4px",
+            backgroundColor: "#e0e0e0", // grey[200]
+            borderRadius: 3,
           },
           "&::-webkit-scrollbar-thumb": {
-            background: COLORS.PRIMARY,
-            borderRadius: "4px",
+            backgroundColor: "#bdbdbd", // grey[400]
+            borderRadius: 3,
             "&:hover": {
-              background: COLORS.SECONDARY,
+              backgroundColor: "#757575", // grey[600]
             },
           },
         },

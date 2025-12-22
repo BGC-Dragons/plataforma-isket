@@ -199,6 +199,10 @@ export function FilterBar({
   const [isNeighborhoodSelectOpen, setIsNeighborhoodSelectOpen] =
     useState(false);
 
+  // Estados para busca nos selects
+  const [citySearchInput, setCitySearchInput] = useState("");
+  const [neighborhoodSearchInput, setNeighborhoodSearchInput] = useState("");
+
   // Google Places Autocomplete
   const [isGoogleLoaded, setIsGoogleLoaded] = useState(false);
   const [autocompleteOptions, setAutocompleteOptions] = useState<
@@ -209,6 +213,26 @@ export function FilterBar({
     useRef<google.maps.places.AutocompleteService | null>(null);
   const placesService = useRef<google.maps.places.PlacesService | null>(null);
   const autocompleteInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Função helper para normalizar strings (remover acentos, converter para minúsculas)
+  const normalizeString = useCallback((str: string): string => {
+    return str
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  }, []);
+
+  // Função helper para filtrar opções baseado no texto de busca
+  const filterOptions = useCallback(
+    (options: string[], searchText: string): string[] => {
+      if (!searchText) return options;
+      const normalizedSearch = normalizeString(searchText);
+      return options.filter((option) =>
+        normalizeString(option).includes(normalizedSearch)
+      );
+    },
+    [normalizeString]
+  );
 
   // Função para atualizar filtros
   const handleFilterChange = useCallback((updates: Partial<FilterState>) => {
@@ -1176,7 +1200,10 @@ export function FilterBar({
             }
             open={isCitySelectOpen}
             onOpen={() => setIsCitySelectOpen(true)}
-            onClose={() => setIsCitySelectOpen(false)}
+            onClose={() => {
+              setIsCitySelectOpen(false);
+              setCitySearchInput("");
+            }}
             displayEmpty
             size="small"
             renderValue={(selected) => {
@@ -1279,14 +1306,79 @@ export function FilterBar({
                 style: {
                   maxHeight: 300,
                 },
+                sx: {
+                  "&::-webkit-scrollbar": {
+                    width: 6,
+                  },
+                  "&::-webkit-scrollbar-track": {
+                    backgroundColor: theme.palette.grey[200],
+                    borderRadius: 3,
+                  },
+                  "&::-webkit-scrollbar-thumb": {
+                    backgroundColor: theme.palette.grey[400],
+                    borderRadius: 3,
+                    "&:hover": {
+                      backgroundColor: theme.palette.grey[600],
+                    },
+                  },
+                },
+              },
+              MenuListProps: {
+                style: {
+                  padding: 0,
+                },
               },
             }}
           >
-            {availableCities.map((city) => (
+            {/* Input de busca dentro do menu */}
+            <Box
+              sx={{
+                p: 1,
+                borderBottom: `1px solid ${theme.palette.divider}`,
+                position: "sticky",
+                top: 0,
+                backgroundColor: theme.palette.background.paper,
+                zIndex: 1,
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <TextField
+                fullWidth
+                size="small"
+                placeholder="Procure pela cidade..."
+                value={citySearchInput}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  setCitySearchInput(e.target.value);
+                }}
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => e.stopPropagation()}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Search fontSize="small" />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    "& fieldset": {
+                      borderColor: theme.palette.divider,
+                    },
+                  },
+                }}
+              />
+            </Box>
+            {filterOptions(availableCities, citySearchInput).map((city) => (
               <MenuItem key={city} value={city}>
                 {city}
               </MenuItem>
             ))}
+            {filterOptions(availableCities, citySearchInput).length === 0 && (
+              <MenuItem disabled>
+                <em>Nenhuma cidade encontrada</em>
+              </MenuItem>
+            )}
           </Select>
 
           {/* Seletor de Bairros */}
@@ -1305,7 +1397,10 @@ export function FilterBar({
               setIsNeighborhoodSelectOpen(true);
               handleNeighborhoodSelectOpen();
             }}
-            onClose={() => setIsNeighborhoodSelectOpen(false)}
+            onClose={() => {
+              setIsNeighborhoodSelectOpen(false);
+              setNeighborhoodSearchInput("");
+            }}
             displayEmpty
             size="small"
             disabled={tempFilters.cities.length === 0 || isLoadingNeighborhoods}
@@ -1416,20 +1511,95 @@ export function FilterBar({
                 style: {
                   maxHeight: 300,
                 },
+                sx: {
+                  "&::-webkit-scrollbar": {
+                    width: 6,
+                  },
+                  "&::-webkit-scrollbar-track": {
+                    backgroundColor: theme.palette.grey[200],
+                    borderRadius: 3,
+                  },
+                  "&::-webkit-scrollbar-thumb": {
+                    backgroundColor: theme.palette.grey[400],
+                    borderRadius: 3,
+                    "&:hover": {
+                      backgroundColor: theme.palette.grey[600],
+                    },
+                  },
+                },
+              },
+              MenuListProps: {
+                style: {
+                  padding: 0,
+                },
               },
             }}
           >
+            {/* Input de busca dentro do menu */}
+            <Box
+              sx={{
+                p: 1,
+                borderBottom: `1px solid ${theme.palette.divider}`,
+                position: "sticky",
+                top: 0,
+                backgroundColor: theme.palette.background.paper,
+                zIndex: 1,
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <TextField
+                fullWidth
+                size="small"
+                placeholder="Procure pelo bairro..."
+                value={neighborhoodSearchInput}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  setNeighborhoodSearchInput(e.target.value);
+                }}
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => e.stopPropagation()}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Search fontSize="small" />
+                    </InputAdornment>
+                  ),
+                  endAdornment: isLoadingNeighborhoods ? (
+                    <InputAdornment position="end">
+                      <CircularProgress size={16} />
+                    </InputAdornment>
+                  ) : null,
+                }}
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    "& fieldset": {
+                      borderColor: theme.palette.divider,
+                    },
+                  },
+                }}
+              />
+            </Box>
             {isLoadingNeighborhoods ? (
               <MenuItem disabled>
                 <CircularProgress size={16} sx={{ mr: 1 }} />
                 Carregando...
               </MenuItem>
             ) : (
-              neighborhoods.map((neighborhood) => (
-                <MenuItem key={neighborhood} value={neighborhood}>
-                  {neighborhood}
-                </MenuItem>
-              ))
+              <>
+                {filterOptions(neighborhoods, neighborhoodSearchInput).map(
+                  (neighborhood) => (
+                    <MenuItem key={neighborhood} value={neighborhood}>
+                      {neighborhood}
+                    </MenuItem>
+                  )
+                )}
+                {filterOptions(neighborhoods, neighborhoodSearchInput)
+                  .length === 0 && (
+                  <MenuItem disabled>
+                    <em>Nenhum bairro encontrado</em>
+                  </MenuItem>
+                )}
+              </>
             )}
           </Select>
         </Box>
