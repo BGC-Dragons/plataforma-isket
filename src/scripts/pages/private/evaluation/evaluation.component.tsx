@@ -10,8 +10,18 @@ import {
   Paper,
   Chip,
   IconButton,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from "@mui/material";
-import { ViewModule, ViewList, SquareFoot, Bed, DirectionsCar, Bathroom } from "@mui/icons-material";
+import {
+  ViewModule,
+  ViewList,
+  SquareFoot,
+  Bed,
+  Bathroom,
+} from "@mui/icons-material";
 import { FilterBar } from "../../../modules/search/filter/filter-bar";
 import { MapComponent } from "../../../modules/search/map/map";
 import { EvaluationPropertyCard } from "../../../modules/evaluation/evaluation-property-card";
@@ -25,10 +35,14 @@ import {
   type SortBy,
   type SortOrder,
   type IPropertyAd,
+  type IPostPropertyAdSearchRequest,
 } from "../../../../services/post-property-ad-search.service";
 import { mapFiltersToApi } from "../../../../services/helpers/map-filters-to-api.helper";
 import { mapApiToPropertyDataArray } from "../../../../services/helpers/map-api-to-property-data.helper";
-import { useGetPurchases, type IGetPurchasesResponseSuccess } from "../../../../services/get-purchases.service";
+import {
+  useGetPurchases,
+  type IGetPurchasesResponseSuccess,
+} from "../../../../services/get-purchases.service";
 import { getNeighborhoods } from "../../../../services/get-locations-neighborhoods.service";
 import type { INeighborhoodFull } from "../../../../services/get-locations-neighborhoods.service";
 import { getCityByCode } from "../../../../services/get-locations-city-by-code.service";
@@ -182,7 +196,7 @@ export function EvaluationComponent() {
   const propertiesCache = useRef<Map<string, IPropertyAd>>(new Map());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [sortBy] = useState<SortOption>("relevance");
+  const [sortBy, setSortBy] = useState<SortOption>("relevance");
   const [viewMode, setViewMode] = useState<"cards" | "list">("list");
   const [currentFilters, setCurrentFilters] = useState<FilterState | undefined>(
     undefined
@@ -194,16 +208,14 @@ export function EvaluationComponent() {
     useState("area-total");
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isAnalysisDrawerOpen, setIsAnalysisDrawerOpen] = useState(false);
-  
+
   // Refs para controle de paginação
   const previousPage = useRef(1);
   const isInitialMount = useRef(true);
   const isFetchingInitial = useRef(false); // Flag para indicar que está fazendo busca inicial
-  
+
   // Estados para métricas calculadas
-  const [totalValueAverage, setTotalValueAverage] = useState(0);
   const [pricePerAreaAverage, setPricePerAreaAverage] = useState(0);
-  const [usableAreaAverage, setUsableAreaAverage] = useState(0);
   const [totalAreaAverage, setTotalAreaAverage] = useState(0);
   const [bestDeal, setBestDeal] = useState(0);
   const [bestDealPerM2, setBestDealPerM2] = useState(0);
@@ -226,62 +238,69 @@ export function EvaluationComponent() {
   const [mapZoom, setMapZoom] = useState<number | undefined>(undefined);
 
   // Extrair cidades disponíveis das compras e criar mapeamento cidade -> cityStateCode
-  const formatCityNameFromCode = useCallback((cityStateCode: string): string => {
-    const cityParts = cityStateCode.split("_");
-    const cityName = cityParts.slice(0, -1).join(" ").toUpperCase();
-    return cityName;
-  }, []);
+  const formatCityNameFromCode = useCallback(
+    (cityStateCode: string): string => {
+      const cityParts = cityStateCode.split("_");
+      const cityName = cityParts.slice(0, -1).join(" ").toUpperCase();
+      return cityName;
+    },
+    []
+  );
 
-  const { availableCities, cityToCodeMap, defaultCityStateCode } = useMemo(() => {
-    if (!purchasesData || purchasesData.length === 0) {
-      return {
-        availableCities: ["CURITIBA"],
-        cityToCodeMap: {} as Record<string, string>,
-        defaultCityStateCode: undefined as string | undefined,
-      };
-    }
+  const { availableCities, cityToCodeMap, defaultCityStateCode } =
+    useMemo(() => {
+      if (!purchasesData || purchasesData.length === 0) {
+        return {
+          availableCities: ["CURITIBA"],
+          cityToCodeMap: {} as Record<string, string>,
+          defaultCityStateCode: undefined as string | undefined,
+        };
+      }
 
-    const citiesSet = new Set<string>();
-    const cityToCode: Record<string, string> = {};
-    let defaultCityCode: string | undefined;
+      const citiesSet = new Set<string>();
+      const cityToCode: Record<string, string> = {};
+      let defaultCityCode: string | undefined;
 
-    const purchaseWithDefaultCity = purchasesData.find(
-      (purchase: IGetPurchasesResponseSuccess) => purchase.defaultCityStateCode
-    );
+      const purchaseWithDefaultCity = purchasesData.find(
+        (purchase: IGetPurchasesResponseSuccess) =>
+          purchase.defaultCityStateCode
+      );
 
-    if (purchaseWithDefaultCity?.defaultCityStateCode) {
-      defaultCityCode = purchaseWithDefaultCity.defaultCityStateCode;
-      const cityName = formatCityNameFromCode(defaultCityCode);
-      citiesSet.add(cityName);
-      cityToCode[cityName] = defaultCityCode;
-    }
-
-    purchasesData.forEach((purchase: IGetPurchasesResponseSuccess) => {
-      if (purchase.defaultCityStateCode) {
-        const cityName = formatCityNameFromCode(purchase.defaultCityStateCode);
+      if (purchaseWithDefaultCity?.defaultCityStateCode) {
+        defaultCityCode = purchaseWithDefaultCity.defaultCityStateCode;
+        const cityName = formatCityNameFromCode(defaultCityCode);
         citiesSet.add(cityName);
-        cityToCode[cityName] = purchase.defaultCityStateCode;
+        cityToCode[cityName] = defaultCityCode;
       }
 
-      if (purchase.chosenCityCodes && purchase.chosenCityCodes.length > 0) {
-        purchase.chosenCityCodes.forEach((cityCode) => {
-          const cityName = formatCityNameFromCode(cityCode);
+      purchasesData.forEach((purchase: IGetPurchasesResponseSuccess) => {
+        if (purchase.defaultCityStateCode) {
+          const cityName = formatCityNameFromCode(
+            purchase.defaultCityStateCode
+          );
           citiesSet.add(cityName);
-          cityToCode[cityName] = cityCode;
-        });
-      }
-    });
+          cityToCode[cityName] = purchase.defaultCityStateCode;
+        }
 
-    const citiesArray = Array.from(citiesSet).sort((a, b) =>
-      a.localeCompare(b, "pt-BR")
-    );
+        if (purchase.chosenCityCodes && purchase.chosenCityCodes.length > 0) {
+          purchase.chosenCityCodes.forEach((cityCode) => {
+            const cityName = formatCityNameFromCode(cityCode);
+            citiesSet.add(cityName);
+            cityToCode[cityName] = cityCode;
+          });
+        }
+      });
 
-    return {
-      availableCities: citiesArray,
-      cityToCodeMap: cityToCode,
-      defaultCityStateCode: defaultCityCode,
-    };
-  }, [purchasesData, formatCityNameFromCode]);
+      const citiesArray = Array.from(citiesSet).sort((a, b) =>
+        a.localeCompare(b, "pt-BR")
+      );
+
+      return {
+        availableCities: citiesArray,
+        cityToCodeMap: cityToCode,
+        defaultCityStateCode: defaultCityCode,
+      };
+    }, [purchasesData, formatCityNameFromCode]);
 
   const defaultCity = useMemo(() => {
     if (defaultCityStateCode) {
@@ -846,7 +865,7 @@ export function EvaluationComponent() {
           sortConfig.sortBy,
           sortConfig.sortOrder
         );
-        
+
         // Adiciona requireAreaInfo para obter dados de área
         apiRequest.requireAreaInfo = true;
 
@@ -1027,7 +1046,7 @@ export function EvaluationComponent() {
           sortConfig.sortBy,
           sortConfig.sortOrder
         );
-        
+
         // Adiciona requireAreaInfo para obter dados de área
         apiRequest.requireAreaInfo = true;
 
@@ -1055,7 +1074,7 @@ export function EvaluationComponent() {
         setLoading(false);
       }
     },
-    [sortBy, cityToCodeMap, itemsPerPage, auth.store.token, defaultCity, selectedProperties]
+    [sortBy, cityToCodeMap, itemsPerPage, auth.store.token, defaultCity]
   );
 
   // Buscar propriedades iniciais quando houver cidades disponíveis
@@ -1068,7 +1087,7 @@ export function EvaluationComponent() {
       ) {
         // Marcar que está fazendo busca inicial para evitar interferência do useEffect de paginação
         isFetchingInitial.current = true;
-        
+
         const initialFilters: FilterState = {
           search: "",
           cities: [],
@@ -1128,7 +1147,7 @@ export function EvaluationComponent() {
         };
 
         await applyFilters(initialFilters);
-        
+
         // Marcar que a busca inicial terminou após um pequeno delay
         setTimeout(() => {
           isFetchingInitial.current = false;
@@ -1137,12 +1156,7 @@ export function EvaluationComponent() {
     };
 
     fetchInitial();
-  }, [
-    availableCities.length,
-    cityToCodeMap,
-    currentFilters,
-    applyFilters,
-  ]);
+  }, [availableCities.length, cityToCodeMap, currentFilters, applyFilters]);
 
   // Buscar propriedades quando a página muda
   useEffect(() => {
@@ -1175,15 +1189,15 @@ export function EvaluationComponent() {
 
           try {
             const sortConfig = mapSortOptionToApi(sortBy);
-            
-            const apiRequest: any = {
+
+            const apiRequest: IPostPropertyAdSearchRequest = {
               page: currentPage,
               size: itemsPerPage,
               requireAreaInfo: true,
             };
 
             if (defaultCity && cityToCodeMap[defaultCity]) {
-              apiRequest.cities = [cityToCodeMap[defaultCity]];
+              apiRequest.cityStateCodes = [cityToCodeMap[defaultCity]];
             }
 
             if (sortConfig.sortBy) {
@@ -1235,6 +1249,17 @@ export function EvaluationComponent() {
       applyFilters(filters);
     },
     [applyFilters]
+  );
+
+  // Função para lidar com mudança de ordenação
+  const handleSortChange = useCallback(
+    (newSortBy: SortOption) => {
+      setSortBy(newSortBy);
+      if (currentFilters) {
+        applyFilters(currentFilters);
+      }
+    },
+    [currentFilters, applyFilters]
   );
 
   const handlePropertySelect = useCallback((id: string, selected: boolean) => {
@@ -1304,9 +1329,7 @@ export function EvaluationComponent() {
 
     if (properties.length === 0) {
       // Zera tudo se não houver imóveis
-      setTotalValueAverage(0);
       setPricePerAreaAverage(0);
-      setUsableAreaAverage(0);
       setTotalAreaAverage(0);
       setBestDeal(0);
       setBestDealPerM2(0);
@@ -1329,7 +1352,10 @@ export function EvaluationComponent() {
           usableArea,
           areas: ad.area?.map((a) => `${a.areaType}: ${a.value}`) || [],
           areaDetails: ad.area || [],
-          prices: ad.prices?.map((p) => `${p.businessModel}: ${p.total?.value || 0}`) || [],
+          prices:
+            ad.prices?.map(
+              (p) => `${p.businessModel}: ${p.total?.value || 0}`
+            ) || [],
         });
       });
     }
@@ -1386,13 +1412,6 @@ export function EvaluationComponent() {
           )
         : 0;
 
-    const avgUsableArea =
-      usableAreas.length > 0
-        ? Math.round(
-            usableAreas.reduce((a, b) => a + b, 0) / usableAreas.length
-          )
-        : 0;
-
     const avgTotalArea =
       totalAreas.length > 0
         ? Math.round(totalAreas.reduce((a, b) => a + b, 0) / totalAreas.length)
@@ -1418,9 +1437,7 @@ export function EvaluationComponent() {
         : { min: 0, max: 0 };
 
     // Valor de avaliação (média de preços)
-    setTotalValueAverage(avgTotalValue);
     setPricePerAreaAverage(avgPricePerArea);
-    setUsableAreaAverage(avgUsableArea);
     setTotalAreaAverage(avgTotalArea);
     setBestDeal(bestDealValue);
     setBestDealPerM2(bestDealPricePerM2);
@@ -1471,7 +1488,7 @@ export function EvaluationComponent() {
     prices.forEach((price) => {
       // Calcula o índice da faixa
       let bucketIndex = Math.floor((price - min) / bucketSize);
-      
+
       // Se o preço for exatamente o máximo, coloca na última faixa
       if (price >= max) {
         bucketIndex = 4;
@@ -1479,7 +1496,7 @@ export function EvaluationComponent() {
         // Garante que o índice está dentro dos limites
         bucketIndex = Math.max(0, Math.min(bucketIndex, 4));
       }
-      
+
       if (buckets[bucketIndex]) {
         buckets[bucketIndex].value++;
       }
@@ -1506,7 +1523,7 @@ export function EvaluationComponent() {
         const price = getTotalPrice(ad);
         return areaValue > 0 && price > 0;
       })
-      .map((ad, index) => {
+      .map((ad) => {
         const address = ad.formattedAddress || ad.address?.street || "";
         const neighborhood = ad.address?.neighborhood || "";
         const shortAddress = `${address}, ${neighborhood}`.substring(0, 30);
@@ -1528,22 +1545,13 @@ export function EvaluationComponent() {
 
     if (properties.length === 0) return [];
 
-    const typeCount = properties.reduce(
-      (acc, ad) => {
-        const type = translatePropertyType(ad.propertyType) || "Outros";
-        acc[type] = (acc[type] || 0) + 1;
-        return acc;
-      },
-      {} as Record<string, number>
-    );
+    const typeCount = properties.reduce((acc, ad) => {
+      const type = translatePropertyType(ad.propertyType) || "Outros";
+      acc[type] = (acc[type] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
 
-    const colors = [
-      "#2196F3",
-      "#4CAF50",
-      "#FFC107",
-      "#9C27B0",
-      "#F44336",
-    ];
+    const colors = ["#2196F3", "#4CAF50", "#FFC107", "#9C27B0", "#F44336"];
 
     return Object.entries(typeCount).map(([name, count], index) => ({
       type: name,
@@ -1680,6 +1688,37 @@ export function EvaluationComponent() {
                   }
                   label="Selecionar todos"
                 />
+
+                {/* Seletor de Ordenação */}
+                <FormControl
+                  size="small"
+                  sx={{
+                    minWidth: 150,
+                    "& .MuiOutlinedInput-root": {
+                      borderRadius: 2,
+                      backgroundColor: theme.palette.background.paper,
+                    },
+                  }}
+                >
+                  <InputLabel>Ordenar por</InputLabel>
+                  <Select
+                    value={sortBy}
+                    onChange={(e) =>
+                      handleSortChange(e.target.value as SortOption)
+                    }
+                    label="Ordenar por"
+                  >
+                    <MenuItem value="relevance">Relevância</MenuItem>
+                    <MenuItem value="price-per-m2-asc">Menor preço/m²</MenuItem>
+                    <MenuItem value="price-per-m2-desc">
+                      Maior preço/m²
+                    </MenuItem>
+                    <MenuItem value="price-asc">Menor preço</MenuItem>
+                    <MenuItem value="price-desc">Maior preço</MenuItem>
+                    <MenuItem value="area-asc">Menor área útil</MenuItem>
+                    <MenuItem value="area-desc">Maior área útil</MenuItem>
+                  </Select>
+                </FormControl>
 
                 {/* Botões de visualização */}
                 <Box
@@ -1868,7 +1907,10 @@ export function EvaluationComponent() {
                           <Checkbox
                             checked={selectedProperties.has(property.id)}
                             onChange={(e) =>
-                              handlePropertySelect(property.id, e.target.checked)
+                              handlePropertySelect(
+                                property.id,
+                                e.target.checked
+                              )
                             }
                           />
 
