@@ -188,6 +188,7 @@ export function SearchComponent() {
   const [propertyDetailsOpen, setPropertyDetailsOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalProperties, setTotalProperties] = useState(0);
   const itemsPerPage = 18;
   const [helpPopupAnchor, setHelpPopupAnchor] = useState<HTMLElement | null>(
     null
@@ -800,6 +801,7 @@ export function SearchComponent() {
         const propertyData = mapApiToPropertyDataArray(response.data.data);
         setFilteredProperties(propertyData);
         setTotalPages(response.data.meta.lastPage);
+        setTotalProperties(response.data.meta.total);
         setError(null); // Garantir que não há erro após sucesso
 
         // Buscar dados geoespaciais das cidades e bairros selecionados
@@ -814,6 +816,7 @@ export function SearchComponent() {
         setError(errorMessage);
         setFilteredProperties([]);
         setTotalPages(1);
+        setTotalProperties(0);
       } finally {
         setLoading(false);
       }
@@ -870,6 +873,7 @@ export function SearchComponent() {
         const propertyData = mapApiToPropertyDataArray(response.data.data);
         setFilteredProperties(propertyData);
         setTotalPages(response.data.meta.lastPage);
+        setTotalProperties(response.data.meta.total);
         setError(null); // Garantir que não há erro após sucesso
       } catch (error) {
         console.error("Erro ao buscar propriedades:", error);
@@ -932,6 +936,7 @@ export function SearchComponent() {
             const propertyData = mapApiToPropertyDataArray(response.data.data);
             setFilteredProperties(propertyData);
             setTotalPages(response.data.meta.lastPage);
+            setTotalProperties(response.data.meta.total);
             setError(null);
           } catch (error) {
             console.error("Erro ao buscar propriedades:", error);
@@ -939,6 +944,7 @@ export function SearchComponent() {
             setError(errorMessage);
             setFilteredProperties([]);
             setTotalPages(1);
+            setTotalProperties(0);
           } finally {
             setLoading(false);
           }
@@ -1974,7 +1980,7 @@ export function SearchComponent() {
                       fontSize: "1.1rem",
                     }}
                   >
-                    {filteredProperties.length}
+                    {totalProperties}
                   </Typography>
                   <Typography
                     variant="body1"

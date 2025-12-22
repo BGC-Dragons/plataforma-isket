@@ -189,6 +189,7 @@ export function EvaluationComponent() {
   );
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalProperties, setTotalProperties] = useState(0);
   const [calculationCriterion, setCalculationCriterion] =
     useState("area-total");
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -862,6 +863,7 @@ export function EvaluationComponent() {
         const propertyData = mapApiToPropertyDataArray(response.data.data);
         setProperties(propertyData);
         setTotalPages(response.data.meta.lastPage);
+        setTotalProperties(response.data.meta.total);
         setError(null);
 
         if (!filters.addressCoordinates) {
@@ -874,6 +876,7 @@ export function EvaluationComponent() {
         setError(errorMessage);
         setProperties([]);
         setTotalPages(1);
+        setTotalProperties(0);
       } finally {
         setLoading(false);
       }
@@ -1041,6 +1044,7 @@ export function EvaluationComponent() {
         const propertyData = mapApiToPropertyDataArray(response.data.data);
         setProperties(propertyData);
         setTotalPages(response.data.meta.lastPage);
+        setTotalProperties(response.data.meta.total);
         setError(null);
       } catch (err) {
         console.error("Erro ao buscar propriedades:", err);
@@ -1202,6 +1206,7 @@ export function EvaluationComponent() {
             const propertyData = mapApiToPropertyDataArray(response.data.data);
             setProperties(propertyData);
             setTotalPages(response.data.meta.lastPage);
+            setTotalProperties(response.data.meta.total);
             setError(null);
           } catch (error) {
             console.error("Erro ao buscar propriedades:", error);
@@ -1209,6 +1214,7 @@ export function EvaluationComponent() {
             setError(errorMessage);
             setProperties([]);
             setTotalPages(1);
+            setTotalProperties(0);
           } finally {
             setLoading(false);
           }
@@ -1653,7 +1659,7 @@ export function EvaluationComponent() {
               }}
             >
               <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                {properties.length} imóveis encontrados
+                {totalProperties} imóveis encontrados
               </Typography>
               <Box
                 sx={{
