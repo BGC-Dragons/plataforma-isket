@@ -198,7 +198,7 @@ export function SignUp() {
                 <Link
                   component="button"
                   variant="body2"
-                  onClick={() => navigate("/")}
+                  onClick={() => navigate("/login")}
                   sx={{
                     color: theme.palette.brand.secondary,
                     textDecoration: "none",

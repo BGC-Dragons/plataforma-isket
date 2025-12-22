@@ -108,7 +108,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // Aguardar um tick para garantir que o estado foi atualizado
       setTimeout(() => {
         setIsLoggingIn(false);
-        navigate(redirect || "/");
+        navigate(redirect || "/pesquisar-anuncios");
       }, 0);
     },
     [handleUpdateStore, navigate]

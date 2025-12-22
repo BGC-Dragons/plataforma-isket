@@ -220,7 +220,7 @@ export function FloatingTopMenu() {
                     gap: 2,
                     cursor: "pointer",
                   }}
-                  onClick={() => navigate("/")}
+                  onClick={() => navigate("/pesquisar-anuncios")}
                 >
                   <img
                     src={isketLogo}

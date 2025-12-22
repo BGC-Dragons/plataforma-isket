@@ -43,7 +43,7 @@ export function Login() {
   }, []);
 
   const redirectTo = (() => {
-    if (!location.search.includes("redirect=")) return "/";
+    if (!location.search.includes("redirect=")) return "/pesquisar-anuncios";
 
     const redirect = new URLSearchParams(location.search).get("redirect");
     const invalidRedirects = [
@@ -56,7 +56,7 @@ export function Login() {
     return redirect &&
       !invalidRedirects.some((invalid) => redirect.includes(invalid))
       ? redirect
-      : "/";
+      : "/pesquisar-anuncios";
   })();
 
   const successMessage = location.state?.message;
@@ -106,7 +106,7 @@ export function Login() {
               refreshToken: response.data.refreshToken,
             },
             user,
-            redirectTo !== "/" ? redirectTo : undefined
+            redirectTo !== "/pesquisar-anuncios" ? redirectTo : undefined
           );
         } catch (userError: unknown) {
           console.error("Erro ao buscar dados do usuário:", userError);

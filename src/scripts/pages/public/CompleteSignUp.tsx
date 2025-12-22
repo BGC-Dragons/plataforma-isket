@@ -97,7 +97,7 @@ export function CompleteSignUp() {
               email: userResponse.data.email || email.trim(),
             };
 
-            // Fazer login automático e redirecionar para o dashboard
+            // Fazer login automático e redirecionar para a busca
             login(
               {
                 accessToken: loginResponse.data.accessToken,

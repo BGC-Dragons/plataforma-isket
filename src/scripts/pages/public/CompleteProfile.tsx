@@ -38,7 +38,7 @@ export function CompleteProfile() {
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       // Redirecionar para login após sucesso
-      navigate("/", {
+      navigate("/login", {
         state: {
           message: "Perfil completado com sucesso! Faça login para continuar.",
         },

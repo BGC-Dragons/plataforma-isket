@@ -15,7 +15,7 @@ export function Error404() {
   const navigate = useNavigate();
 
   const handleGoHome = () => {
-    navigate("/");
+    navigate("/pesquisar-anuncios");
   };
 
   const handleGoBack = () => {
