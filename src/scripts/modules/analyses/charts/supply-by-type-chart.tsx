@@ -1,4 +1,4 @@
-import { Box, Typography, useTheme } from "@mui/material";
+import { Box, Typography, useTheme, Tooltip } from "@mui/material";
 import { translatePropertyType } from "../../evaluation/evaluation-helpers";
 
 interface SupplyByTypeData {
@@ -57,34 +57,40 @@ export function SupplyByTypeChart({ data }: SupplyByTypeChartProps) {
               }}
             >
               {/* Barra vertical */}
-              <Box
-                sx={{
-                  width: "100%",
-                  height: barHeight,
-                  minHeight: barHeight > 0 ? 4 : 0, // Mínimo de 4px se houver valor
-                  backgroundColor: theme.palette.primary.main,
-                  borderRadius: "4px 4px 0 0",
-                  display: "flex",
-                  alignItems: "flex-end",
-                  justifyContent: "center",
-                  pb: 0.5,
-                  position: "relative",
-                }}
+              <Tooltip
+                title={`${translatedType}: ${item.count.toLocaleString("pt-BR")}`}
+                arrow
               >
-                {/* Valor dentro da barra (se houver espaço) */}
-                {barHeight > 30 && (
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      fontWeight: 600,
-                      color: theme.palette.primary.contrastText,
-                      fontSize: "0.75rem",
-                    }}
-                  >
-                    {item.count}
-                  </Typography>
-                )}
-              </Box>
+                <Box
+                  sx={{
+                    width: "100%",
+                    height: barHeight,
+                    minHeight: barHeight > 0 ? 4 : 0, // Mínimo de 4px se houver valor
+                    backgroundColor: theme.palette.primary.main,
+                    borderRadius: "4px 4px 0 0",
+                    display: "flex",
+                    alignItems: "flex-end",
+                    justifyContent: "center",
+                    pb: 0.5,
+                    position: "relative",
+                    cursor: "pointer",
+                  }}
+                >
+                  {/* Valor dentro da barra (se houver espaço) */}
+                  {barHeight > 30 && (
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        fontWeight: 600,
+                        color: theme.palette.primary.contrastText,
+                        fontSize: "0.75rem",
+                      }}
+                    >
+                      {item.count}
+                    </Typography>
+                  )}
+                </Box>
+              </Tooltip>
 
               {/* Label do tipo e porcentagem */}
               <Box
