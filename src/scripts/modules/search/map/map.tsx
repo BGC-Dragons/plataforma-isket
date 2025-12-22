@@ -746,26 +746,26 @@ export function MapComponent({
         }
       } else if (geometry.type === "MultiPolygon") {
         const coords = geometry.coordinates as number[][][][];
-        if (
-          coords &&
-          coords[0] &&
-          coords[0][0] &&
-          Array.isArray(coords[0][0])
-        ) {
-          coords[0][0].forEach((coord) => {
-            if (
-              Array.isArray(coord) &&
-              coord.length >= 2 &&
-              typeof coord[0] === "number" &&
-              typeof coord[1] === "number"
-            ) {
-              try {
-                allCoordinates.push(
-                  new google.maps.LatLng(coord[1], coord[0]) // lat, lng
-                );
-              } catch {
-                // Ignorar coordenadas inválidas
-              }
+        // Iterar sobre todos os polígonos no MultiPolygon, não apenas o primeiro
+        if (coords && Array.isArray(coords)) {
+          coords.forEach((polygon) => {
+            if (polygon && polygon[0] && Array.isArray(polygon[0])) {
+              polygon[0].forEach((coord) => {
+                if (
+                  Array.isArray(coord) &&
+                  coord.length >= 2 &&
+                  typeof coord[0] === "number" &&
+                  typeof coord[1] === "number"
+                ) {
+                  try {
+                    allCoordinates.push(
+                      new google.maps.LatLng(coord[1], coord[0]) // lat, lng
+                    );
+                  } catch {
+                    // Ignorar coordenadas inválidas
+                  }
+                }
+              });
             }
           });
         }

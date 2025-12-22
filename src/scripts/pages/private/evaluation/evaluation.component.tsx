@@ -441,10 +441,13 @@ export function EvaluationComponent() {
           });
         } else if (geometry.type === "MultiPolygon") {
           const coords = geometry.coordinates as number[][][][];
-          coords[0]?.[0]?.forEach((coord) => {
-            allCoordinates.push({
-              lat: coord[1], // latitude
-              lng: coord[0], // longitude
+          // Iterar sobre todos os polígonos no MultiPolygon, não apenas o primeiro
+          coords.forEach((polygon) => {
+            polygon[0]?.forEach((coord) => {
+              allCoordinates.push({
+                lat: coord[1], // latitude
+                lng: coord[0], // longitude
+              });
             });
           });
         }
@@ -483,19 +486,19 @@ export function EvaluationComponent() {
 
       if (isCityOnlySearch) {
         // Quando apenas cidades são selecionadas, fazer zoom moderado para focar na cidade
-        // Usar zoom mais conservador para evitar zoom máximo
+        // Usar zoom mais conservador para evitar zoom máximo e mostrar visualização mais ampla
         if (maxDiff > 0.4) {
           zoom = 10; // cidade muito grande (ex: São Paulo, Rio de Janeiro)
         } else if (maxDiff > 0.25) {
           zoom = 11; // cidade grande
         } else if (maxDiff > 0.15) {
-          zoom = 12; // cidade média-grande
+          zoom = 11; // cidade média-grande (reduzido de 12 para 11 para visualização mais ampla)
         } else if (maxDiff > 0.08) {
-          zoom = 12; // cidade média (reduzido de 13 para 12)
+          zoom = 11; // cidade média (reduzido de 12 para 11 para visualização mais ampla)
         } else if (maxDiff > 0.04) {
-          zoom = 12; // cidade pequena (reduzido de 14 para 12)
+          zoom = 11; // cidade pequena (reduzido de 12 para 11 para visualização mais ampla)
         } else {
-          zoom = 13; // cidade muito pequena (reduzido de 15 para 13, limitado por MAX_ZOOM)
+          zoom = 12; // cidade muito pequena (reduzido de 13 para 12 para visualização mais ampla)
         }
 
         // Garantir que o zoom não ultrapasse o limite máximo

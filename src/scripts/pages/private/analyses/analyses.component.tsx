@@ -625,8 +625,11 @@ export function AnalysesComponent() {
           });
         } else if (geometry.type === "MultiPolygon") {
           const coords = geometry.coordinates as number[][][][];
-          coords[0]?.[0]?.forEach((coord) => {
-            allCoordinates.push({ lat: coord[1], lng: coord[0] });
+          // Iterar sobre todos os polígonos no MultiPolygon, não apenas o primeiro
+          coords.forEach((polygon) => {
+            polygon[0]?.forEach((coord) => {
+              allCoordinates.push({ lat: coord[1], lng: coord[0] });
+            });
           });
         }
       });
@@ -641,8 +644,11 @@ export function AnalysesComponent() {
           });
         } else if (geometry.type === "MultiPolygon") {
           const coords = geometry.coordinates as number[][][][];
-          coords[0]?.[0]?.forEach((coord) => {
-            allCoordinates.push({ lat: coord[1], lng: coord[0] });
+          // Iterar sobre todos os polígonos no MultiPolygon, não apenas o primeiro
+          coords.forEach((polygon) => {
+            polygon[0]?.forEach((coord) => {
+              allCoordinates.push({ lat: coord[1], lng: coord[0] });
+            });
           });
         }
       });
@@ -672,12 +678,13 @@ export function AnalysesComponent() {
       const MAX_ZOOM = 13;
 
       if (isCityOnly) {
+        // Ajustar zoom para mostrar visualização mais ampla das cidades
         if (maxDiff > 0.4) zoom = 10;
         else if (maxDiff > 0.25) zoom = 11;
-        else if (maxDiff > 0.15) zoom = 12;
-        else if (maxDiff > 0.08) zoom = 12;
-        else if (maxDiff > 0.04) zoom = 12;
-        else zoom = 13;
+        else if (maxDiff > 0.15) zoom = 11; // reduzido de 12 para 11 para visualização mais ampla
+        else if (maxDiff > 0.08) zoom = 11; // reduzido de 12 para 11 para visualização mais ampla
+        else if (maxDiff > 0.04) zoom = 11; // reduzido de 12 para 11 para visualização mais ampla
+        else zoom = 12; // reduzido de 13 para 12 para visualização mais ampla
         zoom = Math.min(zoom, MAX_ZOOM);
       } else if (neighborhoods.length > 50) {
         if (maxDiff > 0.3) zoom = 11;
