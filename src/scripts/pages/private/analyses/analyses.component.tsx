@@ -179,8 +179,8 @@ export function AnalysesComponent() {
   const [heatmapData, setHeatmapData] = useState<number[][]>([]);
 
   // Estados dos accordions
-  const [rankingExpanded, setRankingExpanded] = useState(true);
-  const [supplyExpanded, setSupplyExpanded] = useState(false);
+  const [rankingExpanded, setRankingExpanded] = useState(false);
+  const [supplyExpanded, setSupplyExpanded] = useState(true);
   const [agencyExpanded, setAgencyExpanded] = useState(false);
 
   // Estados do mapa
