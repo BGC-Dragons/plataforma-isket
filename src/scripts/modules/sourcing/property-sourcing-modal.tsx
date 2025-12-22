@@ -35,6 +35,7 @@ interface PropertySourcingModalProps {
   open: boolean;
   onClose: () => void;
   onSave?: (data: PropertySourcingData, acquisitionId?: string) => void;
+  initialData?: PropertySourcingData;
 }
 
 export interface PropertySourcingData {
@@ -94,6 +95,7 @@ export function PropertySourcingModal({
   open,
   onClose,
   onSave,
+  initialData,
 }: PropertySourcingModalProps) {
   const theme = useTheme();
   const navigate = useNavigate();
@@ -106,6 +108,23 @@ export function PropertySourcingModal({
     propertyType: "",
     title: "",
   });
+
+  // Sincronizar initialData com formData quando o modal abrir
+  useEffect(() => {
+    if (open && initialData) {
+      setFormData({
+        address: initialData.address || "",
+        number: initialData.number || "",
+        complement: initialData.complement || "",
+        propertyType: initialData.propertyType || "",
+        title: initialData.title || "",
+        formattedAddress: initialData.formattedAddress,
+      });
+      // Sincronizar searchInputValue com o endereço
+      // O useEffect existente também sincroniza, mas este garante que o initialData seja aplicado primeiro
+      setSearchInputValue(initialData.address || "");
+    }
+  }, [open, initialData]);
 
   // Estados para autocomplete de endereço
   const [isGoogleLoaded, setIsGoogleLoaded] = useState(false);

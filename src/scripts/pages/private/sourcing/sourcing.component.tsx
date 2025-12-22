@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useLocation } from "react-router";
 import { Box, useTheme, Button } from "@mui/material";
 import {
   Home,
@@ -41,6 +42,7 @@ import type { KanbanCardData } from "../../../modules/sourcing/kanban-cards.comp
 export function SourcingComponent() {
   const theme = useTheme();
   const auth = useAuth();
+  const location = useLocation();
   const [searchValue, setSearchValue] = useState("");
   const [debouncedSearchValue, setDebouncedSearchValue] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
@@ -59,12 +61,26 @@ export function SourcingComponent() {
   const [contactData, setContactData] = useState<ContactSourcingData | null>(
     null
   );
+  const [initialPropertyData, setInitialPropertyData] = useState<PropertySourcingData | undefined>(
+    undefined
+  );
   const [acquisitionProcessId, setAcquisitionProcessId] = useState<
     string | undefined
   >(undefined);
   const [acquisitionStatus, setAcquisitionStatus] = useState<
     "IN_ACQUISITION" | "DECLINED" | "ACQUIRED" | undefined
   >(undefined);
+  
+  // Verificar se há dados no location state e abrir modal automaticamente
+  useEffect(() => {
+    const state = location.state as { propertyData?: PropertySourcingData } | null;
+    if (state?.propertyData) {
+      setInitialPropertyData(state.propertyData);
+      setIsPropertyModalOpen(true);
+      // Limpar o state para evitar reabrir o modal ao navegar novamente
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   // Dados iniciais do Kanban (exemplo)
   const initialKanbanColumns: KanbanColumn[] = [
@@ -576,8 +592,12 @@ export function SourcingComponent() {
       {/* Modal de captação de imóvel */}
       <PropertySourcingModal
         open={isPropertyModalOpen}
-        onClose={() => setIsPropertyModalOpen(false)}
+        onClose={() => {
+          setIsPropertyModalOpen(false);
+          setInitialPropertyData(undefined); // Limpar dados iniciais ao fechar
+        }}
         onSave={handleSaveProperty}
+        initialData={initialPropertyData}
       />
 
       {/* Modal de captação de contato */}

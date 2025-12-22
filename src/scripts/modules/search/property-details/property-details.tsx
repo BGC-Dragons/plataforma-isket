@@ -20,6 +20,8 @@ import {
   type IPropertyDetailsData,
 } from "../../../../services/helpers/map-api-to-property-details.helper";
 import { useAuth } from "../../access-manager/auth.hook";
+import type { IPropertyAd } from "../../../../services/post-property-ad-search.service";
+import { mapApiPropertyTypeToModalType } from "../../../../services/helpers/map-api-property-type-to-modal.helper";
 
 // Reexportar a interface do helper
 type PropertyDetailsData = IPropertyDetailsData;
@@ -39,6 +41,7 @@ export function PropertyDetails({
   const navigate = useNavigate();
   const auth = useAuth();
   const [property, setProperty] = useState<PropertyDetailsData | null>(null);
+  const [propertyRaw, setPropertyRaw] = useState<IPropertyAd | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [evaluationEmails, setEvaluationEmails] = useState<string[]>([]);
@@ -58,6 +61,7 @@ export function PropertyDetails({
       setLoading(true);
       setError(null);
       setProperty(null);
+      setPropertyRaw(null);
 
       const fetchPropertyDetails = async () => {
         try {
@@ -82,6 +86,7 @@ export function PropertyDetails({
             const propertyAd = response.data[0];
             const propertyData = mapApiToPropertyDetails(propertyAd);
             setProperty(propertyData);
+            setPropertyRaw(propertyAd); // Armazenar dados brutos da API
           } else {
             setError("Propriedade não encontrada");
           }
@@ -148,8 +153,54 @@ export function PropertyDetails({
 
   // Função para nova captação
   const handleNewCapture = () => {
-    console.log("Nova captação para propriedade:", propertyId);
-    // Implementar navegação ou modal para nova captação
+    if (!property || !propertyRaw) {
+      console.error("Dados da propriedade não disponíveis");
+      return;
+    }
+
+    // Extrair endereço
+    let address = propertyRaw.formattedAddress || property.address || "";
+    let number = "";
+    let complement = propertyRaw.address?.complement || "";
+
+    // Extrair número do endereço
+    if (propertyRaw.address?.streetNumber) {
+      number = propertyRaw.address.streetNumber;
+      // Se o endereço contém o número, remover do endereço
+      if (address && address.includes(number)) {
+        // Tentar remover o número do endereço para manter apenas a rua
+        address = address.replace(new RegExp(`,\\s*${number}`, "g"), "").replace(new RegExp(`\\s+${number}`, "g"), "").trim();
+      }
+    } else if (address) {
+      // Tentar extrair número do formattedAddress
+      const numberMatch = address.match(/(\d+)/);
+      if (numberMatch) {
+        number = numberMatch[1];
+        // Remover número do endereço
+        address = address.replace(/\d+.*/, "").replace(/,\s*$/, "").trim();
+      }
+    }
+
+    // Se não tiver endereço separado, usar o formattedAddress completo
+    if (!address && propertyRaw.formattedAddress) {
+      address = propertyRaw.formattedAddress;
+    }
+
+    // Mapear tipo de imóvel da API para o formato do modal
+    const propertyType = mapApiPropertyTypeToModalType(propertyRaw.propertyType || "");
+
+    // Preparar dados para navegação
+    const propertyData = {
+      address: address,
+      number: number,
+      complement: complement,
+      propertyType: propertyType,
+      title: property.title || address || "Nova Captação",
+      formattedAddress: propertyRaw.formattedAddress || address,
+    };
+
+    // Navegar para a página de captação com os dados
+    navigate("/captacao", { state: { propertyData } });
   };
 
   // Função para enviar avaliação
