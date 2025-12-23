@@ -15,7 +15,6 @@ import { SupplyByTypeAccordion } from "../../../modules/analyses/supply-by-type-
 import { postAnalyticsSearchDemandNeighborhoodRanking } from "../../../../services/post-analytics-search-demand-neighborhood-ranking.service";
 import { postAnalyticsSupplyByPropertyType } from "../../../../services/post-analytics-supply-by-property-type.service";
 import { postAnalyticsSearchDemandHeatMap } from "../../../../services/post-analytics-search-demand-heatmap.service";
-import { postAnalyticsSupplyHeatMap } from "../../../../services/post-analytics-supply-heatmap.service";
 // import { postAnalyticsAgencyRanking } from "../../../../services/post-analytics-agency-ranking.service";
 import { mapFiltersToApi } from "../../../../services/helpers/map-filters-to-api.helper";
 import type { ILocalFilterState } from "../../../../services/helpers/map-filters-to-api.helper";
@@ -49,7 +48,9 @@ const getLastThreeMonthsPeriod = () => {
 // Calcular cityBounds a partir dos dados das cidades
 const calculateCityBoundsFromCities = (
   cities: ICityFull[]
-): { value: { north: number; east: number; south: number; west: number } } | undefined => {
+):
+  | { value: { north: number; east: number; south: number; west: number } }
+  | undefined => {
   if (cities.length === 0) {
     return undefined;
   }
@@ -98,7 +99,9 @@ const calculateCityBoundsFromCities = (
 // Calcular bounds a partir dos dados dos bairros
 const calculateBoundsFromNeighborhoods = (
   neighborhoods: INeighborhoodFull[]
-): { value: { north: number; east: number; south: number; west: number } } | undefined => {
+):
+  | { value: { north: number; east: number; south: number; west: number } }
+  | undefined => {
   if (neighborhoods.length === 0) {
     return undefined;
   }
@@ -106,19 +109,13 @@ const calculateBoundsFromNeighborhoods = (
   const allCoordinates: Array<{ lat: number; lng: number }> = [];
 
   neighborhoods.forEach((neighborhood) => {
-    if (!neighborhood.geo?.geometry) return;
-    const geometry = neighborhood.geo.geometry;
+    if (!neighborhood.geo) return;
+    const geometry = neighborhood.geo;
+    // INeighborhoodGeo sempre é Polygon, não MultiPolygon
     if (geometry.type === "Polygon") {
-      const coords = geometry.coordinates as number[][][];
+      const coords = geometry.coordinates;
       coords[0]?.forEach((coord) => {
         allCoordinates.push({ lat: coord[1], lng: coord[0] });
-      });
-    } else if (geometry.type === "MultiPolygon") {
-      const coords = geometry.coordinates as number[][][][];
-      coords.forEach((polygon) => {
-        polygon[0]?.forEach((coord) => {
-          allCoordinates.push({ lat: coord[1], lng: coord[0] });
-        });
       });
     }
   });
@@ -149,45 +146,54 @@ export function AnalysesComponent() {
   const location = useLocation();
   const auth = useAuth();
 
-  const [currentFilters, setCurrentFilters] = useState<ILocalFilterState | undefined>(undefined);
+  const [currentFilters, setCurrentFilters] = useState<
+    ILocalFilterState | undefined
+  >(undefined);
   const [neighborhoodRanking, setNeighborhoodRanking] = useState<
     Array<{ neighborhood: string; count: number }>
   >([]);
   const [supplyByType, setSupplyByType] = useState<
     Array<{ propertyType: string; count: number }>
   >([]);
-  const [agencyRanking, setAgencyRanking] = useState<
-    Array<{
-      agencyId: string;
-      agencyName: string;
-      neighborhoods: Array<{
-        neighborhood: string;
-        venda: number;
-        aluguel: number;
-        total: number;
-      }>;
-      totalVenda: number;
-      totalAluguel: number;
-      totalGeral: number;
-      totalStockValue?: number;
-    }>
-  >([]);
-  const [loading, setLoading] = useState(false);
-  const [loadingNeighborhoodRanking, setLoadingNeighborhoodRanking] = useState(false);
+  // const [agencyRanking, setAgencyRanking] = useState<
+  //   Array<{
+  //     agencyId: string;
+  //     agencyName: string;
+  //     neighborhoods: Array<{
+  //       neighborhood: string;
+  //       venda: number;
+  //       aluguel: number;
+  //       total: number;
+  //     }>;
+  //     totalVenda: number;
+  //     totalAluguel: number;
+  //     totalGeral: number;
+  //     totalStockValue?: number;
+  //   }>
+  // >([]);
+  // const [loading, setLoading] = useState(false);
+  const [loadingNeighborhoodRanking, setLoadingNeighborhoodRanking] =
+    useState(false);
   const [loadingSupplyByType, setLoadingSupplyByType] = useState(false);
-  const [loadingAgencyRanking, setLoadingAgencyRanking] = useState(false);
+  // const [loadingAgencyRanking, setLoadingAgencyRanking] = useState(false);
   const [heatmapData, setHeatmapData] = useState<number[][]>([]);
 
   // Estados dos accordions
   const [rankingExpanded, setRankingExpanded] = useState(false);
   const [supplyExpanded, setSupplyExpanded] = useState(true);
-  const [agencyExpanded, setAgencyExpanded] = useState(false);
+  // const [agencyExpanded, setAgencyExpanded] = useState(false);
 
   // Estados do mapa
-  const [neighborhoodsData, setNeighborhoodsData] = useState<INeighborhoodFull[]>([]);
-  const [allNeighborhoodsForBounds, setAllNeighborhoodsForBounds] = useState<INeighborhoodFull[]>([]);
+  const [neighborhoodsData, setNeighborhoodsData] = useState<
+    INeighborhoodFull[]
+  >([]);
+  const [allNeighborhoodsForBounds, setAllNeighborhoodsForBounds] = useState<
+    INeighborhoodFull[]
+  >([]);
   const [citiesData, setCitiesData] = useState<ICityFull[]>([]);
-  const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | undefined>(undefined);
+  const [mapCenter, setMapCenter] = useState<
+    { lat: number; lng: number } | undefined
+  >(undefined);
   const [mapZoom, setMapZoom] = useState<number | undefined>(undefined);
 
   const isMobile = useMediaQuery("(max-width: 599px)", { noSsr: true });
@@ -196,66 +202,73 @@ export function AnalysesComponent() {
   const { data: purchasesData } = useGetPurchases();
 
   // Função para converter cityStateCode para formato de exibição
-  const formatCityNameFromCode = useCallback((cityStateCode: string): string => {
-    const cityParts = cityStateCode.split("_");
-    const cityName = cityParts.slice(0, -1).join(" ").toUpperCase();
-    return cityName;
-  }, []);
+  const formatCityNameFromCode = useCallback(
+    (cityStateCode: string): string => {
+      const cityParts = cityStateCode.split("_");
+      const cityName = cityParts.slice(0, -1).join(" ").toUpperCase();
+      return cityName;
+    },
+    []
+  );
 
   // Extrair cidades disponíveis das compras
-  const { availableCities, cityToCodeMap, defaultCityStateCode } = useMemo(() => {
-    if (!purchasesData || purchasesData.length === 0) {
-      return {
-        availableCities: ["CURITIBA"],
-        cityToCodeMap: {} as Record<string, string>,
-        defaultCityStateCode: undefined,
-      };
-    }
+  const { availableCities, cityToCodeMap, defaultCityStateCode } =
+    useMemo(() => {
+      if (!purchasesData || purchasesData.length === 0) {
+        return {
+          availableCities: ["CURITIBA"],
+          cityToCodeMap: {} as Record<string, string>,
+          defaultCityStateCode: undefined,
+        };
+      }
 
-    const citiesSet = new Set<string>();
-    const cityToCode: Record<string, string> = {};
-    let defaultCityCode: string | undefined;
+      const citiesSet = new Set<string>();
+      const cityToCode: Record<string, string> = {};
+      let defaultCityCode: string | undefined;
 
-    const purchaseWithDefaultCity = purchasesData.find(
-      (purchase: IGetPurchasesResponseSuccess) => purchase.defaultCityStateCode
-    );
+      const purchaseWithDefaultCity = purchasesData.find(
+        (purchase: IGetPurchasesResponseSuccess) =>
+          purchase.defaultCityStateCode
+      );
 
-    if (purchaseWithDefaultCity?.defaultCityStateCode) {
-      defaultCityCode = purchaseWithDefaultCity.defaultCityStateCode;
-      const cityName = formatCityNameFromCode(defaultCityCode);
-      citiesSet.add(cityName);
-      cityToCode[cityName] = defaultCityCode;
-    }
-
-    purchasesData.forEach((purchase: IGetPurchasesResponseSuccess) => {
-      // Adicionar cidade padrão
-      if (purchase.defaultCityStateCode) {
-        const cityName = formatCityNameFromCode(purchase.defaultCityStateCode);
+      if (purchaseWithDefaultCity?.defaultCityStateCode) {
+        defaultCityCode = purchaseWithDefaultCity.defaultCityStateCode;
+        const cityName = formatCityNameFromCode(defaultCityCode);
         citiesSet.add(cityName);
-        cityToCode[cityName] = purchase.defaultCityStateCode;
+        cityToCode[cityName] = defaultCityCode;
       }
 
-      // Adicionar cidades escolhidas
-      if (purchase.chosenCityCodes && purchase.chosenCityCodes.length > 0) {
-        purchase.chosenCityCodes.forEach((cityCode) => {
-          const cityName = formatCityNameFromCode(cityCode);
+      purchasesData.forEach((purchase: IGetPurchasesResponseSuccess) => {
+        // Adicionar cidade padrão
+        if (purchase.defaultCityStateCode) {
+          const cityName = formatCityNameFromCode(
+            purchase.defaultCityStateCode
+          );
           citiesSet.add(cityName);
-          cityToCode[cityName] = cityCode;
-        });
-      }
-    });
+          cityToCode[cityName] = purchase.defaultCityStateCode;
+        }
 
-    // Converter para array e ordenar
-    const citiesArray = Array.from(citiesSet).sort((a, b) =>
-      a.localeCompare(b, "pt-BR")
-    );
+        // Adicionar cidades escolhidas
+        if (purchase.chosenCityCodes && purchase.chosenCityCodes.length > 0) {
+          purchase.chosenCityCodes.forEach((cityCode) => {
+            const cityName = formatCityNameFromCode(cityCode);
+            citiesSet.add(cityName);
+            cityToCode[cityName] = cityCode;
+          });
+        }
+      });
 
-    return {
-      availableCities: citiesArray,
-      cityToCodeMap: cityToCode,
-      defaultCityStateCode: defaultCityCode,
-    };
-  }, [purchasesData, formatCityNameFromCode]);
+      // Converter para array e ordenar
+      const citiesArray = Array.from(citiesSet).sort((a, b) =>
+        a.localeCompare(b, "pt-BR")
+      );
+
+      return {
+        availableCities: citiesArray,
+        cityToCodeMap: cityToCode,
+        defaultCityStateCode: defaultCityCode,
+      };
+    }, [purchasesData, formatCityNameFromCode]);
 
   // Cidade padrão (cidade padrão do plano ou primeira cidade disponível ou fallback)
   const defaultCity = useMemo(() => {
@@ -267,16 +280,27 @@ export function AnalysesComponent() {
 
   // Buscar dados de análises
   const loadAnalyticsData = useCallback(
-    async (filters: ILocalFilterState, citiesForBounds?: ICityFull[], neighborhoodsForBounds?: INeighborhoodFull[]) => {
+    async (
+      filters: ILocalFilterState,
+      citiesForBounds?: ICityFull[],
+      neighborhoodsForBounds?: INeighborhoodFull[]
+    ) => {
       if (!auth.store.token) return;
 
       const period = getLastThreeMonthsPeriod();
-      const apiFilters = mapFiltersToApi(filters, cityToCodeMap, 1, 1, "price", "asc");
+      const apiFilters = mapFiltersToApi(
+        filters,
+        cityToCodeMap,
+        1,
+        1,
+        "price",
+        "asc"
+      );
 
       // Calcular bounds: priorizar bairros selecionados, depois cidades
       const neighborhoodsToUse = neighborhoodsForBounds || neighborhoodsData;
       const citiesToUse = citiesForBounds || citiesData;
-      
+
       let cityBounds;
       if (neighborhoodsToUse.length > 0) {
         // Se há bairros selecionados, usar bounds dos bairros
@@ -297,13 +321,14 @@ export function AnalysesComponent() {
       try {
         // Buscar ranking de demanda
         setLoadingNeighborhoodRanking(true);
-        const demandResponse = await postAnalyticsSearchDemandNeighborhoodRanking(
-          {
-            ...basePayload,
-            refAuthType: "PUBLIC",
-          },
-          auth.store.token
-        );
+        const demandResponse =
+          await postAnalyticsSearchDemandNeighborhoodRanking(
+            {
+              ...basePayload,
+              refAuthType: "PUBLIC",
+            },
+            auth.store.token
+          );
         setNeighborhoodRanking(demandResponse.data.data || []);
       } catch (error) {
         console.error("Erro ao buscar ranking de demanda:", error);
@@ -472,18 +497,18 @@ export function AnalysesComponent() {
       // Buscar dados geoespaciais primeiro (para ter dados disponíveis para calcular bounds)
       let fetchedCities: ICityFull[] = [];
       let fetchedNeighborhoods: INeighborhoodFull[] = [];
-      
+
       if (!filters.addressCoordinates) {
         fetchedCities = await fetchCitiesData(filters);
         await fetchNeighborhoodsData(filters);
-        
+
         // Se há bairros selecionados, buscar os dados dos bairros selecionados
         if (filters.neighborhoods.length > 0) {
           // Buscar todos os bairros das cidades
           const cityStateCodes = filters.cities
             .map((city) => cityToCodeMap[city])
             .filter((code): code is string => Boolean(code));
-          
+
           if (cityStateCodes.length > 0) {
             try {
               const response = await getNeighborhoods(
@@ -508,7 +533,13 @@ export function AnalysesComponent() {
         fetchedNeighborhoods.length > 0 ? fetchedNeighborhoods : undefined
       );
     },
-    [loadAnalyticsData, fetchCitiesData, fetchNeighborhoodsData, cityToCodeMap, auth.store.token]
+    [
+      loadAnalyticsData,
+      fetchCitiesData,
+      fetchNeighborhoodsData,
+      cityToCodeMap,
+      auth.store.token,
+    ]
   );
 
   // Ref para rastrear cidades anteriores e evitar buscas duplicadas
@@ -566,16 +597,22 @@ export function AnalysesComponent() {
   // Usar ref para evitar recarregamentos desnecessários
   const lastNeighborhoodsKeyRef = useRef<string>("");
   const lastCitiesKeyRef = useRef<string>("");
-  
+
   useEffect(() => {
     if (!currentFilters || currentFilters.addressCoordinates) {
       return;
     }
 
     // Criar chaves para comparar mudanças
-    const neighborhoodsKey = neighborhoodsData.map(n => n.name || "").sort().join(",");
-    const citiesKey = citiesData.map(c => c.cityStateCode || "").sort().join(",");
-    
+    const neighborhoodsKey = neighborhoodsData
+      .map((n) => n.name || "")
+      .sort()
+      .join(",");
+    const citiesKey = citiesData
+      .map((c) => c.cityStateCode || "")
+      .sort()
+      .join(",");
+
     // Só recarregar se realmente mudou
     if (
       lastNeighborhoodsKeyRef.current !== neighborhoodsKey ||
@@ -583,7 +620,7 @@ export function AnalysesComponent() {
     ) {
       lastNeighborhoodsKeyRef.current = neighborhoodsKey;
       lastCitiesKeyRef.current = citiesKey;
-      
+
       // Recarregar dados com bounds atualizados
       loadAnalyticsData(currentFilters, citiesData, neighborhoodsData);
     }
@@ -616,20 +653,13 @@ export function AnalysesComponent() {
       const allCoordinates: Array<{ lat: number; lng: number }> = [];
 
       neighborhoods.forEach((neighborhood) => {
-        if (!neighborhood.geo?.geometry) return;
-        const geometry = neighborhood.geo.geometry;
+        if (!neighborhood.geo) return;
+        const geometry = neighborhood.geo;
+        // INeighborhoodGeo sempre é Polygon, não MultiPolygon
         if (geometry.type === "Polygon") {
-          const coords = geometry.coordinates as number[][][];
+          const coords = geometry.coordinates;
           coords[0]?.forEach((coord) => {
             allCoordinates.push({ lat: coord[1], lng: coord[0] });
-          });
-        } else if (geometry.type === "MultiPolygon") {
-          const coords = geometry.coordinates as number[][][][];
-          // Iterar sobre todos os polígonos no MultiPolygon, não apenas o primeiro
-          coords.forEach((polygon) => {
-            polygon[0]?.forEach((coord) => {
-              allCoordinates.push({ lat: coord[1], lng: coord[0] });
-            });
           });
         }
       });
@@ -643,7 +673,7 @@ export function AnalysesComponent() {
             allCoordinates.push({ lat: coord[1], lng: coord[0] });
           });
         } else if (geometry.type === "MultiPolygon") {
-          const coords = geometry.coordinates as number[][][][];
+          const coords = geometry.coordinates as unknown as number[][][][];
           // Iterar sobre todos os polígonos no MultiPolygon, não apenas o primeiro
           coords.forEach((polygon) => {
             polygon[0]?.forEach((coord) => {
@@ -681,9 +711,12 @@ export function AnalysesComponent() {
         // Ajustar zoom para mostrar visualização mais ampla das cidades
         if (maxDiff > 0.4) zoom = 10;
         else if (maxDiff > 0.25) zoom = 11;
-        else if (maxDiff > 0.15) zoom = 11; // reduzido de 12 para 11 para visualização mais ampla
-        else if (maxDiff > 0.08) zoom = 11; // reduzido de 12 para 11 para visualização mais ampla
-        else if (maxDiff > 0.04) zoom = 11; // reduzido de 12 para 11 para visualização mais ampla
+        else if (maxDiff > 0.15)
+          zoom = 11; // reduzido de 12 para 11 para visualização mais ampla
+        else if (maxDiff > 0.08)
+          zoom = 11; // reduzido de 12 para 11 para visualização mais ampla
+        else if (maxDiff > 0.04)
+          zoom = 11; // reduzido de 12 para 11 para visualização mais ampla
         else zoom = 12; // reduzido de 13 para 12 para visualização mais ampla
         zoom = Math.min(zoom, MAX_ZOOM);
       } else if (neighborhoods.length > 50) {
@@ -897,15 +930,23 @@ export function AnalysesComponent() {
 
       const newGeometries = currentFilters.drawingGeometries || [];
 
+      let geometry:
+        | { type: "Polygon"; coordinates: number[][][] }
+        | { type: "circle"; coordinates: [[number, number]]; radius: string }
+        | null = null;
+
       if (overlay.type === google.maps.drawing.OverlayType.POLYGON) {
-        const polygon = overlay.overlay as google.maps.Polygon;
-        const geoJson = convertOverlayToGeoJSONPolygon(polygon);
-        newGeometries.push(geoJson);
+        geometry = convertOverlayToGeoJSONPolygon(overlay);
       } else if (overlay.type === google.maps.drawing.OverlayType.CIRCLE) {
-        const circle = overlay.overlay as google.maps.Circle;
-        const geoJson = convertOverlayToGeoJSONCircle(circle);
-        newGeometries.push(geoJson);
+        geometry = convertOverlayToGeoJSONCircle(overlay);
       }
+
+      if (!geometry) {
+        // Se não for um Polygon ou Circle, não fazer nada
+        return;
+      }
+
+      newGeometries.push(geometry);
 
       applyFilters({
         ...currentFilters,
@@ -982,7 +1023,9 @@ export function AnalysesComponent() {
     (neighborhood: INeighborhoodFull) => {
       if (!currentFilters) return;
 
-      const isSelected = currentFilters.neighborhoods.includes(neighborhood.name);
+      const isSelected = currentFilters.neighborhoods.includes(
+        neighborhood.name
+      );
       const newNeighborhoods = isSelected
         ? currentFilters.neighborhoods.filter((n) => n !== neighborhood.name)
         : [...currentFilters.neighborhoods, neighborhood.name];
@@ -1130,4 +1173,3 @@ export function AnalysesComponent() {
     </Box>
   );
 }
-

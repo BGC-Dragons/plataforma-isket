@@ -428,17 +428,17 @@ export function FilterBar({
           appliedFilters.addressZoom ||
           externalFilters?.addressZoom,
       };
-      
+
       // Criar chave única para esta mudança local
       const changeKey = JSON.stringify({
         neighborhoods: [...neighborhoods].sort().join(","),
         timestamp: Date.now(),
       });
       lastLocalChangeRef.current = changeKey;
-      
+
       // Marcar que houve mudança local
       hasLocalChangeRef.current = true;
-      
+
       setTempFilters(updatedFilters);
 
       // Manter filtros aplicados sincronizados com a seleção de bairros
@@ -450,7 +450,7 @@ export function FilterBar({
       // Aplicar filtros automaticamente quando um bairro for selecionado para centralizar o mapa
       console.log("Chamando onFiltersChange com:", updatedFilters);
       onFiltersChange(updatedFilters);
-      
+
       // Resetar flag após um delay maior para garantir que externalFilters seja atualizado primeiro
       setTimeout(() => {
         hasLocalChangeRef.current = false;
@@ -833,10 +833,12 @@ export function FilterBar({
   // Sincronizar filtros quando externalFilters mudar (ex: quando limpa todos os filtros)
   useEffect(() => {
     if (!externalFilters) return;
-    
+
     // Não sincronizar se houve mudança local recente (para evitar sobrescrever mudanças do usuário)
     if (hasLocalChangeRef.current) {
-      console.log("Ignorando sincronização com externalFilters - mudança local recente");
+      console.log(
+        "Ignorando sincronização com externalFilters - mudança local recente"
+      );
       return;
     }
 
@@ -1418,10 +1420,16 @@ export function FilterBar({
             multiple
             value={tempFilters.neighborhoods}
             onChange={(e) => {
-              console.log("Select onChange disparado:", e.target.value, "Tipo:", typeof e.target.value);
-              const value = typeof e.target.value === "string"
-                ? [e.target.value]
-                : (e.target.value as string[]);
+              console.log(
+                "Select onChange disparado:",
+                e.target.value,
+                "Tipo:",
+                typeof e.target.value
+              );
+              const value =
+                typeof e.target.value === "string"
+                  ? [e.target.value]
+                  : (e.target.value as string[]);
               console.log("Valor processado:", value);
               if (Array.isArray(value)) {
                 handleNeighborhoodChange(value);
@@ -1440,7 +1448,12 @@ export function FilterBar({
             size="small"
             disabled={tempFilters.cities.length === 0 || isLoadingNeighborhoods}
             onClick={() => {
-              console.log("Select clicado. Cidades:", tempFilters.cities.length, "Loading:", isLoadingNeighborhoods);
+              console.log(
+                "Select clicado. Cidades:",
+                tempFilters.cities.length,
+                "Loading:",
+                isLoadingNeighborhoods
+              );
             }}
             renderValue={(selected) => {
               const selectedArray = selected as string[];
@@ -1626,26 +1639,38 @@ export function FilterBar({
               <>
                 {filterOptions(neighborhoods, neighborhoodSearchInput).map(
                   (neighborhood) => {
-                    const isSelected = tempFilters.neighborhoods.includes(neighborhood);
+                    const isSelected =
+                      tempFilters.neighborhoods.includes(neighborhood);
                     return (
-                      <MenuItem 
-                        key={neighborhood} 
+                      <MenuItem
+                        key={neighborhood}
                         value={neighborhood}
                         selected={isSelected}
-                        onClick={(e) => {
-                          console.log("MenuItem onClick disparado:", neighborhood);
+                        onClick={() => {
+                          console.log(
+                            "MenuItem onClick disparado:",
+                            neighborhood
+                          );
                           // Obter o valor atual
-                          const currentNeighborhoods = tempFilters.neighborhoods || [];
+                          const currentNeighborhoods =
+                            tempFilters.neighborhoods || [];
                           // Toggle: se já está selecionado, remove; se não, adiciona
                           const newNeighborhoods = isSelected
-                            ? currentNeighborhoods.filter(n => n !== neighborhood)
+                            ? currentNeighborhoods.filter(
+                                (n) => n !== neighborhood
+                              )
                             : [...currentNeighborhoods, neighborhood];
-                          
-                          console.log("Atualizando bairros de", currentNeighborhoods, "para", newNeighborhoods);
-                          
+
+                          console.log(
+                            "Atualizando bairros de",
+                            currentNeighborhoods,
+                            "para",
+                            newNeighborhoods
+                          );
+
                           // Chamar handleNeighborhoodChange diretamente
                           handleNeighborhoodChange(newNeighborhoods);
-                          
+
                           // Não usar stopPropagation para permitir que o Select também processe
                           // Mas o handleNeighborhoodChange já vai atualizar o estado
                         }}

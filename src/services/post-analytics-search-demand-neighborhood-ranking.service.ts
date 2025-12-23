@@ -1,11 +1,7 @@
 import { type AxiosResponse } from "axios";
 import { isketApiClient } from "./clients/isket-api.client";
 import { getHeader } from "./helpers/get-header-function";
-import type {
-  IPostPropertyAdSearchRequest,
-  BusinessModel,
-  PropertyPurpose,
-} from "./post-property-ad-search.service";
+import type { IPostPropertyAdSearchRequest } from "./post-property-ad-search.service";
 
 export interface ISearchDemandNeighborhoodRankingRequest
   extends Partial<IPostPropertyAdSearchRequest> {
@@ -39,4 +35,3 @@ export const postAnalyticsSearchDemandNeighborhoodRanking = (
     }
   );
 };
-
