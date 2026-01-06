@@ -1691,6 +1691,7 @@ export function SearchComponent() {
               zIndex: 1200,
               transition: isDragging ? "none" : "height 0.3s ease-out",
               boxShadow: theme.shadows[24],
+              pb: 23,
             }}
             onTouchStart={handleBottomSheetTouchStart}
             onTouchMove={handleBottomSheetTouchMove}
