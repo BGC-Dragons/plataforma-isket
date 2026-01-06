@@ -100,7 +100,7 @@ export function PropertyDetails({
 
       fetchPropertyDetails();
     }
-  }, [propertyId, open, auth.store.user?.id]);
+  }, [propertyId, open, auth.store.user?.id, auth.store.token]);
 
   // Função para voltar
   const handleBack = () => {
@@ -161,7 +161,7 @@ export function PropertyDetails({
     // Extrair endereço
     let address = propertyRaw.formattedAddress || property.address || "";
     let number = "";
-    let complement = propertyRaw.address?.complement || "";
+    const complement = propertyRaw.address?.complement || "";
 
     // Extrair número do endereço
     if (propertyRaw.address?.streetNumber) {
@@ -169,7 +169,10 @@ export function PropertyDetails({
       // Se o endereço contém o número, remover do endereço
       if (address && address.includes(number)) {
         // Tentar remover o número do endereço para manter apenas a rua
-        address = address.replace(new RegExp(`,\\s*${number}`, "g"), "").replace(new RegExp(`\\s+${number}`, "g"), "").trim();
+        address = address
+          .replace(new RegExp(`,\\s*${number}`, "g"), "")
+          .replace(new RegExp(`\\s+${number}`, "g"), "")
+          .trim();
       }
     } else if (address) {
       // Tentar extrair número do formattedAddress
@@ -187,7 +190,9 @@ export function PropertyDetails({
     }
 
     // Mapear tipo de imóvel da API para o formato do modal
-    const propertyType = mapApiPropertyTypeToModalType(propertyRaw.propertyType || "");
+    const propertyType = mapApiPropertyTypeToModalType(
+      propertyRaw.propertyType || ""
+    );
 
     // Preparar dados para navegação
     const propertyData = {
@@ -378,6 +383,20 @@ export function PropertyDetails({
             flex: 1,
             overflow: "auto",
             p: 3,
+            "&::-webkit-scrollbar": {
+              width: 6,
+            },
+            "&::-webkit-scrollbar-track": {
+              backgroundColor: theme.palette.grey[200],
+              borderRadius: 3,
+            },
+            "&::-webkit-scrollbar-thumb": {
+              backgroundColor: theme.palette.grey[400],
+              borderRadius: 3,
+              "&:hover": {
+                backgroundColor: theme.palette.grey[600],
+              },
+            },
           }}
         >
           {loading ? (
@@ -425,7 +444,14 @@ export function PropertyDetails({
               </Button>
             </Box>
           ) : property ? (
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 4,
+                pb: { xs: 10, sm: 0 },
+              }}
+            >
               {/* Galeria de Fotos */}
               <PropertyGallery
                 images={property.images}
