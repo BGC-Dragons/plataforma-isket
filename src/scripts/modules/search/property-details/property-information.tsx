@@ -201,7 +201,7 @@ export function PropertyInformation({
       <Box
         sx={{
           display: "flex",
-          flexDirection: { xs: "column", md: "row" },
+          flexDirection: { xs: "column", xl: "row" },
           gap: 3,
           mb: 1,
           alignItems: "flex-start",
