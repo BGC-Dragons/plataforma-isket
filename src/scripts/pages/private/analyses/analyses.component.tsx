@@ -6,7 +6,11 @@ import {
   useTheme,
   Typography,
   useMediaQuery,
+  Button,
+  Modal,
+  IconButton,
 } from "@mui/material";
+import { Map, Close } from "@mui/icons-material";
 import { FilterBar } from "../../../modules/search/filter/filter-bar";
 import { MapComponent } from "../../../modules/search/map/map";
 import { RankingDemandAccordion } from "../../../modules/analyses/ranking-demand-accordion";
@@ -196,7 +200,12 @@ export function AnalysesComponent() {
   >(undefined);
   const [mapZoom, setMapZoom] = useState<number | undefined>(undefined);
 
-  const isMobile = useMediaQuery("(max-width: 599px)", { noSsr: true });
+  // Detectar quando a tela é menor que 900px (para mostrar botão flutuante do mapa)
+  const isSmallScreen = useMediaQuery("(max-width: 899px)", {
+    noSsr: true,
+  });
+
+  const [mapModalOpen, setMapModalOpen] = useState(false);
 
   // Obter compras para extrair cidades disponíveis
   const { data: purchasesData } = useGetPurchases();
@@ -1068,7 +1077,8 @@ export function AnalysesComponent() {
               flexDirection: "column",
               overflowY: "auto",
               p: { xs: 2, sm: 0 },
-              pb: { xs: 10, sm: 0 },
+              px: { xs: 2, sm: 2 },
+              pb: { xs: 10, sm: 2 },
               "&::-webkit-scrollbar": {
                 width: 6,
               },
@@ -1134,15 +1144,139 @@ export function AnalysesComponent() {
           </Box>
 
           {/* Coluna Direita: Mapa */}
-          {!isMobile && (
+          <Box
+            sx={{
+              flex: 1,
+              minWidth: 0,
+              display: { xs: "none", md: "block" }, // Esconde em telas menores que 900px
+            }}
+          >
+            <MapComponent
+              height="100%"
+              center={mapCenter}
+              zoom={mapZoom}
+              onDrawingComplete={handleDrawingComplete}
+              onClearFilters={handleClearFilters}
+              neighborhoods={neighborhoodsData}
+              selectedNeighborhoodNames={currentFilters?.neighborhoods || []}
+              cities={citiesData}
+              selectedCityCodes={
+                currentFilters?.cities
+                  .map((city) => cityToCodeMap[city])
+                  .filter((code): code is string => Boolean(code)) || []
+              }
+              allNeighborhoodsForCityBounds={allNeighborhoodsForBounds}
+              filters={currentFilters}
+              cityToCodeMap={cityToCodeMap}
+              token={
+                auth.store.token ||
+                localStorage.getItem("auth_token") ||
+                undefined
+              }
+              useMapSearch={false}
+              onNeighborhoodClick={handleNeighborhoodClick}
+              heatmapData={heatmapData}
+            />
+          </Box>
+        </Box>
+      </Container>
+
+      {/* Botão flutuante para abrir mapa (telas menores que 900px) */}
+      {isSmallScreen && (
+        <Box
+          sx={{
+            position: "fixed",
+            bottom: 24,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 1300,
+          }}
+        >
+          <Button
+            variant="contained"
+            startIcon={mapModalOpen ? <Close /> : <Map />}
+            onClick={() => setMapModalOpen(!mapModalOpen)}
+            sx={{
+              borderRadius: 3,
+              px: 4,
+              py: 1.5,
+              fontSize: "1rem",
+              fontWeight: 600,
+              textTransform: "none",
+              boxShadow: theme.shadows[8],
+              "&:hover": {
+                boxShadow: theme.shadows[12],
+              },
+            }}
+          >
+            {mapModalOpen ? "Fechar mapa" : "Abrir mapa"}
+          </Button>
+        </Box>
+      )}
+
+      {/* Modal do Mapa (telas menores que 900px) */}
+      {isSmallScreen && (
+        <Modal
+          open={mapModalOpen}
+          onClose={() => setMapModalOpen(false)}
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Box
+            sx={{
+              position: "relative",
+              width: "95vw",
+              height: "90vh",
+              maxWidth: 900,
+              maxHeight: 800,
+              backgroundColor: theme.palette.background.paper,
+              borderRadius: 3,
+              overflow: "hidden",
+              boxShadow: theme.shadows[24],
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            {/* Cabeçalho do Modal */}
             <Box
               sx={{
-                flex: 1,
-                minWidth: 0,
-                display: "block",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                p: 2,
+                borderBottom: `1px solid ${theme.palette.divider}`,
+                backgroundColor: theme.palette.background.paper,
               }}
             >
+              <Typography
+                variant="h6"
+                sx={{
+                  fontWeight: 600,
+                  fontSize: "1.25rem",
+                }}
+              >
+                Mapa de Análises
+              </Typography>
+              <IconButton
+                onClick={() => setMapModalOpen(false)}
+                sx={{
+                  color: theme.palette.text.primary,
+                  "&:hover": {
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                }}
+              >
+                <Close />
+              </IconButton>
+            </Box>
+
+            {/* Mapa */}
+            <Box sx={{ flex: 1, position: "relative", overflow: "hidden" }}>
               <MapComponent
+                key={`map-modal-${mapModalOpen}-${citiesData.length}-${heatmapData.length}`}
                 height="100%"
                 center={mapCenter}
                 zoom={mapZoom}
@@ -1169,9 +1303,9 @@ export function AnalysesComponent() {
                 heatmapData={heatmapData}
               />
             </Box>
-          )}
-        </Box>
-      </Container>
+          </Box>
+        </Modal>
+      )}
     </Box>
   );
 }
