@@ -30,14 +30,30 @@ export function SupplyByTypeChart({ data }: SupplyByTypeChartProps) {
   const sortedData = [...data].sort((a, b) => b.count - a.count);
 
   return (
-    <Box>
+    <Box sx={{ minWidth: 0, overflow: "hidden" }}>
       <Box
         sx={{
           display: "flex",
           alignItems: "flex-end",
-          gap: 2,
+          gap: { xs: 1, sm: 2 },
           height: maxBarHeight + 80, // Altura total incluindo espaço para labels
-          px: 2,
+          px: { xs: 1, sm: 2 },
+          minWidth: 0,
+          overflowX: "auto",
+          "&::-webkit-scrollbar": {
+            height: 4,
+          },
+          "&::-webkit-scrollbar-track": {
+            backgroundColor: theme.palette.grey[200],
+            borderRadius: 2,
+          },
+          "&::-webkit-scrollbar-thumb": {
+            backgroundColor: theme.palette.grey[400],
+            borderRadius: 2,
+            "&:hover": {
+              backgroundColor: theme.palette.grey[600],
+            },
+          },
         }}
       >
         {sortedData.map((item) => {

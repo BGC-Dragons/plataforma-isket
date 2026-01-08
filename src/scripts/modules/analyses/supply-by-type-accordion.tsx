@@ -56,7 +56,12 @@ export function SupplyByTypeAccordion({
           Oferta por tipo de imóvel
         </Typography>
       </AccordionSummary>
-      <AccordionDetails sx={{ p: 3 }}>
+      <AccordionDetails
+        sx={{
+          p: { xs: 2, sm: 3 },
+          overflowX: "hidden",
+        }}
+      >
         {loading ? (
           <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
             <CircularProgress size={40} />

@@ -74,11 +74,3 @@ export interface FilterState {
   lancamento: boolean;
   palavras_chave: string;
 }
-
-
-
-
-
-
-
-

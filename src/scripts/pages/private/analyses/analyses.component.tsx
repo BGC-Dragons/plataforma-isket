@@ -1067,6 +1067,8 @@ export function AnalysesComponent() {
               display: "flex",
               flexDirection: "column",
               overflowY: "auto",
+              p: { xs: 2, sm: 0 },
+              pb: { xs: 10, sm: 0 },
               "&::-webkit-scrollbar": {
                 width: 6,
               },

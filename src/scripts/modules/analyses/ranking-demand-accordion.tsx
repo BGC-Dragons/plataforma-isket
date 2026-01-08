@@ -89,7 +89,12 @@ export function RankingDemandAccordion({
           Ranking de procura por região
         </Typography>
       </AccordionSummary>
-      <AccordionDetails sx={{ p: 3 }}>
+      <AccordionDetails
+        sx={{
+          p: { xs: 2, sm: 3 },
+          overflowX: "hidden",
+        }}
+      >
         {loading ? (
           <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
             <CircularProgress size={40} />
@@ -104,6 +109,7 @@ export function RankingDemandAccordion({
               display: "grid",
               gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" },
               gap: 2,
+              minWidth: 0,
             }}
           >
             {sortedData.map((item, index) => (
@@ -113,11 +119,13 @@ export function RankingDemandAccordion({
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
-                  p: 2,
+                  p: { xs: 1.5, sm: 2 },
                   borderRadius: 2,
                   backgroundColor: theme.palette.background.paper,
                   border: `1px solid ${theme.palette.divider}`,
-                  gap: 2,
+                  gap: { xs: 1, sm: 2 },
+                  minWidth: 0,
+                  overflow: "hidden",
                 }}
               >
                 <Box
@@ -134,8 +142,9 @@ export function RankingDemandAccordion({
                     sx={{
                       fontWeight: 600,
                       color: theme.palette.primary.main,
-                      minWidth: 30,
+                      minWidth: { xs: 25, sm: 30 },
                       flexShrink: 0,
+                      fontSize: { xs: "0.9rem", sm: "1.25rem" },
                     }}
                   >
                     {index + 1}.
@@ -147,6 +156,7 @@ export function RankingDemandAccordion({
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       whiteSpace: "nowrap",
+                      fontSize: { xs: "0.875rem", sm: "1rem" },
                     }}
                   >
                     {item.neighborhood}
@@ -161,8 +171,11 @@ export function RankingDemandAccordion({
                     color: theme.palette.primary.contrastText,
                     textTransform: "none",
                     fontWeight: 600,
-                    px: 2,
+                    px: { xs: 1.5, sm: 2 },
+                    py: { xs: 0.75, sm: 1 },
                     flexShrink: 0,
+                    fontSize: { xs: "0.75rem", sm: "0.875rem" },
+                    whiteSpace: "nowrap",
                     "&:hover": {
                       backgroundColor: theme.palette.primary.dark,
                     },
