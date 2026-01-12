@@ -61,19 +61,21 @@ export function SourcingComponent() {
   const [contactData, setContactData] = useState<ContactSourcingData | null>(
     null
   );
-  const [initialPropertyData, setInitialPropertyData] = useState<PropertySourcingData | undefined>(
-    undefined
-  );
+  const [initialPropertyData, setInitialPropertyData] = useState<
+    PropertySourcingData | undefined
+  >(undefined);
   const [acquisitionProcessId, setAcquisitionProcessId] = useState<
     string | undefined
   >(undefined);
   const [acquisitionStatus, setAcquisitionStatus] = useState<
     "IN_ACQUISITION" | "DECLINED" | "ACQUIRED" | undefined
   >(undefined);
-  
+
   // Verificar se há dados no location state e abrir modal automaticamente
   useEffect(() => {
-    const state = location.state as { propertyData?: PropertySourcingData } | null;
+    const state = location.state as {
+      propertyData?: PropertySourcingData;
+    } | null;
     if (state?.propertyData) {
       setInitialPropertyData(state.propertyData);
       setIsPropertyModalOpen(true);
@@ -525,8 +527,8 @@ export function SourcingComponent() {
             display: { xs: "flex", sm: "none" },
             flexDirection: "row",
             gap: 1,
-            p: 1.5,
-            mb: "60px",
+            p: 0.5,
+            mb: "100px",
             borderTop: `1px solid ${theme.palette.divider}`,
             backgroundColor: theme.palette.background.paper,
             position: "fixed",
