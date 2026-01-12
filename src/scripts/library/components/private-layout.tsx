@@ -33,7 +33,15 @@ export function PrivateLayout({ children }: PrivateLayoutProps) {
           overflow: "hidden",
         }}
       >
-        <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <Box
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+          }}
+        >
           {children}
         </Box>
       </Box>

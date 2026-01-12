@@ -50,11 +50,12 @@ export function ButtonsBar({
     <Box
       sx={{
         display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
+        flexDirection: { xs: "column", sm: "column", md: "row" },
+        justifyContent: { xs: "flex-start", md: "space-between" },
+        alignItems: { xs: "stretch", sm: "flex-start", md: "center" },
         gap: 2,
         p: 2,
-        flexWrap: { xs: "wrap", sm: "nowrap" },
+        flexWrap: { xs: "wrap", sm: "nowrap", md: "nowrap" },
       }}
     >
       {/* Botões à esquerda */}
@@ -62,7 +63,8 @@ export function ButtonsBar({
         sx={{
           display: "flex",
           gap: 2,
-          flexWrap: "wrap",
+          flexWrap: { xs: "wrap", sm: "nowrap", md: "wrap" },
+          width: { xs: "100%", sm: "100%", md: "auto" },
         }}
       >
         <Button
@@ -72,8 +74,10 @@ export function ButtonsBar({
           sx={{
             backgroundColor: theme.palette.primary.main,
             borderRadius: 2,
-            px: 3,
-            py: 1,
+            px: { xs: 3, sm: 1.5, md: 3 },
+            py: { xs: 1, sm: 0.75, md: 1 },
+            fontSize: { xs: "0.875rem", sm: "0.75rem", md: "0.875rem" },
+            flex: { xs: "0 0 auto", sm: "1 1 0", md: "0 0 auto" },
             textTransform: "none",
             fontWeight: 600,
             "&:hover": {
@@ -91,8 +95,10 @@ export function ButtonsBar({
           sx={{
             backgroundColor: theme.palette.primary.main,
             borderRadius: 2,
-            px: 3,
-            py: 1,
+            px: { xs: 3, sm: 1.5, md: 3 },
+            py: { xs: 1, sm: 0.75, md: 1 },
+            fontSize: { xs: "0.875rem", sm: "0.75rem", md: "0.875rem" },
+            flex: { xs: "0 0 auto", sm: "1 1 0", md: "0 0 auto" },
             textTransform: "none",
             fontWeight: 600,
             "&:hover": {
@@ -111,6 +117,7 @@ export function ButtonsBar({
           alignItems: "center",
           gap: 1,
           flexWrap: "wrap",
+          width: { xs: "100%", sm: "100%", md: "auto" },
         }}
       >
         <TextField
@@ -119,7 +126,8 @@ export function ButtonsBar({
           onChange={handleSearchChange}
           size="small"
           sx={{
-            minWidth: { xs: "100%", sm: 300, md: 350 },
+            minWidth: { xs: "100%", sm: 200, md: 350 },
+            flex: { xs: "1 1 100%", sm: "1 1 auto", md: "0 0 auto" },
             display: { xs: "none", sm: "flex" }, // Esconder no mobile
             "& .MuiOutlinedInput-root": {
               borderRadius: 2,
@@ -145,6 +153,7 @@ export function ButtonsBar({
             overflow: "hidden",
             border: `1px solid ${theme.palette.divider}`,
             backgroundColor: theme.palette.background.paper,
+            flexShrink: 0,
           }}
         >
           <IconButton
