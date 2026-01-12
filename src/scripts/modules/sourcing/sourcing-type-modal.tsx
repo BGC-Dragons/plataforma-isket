@@ -59,7 +59,8 @@ export function SourcingTypeModal({
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            p: 3,
+            px: 3,
+            py: 2,
             borderBottom: `1px solid ${theme.palette.divider}`,
           }}
         >
@@ -67,7 +68,7 @@ export function SourcingTypeModal({
             variant="h5"
             sx={{
               fontWeight: 700,
-              fontSize: "1.5rem",
+              fontSize: "1.25rem",
               color: theme.palette.text.primary,
             }}
           >
@@ -103,8 +104,8 @@ export function SourcingTypeModal({
           <Box
             sx={{
               display: "flex",
-              gap: 3,
-              flexDirection: { xs: "column", sm: "row" },
+              gap: { xs: 1.5, sm: 3 },
+              flexDirection: "row",
             }}
           >
             {/* Property Option */}
@@ -112,10 +113,10 @@ export function SourcingTypeModal({
               onClick={handlePropertyClick}
               sx={{
                 flex: 1,
-                minHeight: 280,
+                minHeight: { xs: 180, sm: 280 },
                 backgroundColor: "#C8E6C9",
                 borderRadius: 2,
-                p: 4,
+                p: { xs: 2, sm: 4 },
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
@@ -132,18 +133,18 @@ export function SourcingTypeModal({
             >
               <Home
                 sx={{
-                  fontSize: 80,
+                  fontSize: { xs: 40, sm: 60 },
                   color: theme.palette.text.primary,
-                  mb: 2,
+                  mb: { xs: 1, sm: 1.5 },
                 }}
               />
               <Typography
                 variant="h6"
                 sx={{
                   fontWeight: 700,
-                  fontSize: "1.25rem",
+                  fontSize: { xs: "0.875rem", sm: "1rem" },
                   color: theme.palette.text.primary,
-                  mb: 1,
+                  mb: { xs: 0.5, sm: 1 },
                   textAlign: "center",
                 }}
               >
@@ -154,8 +155,9 @@ export function SourcingTypeModal({
                 sx={{
                   color: theme.palette.text.secondary,
                   textAlign: "center",
-                  fontSize: "0.875rem",
+                  fontSize: { xs: "0.75rem", sm: "0.75rem" },
                   maxWidth: 300,
+                  display: { xs: "none", sm: "block" },
                 }}
               >
                 Capte um imóvel específico informando endereço e características
@@ -167,10 +169,10 @@ export function SourcingTypeModal({
               onClick={handleContactClick}
               sx={{
                 flex: 1,
-                minHeight: 280,
+                minHeight: { xs: 180, sm: 280 },
                 backgroundColor: "#BBDEFB",
                 borderRadius: 2,
-                p: 4,
+                p: { xs: 2, sm: 4 },
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
@@ -187,18 +189,18 @@ export function SourcingTypeModal({
             >
               <ContactPage
                 sx={{
-                  fontSize: 80,
+                  fontSize: { xs: 40, sm: 60 },
                   color: theme.palette.text.primary,
-                  mb: 2,
+                  mb: { xs: 1, sm: 1.5 },
                 }}
               />
               <Typography
                 variant="h6"
                 sx={{
                   fontWeight: 700,
-                  fontSize: "1.25rem",
+                  fontSize: { xs: "0.875rem", sm: "1rem" },
                   color: theme.palette.text.primary,
-                  mb: 1,
+                  mb: { xs: 0.5, sm: 1 },
                   textAlign: "center",
                 }}
               >
@@ -209,8 +211,9 @@ export function SourcingTypeModal({
                 sx={{
                   color: theme.palette.text.secondary,
                   textAlign: "center",
-                  fontSize: "0.875rem",
+                  fontSize: { xs: "0.75rem", sm: "0.75rem" },
                   maxWidth: 300,
+                  display: { xs: "none", sm: "block" },
                 }}
               >
                 Capte um contato proprietário para posteriormente revelar seus
