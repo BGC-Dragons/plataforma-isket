@@ -1489,130 +1489,157 @@ export function ContactSourcingDetails({
                       elevation={0}
                       sx={{
                         display: "flex",
-                        alignItems: "flex-start",
+                        flexDirection: { xs: "column", md: "row" },
+                        alignItems: { xs: "flex-start", md: "flex-start" },
                         gap: 1.5,
                         p: 1.5,
                         borderRadius: 2,
                         border: `1px solid ${theme.palette.divider}`,
                       }}
                     >
-                      <Home
-                        sx={{ color: "#4caf50", fontSize: "1.5rem", mt: 0.5 }}
-                      />
-                      <Box sx={{ flex: 1 }}>
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            fontWeight: 500,
-                            fontSize: "0.875rem",
-                            mb: 0.25,
-                          }}
-                        >
-                          {property.address}
-                        </Typography>
-                        {property.complement && (
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              fontSize: "0.75rem",
-                              color: theme.palette.text.secondary,
-                              display: "block",
-                              mb: 0.25,
-                            }}
-                          >
-                            {property.complement}
-                          </Typography>
-                        )}
-                        {property.neighborhood && (
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              fontSize: "0.75rem",
-                              color: theme.palette.text.secondary,
-                              display: "block",
-                              mb: 0.25,
-                            }}
-                          >
-                            {property.neighborhood}
-                          </Typography>
-                        )}
-                        {(property.city || property.state) && (
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              fontSize: "0.75rem",
-                              color: theme.palette.text.secondary,
-                              display: "block",
-                              mb: 0.25,
-                            }}
-                          >
-                            {[property.city, property.state]
-                              .filter(Boolean)
-                              .join(" - ")}
-                          </Typography>
-                        )}
-                        {property.postalCode && (
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              fontSize: "0.75rem",
-                              color: theme.palette.text.secondary,
-                            }}
-                          >
-                            {property.postalCode}
-                          </Typography>
-                        )}
-                        <Chip
-                          label={
-                            property.selectedRelation === "owner"
-                              ? "Proprietário"
-                              : property.selectedRelation === "tenant"
-                              ? "Inquilino"
-                              : property.selectedRelation === "administrator"
-                              ? "Administrador"
-                              : property.selectedRelation === "other"
-                              ? "Outro"
-                              : property.selectedRelation === "resident"
-                              ? "Residente"
-                              : property.selectedRelation
-                          }
-                          size="small"
-                          sx={{
-                            mt: 0.5,
-                            fontSize: "0.7rem",
-                            height: 20,
-                            backgroundColor:
-                              property.selectedRelation === "owner"
-                                ? theme.palette.success.light
-                                : property.selectedRelation === "tenant"
-                                ? theme.palette.warning.light
-                                : property.selectedRelation === "administrator"
-                                ? theme.palette.info.light
-                                : property.selectedRelation === "other"
-                                ? theme.palette.grey[300]
-                                : theme.palette.info.light,
-                            color:
-                              property.selectedRelation === "owner"
-                                ? theme.palette.success.dark
-                                : property.selectedRelation === "tenant"
-                                ? theme.palette.warning.dark
-                                : property.selectedRelation === "administrator"
-                                ? theme.palette.info.dark
-                                : property.selectedRelation === "other"
-                                ? theme.palette.grey[700]
-                                : theme.palette.info.dark,
-                          }}
-                        />
-                      </Box>
+                      {/* Icon and Address Section */}
                       <Box
                         sx={{
                           display: "flex",
-                          flexDirection: "column",
-                          gap: 1,
-                          alignItems: "flex-end",
+                          alignItems: "flex-start",
+                          gap: 1.5,
+                          flex: 1,
+                          width: { xs: "100%", md: "auto" },
                         }}
                       >
-                        <FormControl size="small" sx={{ minWidth: 120 }}>
+                        <Home
+                          sx={{
+                            color: "#4caf50",
+                            fontSize: "1.5rem",
+                            mt: 0.5,
+                            flexShrink: 0,
+                          }}
+                        />
+                        <Box sx={{ flex: 1 }}>
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              fontWeight: 500,
+                              fontSize: "0.875rem",
+                              mb: 0.25,
+                            }}
+                          >
+                            {property.address}
+                          </Typography>
+                          {property.complement && (
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                fontSize: "0.75rem",
+                                color: theme.palette.text.secondary,
+                                display: "block",
+                                mb: 0.25,
+                              }}
+                            >
+                              {property.complement}
+                            </Typography>
+                          )}
+                          {property.neighborhood && (
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                fontSize: "0.75rem",
+                                color: theme.palette.text.secondary,
+                                display: "block",
+                                mb: 0.25,
+                              }}
+                            >
+                              {property.neighborhood}
+                            </Typography>
+                          )}
+                          {(property.city || property.state) && (
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                fontSize: "0.75rem",
+                                color: theme.palette.text.secondary,
+                                display: "block",
+                                mb: 0.25,
+                              }}
+                            >
+                              {[property.city, property.state]
+                                .filter(Boolean)
+                                .join(" - ")}
+                            </Typography>
+                          )}
+                          {property.postalCode && (
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                fontSize: "0.75rem",
+                                color: theme.palette.text.secondary,
+                              }}
+                            >
+                              {property.postalCode}
+                            </Typography>
+                          )}
+                          <Chip
+                            label={
+                              property.selectedRelation === "owner"
+                                ? "Proprietário"
+                                : property.selectedRelation === "tenant"
+                                ? "Inquilino"
+                                : property.selectedRelation === "administrator"
+                                ? "Administrador"
+                                : property.selectedRelation === "other"
+                                ? "Outro"
+                                : property.selectedRelation === "resident"
+                                ? "Residente"
+                                : property.selectedRelation
+                            }
+                            size="small"
+                            sx={{
+                              mt: 0.5,
+                              fontSize: "0.7rem",
+                              height: 20,
+                              backgroundColor:
+                                property.selectedRelation === "owner"
+                                  ? theme.palette.success.light
+                                  : property.selectedRelation === "tenant"
+                                  ? theme.palette.warning.light
+                                  : property.selectedRelation ===
+                                    "administrator"
+                                  ? theme.palette.info.light
+                                  : property.selectedRelation === "other"
+                                  ? theme.palette.grey[300]
+                                  : theme.palette.info.light,
+                              color:
+                                property.selectedRelation === "owner"
+                                  ? theme.palette.success.dark
+                                  : property.selectedRelation === "tenant"
+                                  ? theme.palette.warning.dark
+                                  : property.selectedRelation ===
+                                    "administrator"
+                                  ? theme.palette.info.dark
+                                  : property.selectedRelation === "other"
+                                  ? theme.palette.grey[700]
+                                  : theme.palette.info.dark,
+                            }}
+                          />
+                        </Box>
+                      </Box>
+                      {/* Buttons Section */}
+                      <Box
+                        sx={{
+                          display: "flex",
+                          flexDirection: { xs: "row", md: "column" },
+                          gap: 1,
+                          alignItems: { xs: "stretch", md: "flex-end" },
+                          width: { xs: "100%", md: "auto" },
+                        }}
+                      >
+                        <FormControl
+                          size="small"
+                          sx={{
+                            minWidth: { xs: "50%", md: 120 },
+                            flex: { xs: 1, md: "0 0 auto" },
+                          }}
+                        >
                           <Select
                             value={property.selectedRelation || "owner"}
                             displayEmpty
@@ -1646,6 +1673,7 @@ export function ContactSourcingDetails({
                             textTransform: "none",
                             fontSize: "0.75rem",
                             px: 2,
+                            flex: { xs: 1, md: "0 0 auto" },
                             "&:hover": {
                               backgroundColor: "#1565c0",
                             },
@@ -1656,9 +1684,24 @@ export function ContactSourcingDetails({
                             },
                           }}
                         >
-                          {property.captureCreated
-                            ? "Captado"
-                            : "Criar captação"}
+                          {property.captureCreated ? (
+                            "Captado"
+                          ) : (
+                            <>
+                              <Box
+                                component="span"
+                                sx={{ display: { xs: "none", sm: "inline" } }}
+                              >
+                                Criar captação
+                              </Box>
+                              <Box
+                                component="span"
+                                sx={{ display: { xs: "inline", sm: "none" } }}
+                              >
+                                Captar
+                              </Box>
+                            </>
+                          )}
                         </Button>
                       </Box>
                     </Paper>
