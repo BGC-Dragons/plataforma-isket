@@ -18,6 +18,8 @@ import {
   Typography,
   Slider,
   TextField,
+  useTheme,
+  InputAdornment,
 } from "@mui/material";
 import { Close, ExpandMore } from "@mui/icons-material";
 
@@ -113,6 +115,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
   onClearFilters,
   initialFilters,
 }) => {
+  const theme = useTheme();
   const [areaRange, setAreaRange] = useState<number[]>([0, 1000000]);
   const [precoRange, setPrecoRange] = useState<number[]>([0, 100000000]);
 
@@ -316,6 +319,33 @@ export const FilterModal: React.FC<FilterModalProps> = ({
     }
   };
 
+  // Função para formatar área (número com separador de milhar)
+  const formatArea = (value: number): string => {
+    return value.toLocaleString("pt-BR");
+  };
+
+  // Função para desformatar área (remover pontos e espaços)
+  const unformatArea = (value: string): number => {
+    const numbers = value.replace(/\D/g, "");
+    return numbers ? parseInt(numbers, 10) : 0;
+  };
+
+  // Função para formatar preço (moeda brasileira)
+  const formatPrice = (value: number): string => {
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
+
+  // Função para desformatar preço (remover símbolos de moeda e formatação)
+  const unformatPrice = (value: string): number => {
+    const numbers = value.replace(/\D/g, "");
+    return numbers ? parseInt(numbers, 10) : 0;
+  };
+
   const handleApplyFilters = () => {
     // Preservar a cidade se não estiver nos filtros
     // E preservar drawingGeometries e addressCoordinates dos filtros iniciais
@@ -440,7 +470,24 @@ export const FilterModal: React.FC<FilterModalProps> = ({
         </IconButton>
       </DialogTitle>
 
-      <DialogContent>
+      <DialogContent
+        sx={{
+          "&::-webkit-scrollbar": {
+            width: 6,
+          },
+          "&::-webkit-scrollbar-track": {
+            backgroundColor: theme.palette.grey[200],
+            borderRadius: 3,
+          },
+          "&::-webkit-scrollbar-thumb": {
+            backgroundColor: theme.palette.grey[400],
+            borderRadius: 3,
+            "&:hover": {
+              backgroundColor: theme.palette.grey[600],
+            },
+          },
+        }}
+      >
         <FormControl component="fieldset" sx={{ mb: 4, width: "100%", mt: 2 }}>
           <FormLabel component="legend" sx={{ mb: 1, fontWeight: 600 }}>
             Negócio
@@ -1088,12 +1135,26 @@ export const FilterModal: React.FC<FilterModalProps> = ({
               <Box sx={{ display: "flex", gap: 2 }}>
                 <TextField
                   label="Mínimo"
-                  type="number"
-                  value={areaRange[0]}
+                  value={formatArea(areaRange[0])}
                   onChange={(e) => {
+                    const unformattedValue = unformatArea(e.target.value);
                     const value = Math.max(
                       0,
-                      Math.min(1000000, parseInt(e.target.value) || 0)
+                      Math.min(1000000, unformattedValue)
+                    );
+                    const newRange = [value, Math.max(value, areaRange[1])];
+                    setAreaRange(newRange);
+                    setFilters((prev) => ({
+                      ...prev,
+                      area_min: newRange[0],
+                      area_max: newRange[1],
+                    }));
+                  }}
+                  onBlur={(e) => {
+                    const unformattedValue = unformatArea(e.target.value);
+                    const value = Math.max(
+                      0,
+                      Math.min(1000000, unformattedValue)
                     );
                     const newRange = [value, Math.max(value, areaRange[1])];
                     setAreaRange(newRange);
@@ -1105,15 +1166,37 @@ export const FilterModal: React.FC<FilterModalProps> = ({
                   }}
                   size="small"
                   sx={{ flex: 1 }}
+                  inputProps={{
+                    inputMode: "numeric",
+                  }}
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">m²</InputAdornment>
+                    ),
+                  }}
                 />
                 <TextField
                   label="Máximo"
-                  type="number"
-                  value={areaRange[1]}
+                  value={formatArea(areaRange[1])}
                   onChange={(e) => {
+                    const unformattedValue = unformatArea(e.target.value);
                     const value = Math.max(
                       0,
-                      Math.min(1000000, parseInt(e.target.value) || 0)
+                      Math.min(1000000, unformattedValue)
+                    );
+                    const newRange = [Math.min(value, areaRange[0]), value];
+                    setAreaRange(newRange);
+                    setFilters((prev) => ({
+                      ...prev,
+                      area_min: newRange[0],
+                      area_max: newRange[1],
+                    }));
+                  }}
+                  onBlur={(e) => {
+                    const unformattedValue = unformatArea(e.target.value);
+                    const value = Math.max(
+                      0,
+                      Math.min(1000000, unformattedValue)
                     );
                     const newRange = [Math.min(value, areaRange[0]), value];
                     setAreaRange(newRange);
@@ -1125,6 +1208,14 @@ export const FilterModal: React.FC<FilterModalProps> = ({
                   }}
                   size="small"
                   sx={{ flex: 1 }}
+                  inputProps={{
+                    inputMode: "numeric",
+                  }}
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">m²</InputAdornment>
+                    ),
+                  }}
                 />
               </Box>
             </Box>
@@ -1155,12 +1246,26 @@ export const FilterModal: React.FC<FilterModalProps> = ({
               <Box sx={{ display: "flex", gap: 2 }}>
                 <TextField
                   label="Mínimo"
-                  type="number"
-                  value={precoRange[0]}
+                  value={formatPrice(precoRange[0])}
                   onChange={(e) => {
+                    const unformattedValue = unformatPrice(e.target.value);
                     const value = Math.max(
                       0,
-                      Math.min(100000000, parseInt(e.target.value) || 0)
+                      Math.min(100000000, unformattedValue)
+                    );
+                    const newRange = [value, Math.max(value, precoRange[1])];
+                    setPrecoRange(newRange);
+                    setFilters((prev) => ({
+                      ...prev,
+                      preco_min: newRange[0],
+                      preco_max: newRange[1],
+                    }));
+                  }}
+                  onBlur={(e) => {
+                    const unformattedValue = unformatPrice(e.target.value);
+                    const value = Math.max(
+                      0,
+                      Math.min(100000000, unformattedValue)
                     );
                     const newRange = [value, Math.max(value, precoRange[1])];
                     setPrecoRange(newRange);
@@ -1172,15 +1277,32 @@ export const FilterModal: React.FC<FilterModalProps> = ({
                   }}
                   size="small"
                   sx={{ flex: 1 }}
+                  inputProps={{
+                    inputMode: "numeric",
+                  }}
                 />
                 <TextField
                   label="Máximo"
-                  type="number"
-                  value={precoRange[1]}
+                  value={formatPrice(precoRange[1])}
                   onChange={(e) => {
+                    const unformattedValue = unformatPrice(e.target.value);
                     const value = Math.max(
                       0,
-                      Math.min(100000000, parseInt(e.target.value) || 0)
+                      Math.min(100000000, unformattedValue)
+                    );
+                    const newRange = [Math.min(value, precoRange[0]), value];
+                    setPrecoRange(newRange);
+                    setFilters((prev) => ({
+                      ...prev,
+                      preco_min: newRange[0],
+                      preco_max: newRange[1],
+                    }));
+                  }}
+                  onBlur={(e) => {
+                    const unformattedValue = unformatPrice(e.target.value);
+                    const value = Math.max(
+                      0,
+                      Math.min(100000000, unformattedValue)
                     );
                     const newRange = [Math.min(value, precoRange[0]), value];
                     setPrecoRange(newRange);
@@ -1192,6 +1314,9 @@ export const FilterModal: React.FC<FilterModalProps> = ({
                   }}
                   size="small"
                   sx={{ flex: 1 }}
+                  inputProps={{
+                    inputMode: "numeric",
+                  }}
                 />
               </Box>
             </Box>
