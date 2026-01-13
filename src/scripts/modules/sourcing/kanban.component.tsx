@@ -1128,11 +1128,24 @@ export function Kanban({
             desfeita.
           </Typography>
         </DialogContent>
-        <DialogActions>
+        <DialogActions
+          sx={{
+            p: { xs: 2, sm: 2 },
+            flexDirection: { xs: "column", sm: "row" },
+            gap: { xs: 1, sm: 1 },
+            justifyContent: { xs: "stretch", sm: "flex-end" },
+          }}
+        >
           <Button
             onClick={handleCancelDelete}
             disabled={isDeletingCard}
-            sx={{ textTransform: "none" }}
+            fullWidth={true}
+            sx={{
+              textTransform: "none",
+              fontSize: { xs: "0.875rem", sm: "1rem" },
+              py: { xs: 0.75, sm: 1 },
+              order: { xs: 2, sm: 1 },
+            }}
           >
             Cancelar
           </Button>
@@ -1141,7 +1154,14 @@ export function Kanban({
             variant="contained"
             color="error"
             disabled={isDeletingCard}
-            sx={{ textTransform: "none" }}
+            fullWidth={true}
+            sx={{
+              textTransform: "none",
+              fontSize: { xs: "0.875rem", sm: "1rem" },
+              py: { xs: 0.75, sm: 1 },
+              order: { xs: 1, sm: 2 },
+              ml: { xs: 0, sm: 1 },
+            }}
             startIcon={isDeletingCard ? <CircularProgress size={16} /> : null}
           >
             {isDeletingCard ? "Excluindo..." : "Excluir"}
