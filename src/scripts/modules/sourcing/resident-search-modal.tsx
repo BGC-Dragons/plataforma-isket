@@ -428,14 +428,36 @@ export function ResidentSearchModal({
         },
       }}
     >
-      <DialogContent sx={{ p: 0 }}>
+      <DialogContent
+        sx={{
+          height: { xs: "65dvh", sm: "65dvh" },
+          p: 0,
+          overflow: "auto",
+          pr: 1,
+          "&::-webkit-scrollbar": {
+            width: 6,
+          },
+          "&::-webkit-scrollbar-track": {
+            backgroundColor: theme.palette.grey[200],
+            borderRadius: 3,
+          },
+          "&::-webkit-scrollbar-thumb": {
+            backgroundColor: theme.palette.grey[400],
+            borderRadius: 3,
+            "&:hover": {
+              backgroundColor: theme.palette.grey[600],
+            },
+          },
+        }}
+      >
         {/* Header */}
         <Box
           sx={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            p: 3,
+            px: 3,
+            py: 2,
             borderBottom: `1px solid ${theme.palette.divider}`,
           }}
         >
@@ -444,7 +466,7 @@ export function ResidentSearchModal({
               variant="h5"
               sx={{
                 fontWeight: 700,
-                fontSize: "1.5rem",
+                fontSize: "1.25rem",
                 color: theme.palette.text.primary,
                 mb: 0.5,
               }}
@@ -455,7 +477,7 @@ export function ResidentSearchModal({
               variant="body2"
               sx={{
                 color: theme.palette.text.secondary,
-                fontSize: "0.875rem",
+                fontSize: { xs: "0.8125rem", sm: "0.875rem" },
               }}
             >
               Encontre moradores para criar captações.
@@ -794,9 +816,9 @@ export function ResidentSearchModal({
       {/* Actions */}
       <DialogActions
         sx={{
-          p: 3,
-          justifyContent: "flex-end",
-          gap: 2,
+          p: { xs: 2, sm: 3 },
+          justifyContent: "space-between",
+          gap: { xs: 1.5, sm: 2 },
         }}
       >
         <Button
@@ -806,6 +828,8 @@ export function ResidentSearchModal({
             textTransform: "none",
             color: theme.palette.text.secondary,
             backgroundColor: "transparent",
+            fontSize: { xs: "0.875rem", sm: "1rem" },
+            px: { xs: 2, sm: 3 },
             "&:hover": {
               backgroundColor: theme.palette.action.hover,
             },
@@ -820,7 +844,8 @@ export function ResidentSearchModal({
           sx={{
             textTransform: "none",
             borderRadius: 2,
-            px: 3,
+            px: { xs: 2, sm: 3 },
+            fontSize: { xs: "0.875rem", sm: "1rem" },
             backgroundColor: theme.palette.primary.main,
             "&:hover": {
               backgroundColor: theme.palette.primary.dark,
@@ -832,7 +857,7 @@ export function ResidentSearchModal({
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            py: 1.5,
+            py: { xs: 1, sm: 1.5 },
           }}
         >
           {isSearching ? (
@@ -846,7 +871,7 @@ export function ResidentSearchModal({
               <Typography
                 variant="caption"
                 sx={{
-                  fontSize: "0.7rem",
+                  fontSize: { xs: "0.65rem", sm: "0.7rem" },
                   opacity: 0.9,
                   lineHeight: 1,
                   mt: 0.25,
