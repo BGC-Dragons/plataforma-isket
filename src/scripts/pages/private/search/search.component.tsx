@@ -48,6 +48,7 @@ import {
   useGetPurchases,
   type IGetPurchasesResponseSuccess,
 } from "../../../../services/get-purchases.service";
+import { useCitySelection } from "../../../modules/city-selection/city-selection.context";
 import {
   postPropertyAdSearch,
   type SortBy,
@@ -172,6 +173,7 @@ export function SearchComponent() {
   const navigate = useNavigate();
   const { propertyId } = useParams<{ propertyId?: string }>();
   const auth = useAuth();
+  const { cities: contextCities, setCities: setContextCities } = useCitySelection();
 
   const [filteredProperties, setFilteredProperties] = useState<PropertyData[]>(
     []
@@ -766,6 +768,12 @@ export function SearchComponent() {
   const applyFilters = useCallback(
     async (filters: FilterState) => {
       setCurrentFilters(filters);
+      // Sincronizar cidades com contexto quando filtros mudarem
+      if (filters.cities.length > 0) {
+        setContextCities(filters.cities);
+      } else {
+        setContextCities([]);
+      }
       setLoading(true);
       setCurrentPage(1);
       setError(null); // Limpar erro anterior
@@ -967,10 +975,15 @@ export function SearchComponent() {
     // Marcar que está fazendo busca inicial para evitar interferência do useEffect
     isFetchingInitial.current = true;
 
-    // Criar filtros vazios - a cidade padrão será usada internamente pelo applyFilters
+    // Usar cidades do contexto se disponíveis e válidas, senão usar array vazio
+    const initialCities = contextCities.length > 0
+      ? contextCities.filter((city) => availableCities.includes(city))
+      : [];
+
+    // Criar filtros - usar cidades do contexto se disponíveis
     const initialFilters: FilterState = {
       search: "",
-      cities: [],
+      cities: initialCities,
       neighborhoods: [],
       venda: false,
       aluguel: false,
@@ -1051,7 +1064,7 @@ export function SearchComponent() {
         isFetchingInitial.current = false;
       }, 100);
     }
-  }, [applyFilters]);
+  }, [applyFilters, contextCities, availableCities]);
 
   // Buscar propriedades iniciais quando o componente monta (sem filtros)
   useEffect(() => {

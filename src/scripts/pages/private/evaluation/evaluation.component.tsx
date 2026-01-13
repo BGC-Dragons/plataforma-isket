@@ -30,6 +30,7 @@ import { GenerateReportModal } from "../../../modules/evaluation/generate-report
 import { AnalysisSummaryDrawer } from "../../../modules/evaluation/analysis-summary-drawer";
 import { CustomPagination } from "../../../library/components/custom-pagination";
 import { useAuth } from "../../../modules/access-manager/auth.hook";
+import { useCitySelection } from "../../../modules/city-selection/city-selection.context";
 import {
   postPropertyAdSearch,
   type SortBy,
@@ -185,6 +186,7 @@ const getIconColor = getPropertyTypeColor;
 export function EvaluationComponent() {
   const theme = useTheme();
   const auth = useAuth();
+  const { cities: contextCities, setCities: setContextCities } = useCitySelection();
 
   const { data: purchasesData } = useGetPurchases();
 
@@ -841,6 +843,12 @@ export function EvaluationComponent() {
   const applyFilters = useCallback(
     async (filters: FilterState) => {
       setCurrentFilters(filters);
+      // Sincronizar cidades com contexto quando filtros mudarem
+      if (filters.cities.length > 0) {
+        setContextCities(filters.cities);
+      } else {
+        setContextCities([]);
+      }
       setLoading(true);
       setCurrentPage(1);
       setError(null);
@@ -911,6 +919,7 @@ export function EvaluationComponent() {
       fetchNeighborhoodsData,
       fetchCitiesData,
       defaultCity,
+      setContextCities,
     ]
   );
 
@@ -1091,9 +1100,14 @@ export function EvaluationComponent() {
         // Marcar que está fazendo busca inicial para evitar interferência do useEffect de paginação
         isFetchingInitial.current = true;
 
+        // Usar cidades do contexto se disponíveis e válidas, senão usar array vazio
+        const initialCities = contextCities.length > 0
+          ? contextCities.filter((city) => availableCities.includes(city))
+          : [];
+
         const initialFilters: FilterState = {
           search: "",
-          cities: [],
+          cities: initialCities,
           neighborhoods: [],
           venda: false,
           aluguel: false,
@@ -1159,7 +1173,7 @@ export function EvaluationComponent() {
     };
 
     fetchInitial();
-  }, [availableCities.length, cityToCodeMap, currentFilters, applyFilters]);
+  }, [availableCities.length, cityToCodeMap, currentFilters, applyFilters, contextCities, availableCities]);
 
   // Buscar propriedades quando a página muda
   useEffect(() => {

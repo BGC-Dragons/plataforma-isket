@@ -9,6 +9,7 @@ import { ResetPassword } from "../../pages/public/ResetPassword";
 import { Error404 } from "../../pages/public/Error404";
 import { AccessManager } from "../../modules/access-manager/access-manager.component";
 import { AuthProvider } from "../../modules/access-manager/auth.context";
+import { CitySelectionProvider } from "../../modules/city-selection/city-selection.context";
 import { PrivateLayout } from "../../library/components/private-layout";
 import { ManagementComponent } from "../../pages/private/management/management.component";
 import { SearchComponent } from "../../pages/private/search/search.component";
@@ -61,7 +62,8 @@ export function AppRouter() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
+        <CitySelectionProvider>
+          <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/esqueceu-senha" element={<ForgotPassword />} />
           <Route path="/cadastro" element={<SignUp />} />
@@ -120,6 +122,7 @@ export function AppRouter() {
 
           <Route path="*" element={<Error404 />} />
         </Routes>
+        </CitySelectionProvider>
       </AuthProvider>
     </BrowserRouter>
   );

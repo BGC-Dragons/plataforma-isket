@@ -17,6 +17,7 @@ import {
 import { Search, FilterList, Close } from "@mui/icons-material";
 import { FilterModal } from "./filter-modal";
 import { useAuth } from "../../access-manager/auth.hook";
+import { useCitySelection } from "../../city-selection/city-selection.context";
 import {
   postNeighborhoodsFindManyByCities,
   type INeighborhood,
@@ -116,6 +117,7 @@ export function FilterBar({
 }: FilterBarProps) {
   const theme = useTheme();
   const { store } = useAuth();
+  const { cities: contextCities, setCities: setContextCities } = useCitySelection();
 
   // Estados dos filtros
   const [tempFilters, setTempFilters] = useState<FilterState>({
@@ -256,6 +258,9 @@ export function FilterBar({
   // Resetar bairros quando as cidades mudarem
   const handleCityChange = useCallback(
     (cities: string[]) => {
+      // Atualizar contexto global
+      setContextCities(cities);
+
       const updatedFilters = {
         ...tempFilters,
         cities,
@@ -285,7 +290,7 @@ export function FilterBar({
       // Notificar mudança imediatamente para centralizar o mapa
       onFiltersChange(updatedFilters);
     },
-    [tempFilters, appliedFilters, externalFilters, onFiltersChange]
+    [tempFilters, appliedFilters, externalFilters, onFiltersChange, setContextCities]
   );
 
   // Função para limpar todas as cidades selecionadas
@@ -845,6 +850,45 @@ export function FilterBar({
 
   // Ref para rastrear última sincronização e evitar loops
   const lastSyncRef = useRef<string>("");
+  const hasInitializedFromContextRef = useRef(false);
+
+  // Inicializar com cidades do contexto quando o componente montar (apenas uma vez)
+  useEffect(() => {
+    // Só inicializar se ainda não foi inicializado e não houver externalFilters definindo cidades
+    if (hasInitializedFromContextRef.current) return;
+    if (externalFilters && externalFilters.cities.length > 0) {
+      hasInitializedFromContextRef.current = true;
+      return;
+    }
+
+    // Se há cidades no contexto e estão disponíveis, usar elas
+    if (contextCities.length > 0) {
+      // Validar que todas as cidades do contexto estão disponíveis
+      const validCities = contextCities.filter((city) =>
+        availableCities.includes(city)
+      );
+
+      if (validCities.length > 0) {
+        hasInitializedFromContextRef.current = true;
+        const initialFilters = {
+          ...tempFilters,
+          cities: validCities,
+        };
+        setTempFilters(initialFilters);
+        setAppliedFilters(initialFilters);
+        // Se as cidades do contexto não estão todas disponíveis, atualizar contexto
+        if (validCities.length !== contextCities.length) {
+          setContextCities(validCities);
+        }
+      } else {
+        // Se nenhuma cidade do contexto é válida, limpar contexto
+        setContextCities([]);
+        hasInitializedFromContextRef.current = true;
+      }
+    } else {
+      hasInitializedFromContextRef.current = true;
+    }
+  }, [contextCities, availableCities, externalFilters, tempFilters, setContextCities]);
 
   // Sincronizar filtros quando externalFilters mudar (ex: quando limpa todos os filtros)
   useEffect(() => {
@@ -888,13 +932,19 @@ export function FilterBar({
       setTempFilters(externalFilters);
       setAppliedFilters(externalFilters);
       setSearchInputValue(externalFilters.search);
+      // Sincronizar cidades com contexto quando externalFilters mudar
+      if (externalFilters.cities.length > 0) {
+        setContextCities(externalFilters.cities);
+      } else {
+        setContextCities([]);
+      }
       // Limpar bairros se não houver cidades
       if (externalFilters.cities.length === 0) {
         setNeighborhoods([]);
         setNeighborhoodsLoaded(false);
       }
     }
-  }, [externalFilters]);
+  }, [externalFilters, setContextCities]);
 
   // Função para limpar busca de endereço
   const handleClearAddressSearch = useCallback(() => {
