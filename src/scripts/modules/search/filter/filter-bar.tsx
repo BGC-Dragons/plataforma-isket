@@ -190,7 +190,7 @@ export function FilterBar({
   const [appliedFilters, setAppliedFilters] =
     useState<FilterState>(tempFilters);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
-  const [neighborhoods, setNeighborhoods] = useState<string[]>([]);
+  const [neighborhoods, setNeighborhoods] = useState<INeighborhood[]>([]);
   const [isLoadingNeighborhoods, setIsLoadingNeighborhoods] = useState(false);
   const [neighborhoodsLoaded, setNeighborhoodsLoaded] = useState(false);
 
@@ -229,6 +229,20 @@ export function FilterBar({
       const normalizedSearch = normalizeString(searchText);
       return options.filter((option) =>
         normalizeString(option).includes(normalizedSearch)
+      );
+    },
+    [normalizeString]
+  );
+
+  // Função helper para filtrar bairros (objetos) baseado no texto de busca
+  const filterNeighborhoodOptions = useCallback(
+    (options: INeighborhood[], searchText: string): INeighborhood[] => {
+      if (!searchText) return options;
+      const normalizedSearch = normalizeString(searchText);
+      return options.filter(
+        (option) =>
+          normalizeString(option.name).includes(normalizedSearch) ||
+          normalizeString(option.city.name).includes(normalizedSearch)
       );
     },
     [normalizeString]
@@ -308,14 +322,16 @@ export function FilterBar({
         store.token
       );
 
-      // Extrair nomes dos bairros da resposta
-      const neighborhoodNames = response.data.map(
-        (neighborhood: INeighborhood) => neighborhood.name
-      );
+      // Remover duplicatas baseado no nome do bairro e ordenar
+      const neighborhoodMap = new Map<string, INeighborhood>();
+      response.data.forEach((neighborhood: INeighborhood) => {
+        if (!neighborhoodMap.has(neighborhood.name)) {
+          neighborhoodMap.set(neighborhood.name, neighborhood);
+        }
+      });
 
-      // Remover duplicatas e ordenar
-      const uniqueNeighborhoods = Array.from(new Set(neighborhoodNames)).sort(
-        (a, b) => a.localeCompare(b, "pt-BR")
+      const uniqueNeighborhoods = Array.from(neighborhoodMap.values()).sort(
+        (a, b) => a.name.localeCompare(b.name, "pt-BR")
       );
 
       setNeighborhoods(uniqueNeighborhoods);
@@ -776,7 +792,7 @@ export function FilterBar({
 
       // Procurar o bairro na lista
       const foundNeighborhood = neighborhoods.find((n) => {
-        const normalized = n
+        const normalized = n.name
           .toLowerCase()
           .normalize("NFD")
           .replace(/[\u0300-\u036f]/g, "");
@@ -786,7 +802,7 @@ export function FilterBar({
       // Atualizar filtros com cidade e bairro (se encontrado)
       setTempFilters((prev) => ({
         ...prev,
-        neighborhoods: foundNeighborhood ? [foundNeighborhood] : [],
+        neighborhoods: foundNeighborhood ? [foundNeighborhood.name] : [],
       }));
     }
   }, [neighborhoodsLoaded, neighborhoods]);
@@ -1458,10 +1474,26 @@ export function FilterBar({
             renderValue={(selected) => {
               const selectedArray = selected as string[];
               const showClearButton = selectedArray.length > 0;
+              const hasMultipleCities = tempFilters.cities.length > 1;
 
               if (selectedArray.length === 0) {
                 return <em>Todos os bairros</em>;
               }
+
+              // Função helper para obter o label do bairro (com cidade se necessário)
+              const getNeighborhoodLabel = (neighborhoodName: string) => {
+                if (!hasMultipleCities) {
+                  return neighborhoodName;
+                }
+                // Buscar o objeto do bairro para obter a cidade
+                const neighborhoodObj = neighborhoods.find(
+                  (n) => n.name === neighborhoodName
+                );
+                if (neighborhoodObj) {
+                  return `${neighborhoodObj.name} - ${neighborhoodObj.city.name}`;
+                }
+                return neighborhoodName;
+              };
 
               return (
                 <Box
@@ -1494,7 +1526,7 @@ export function FilterBar({
                       selectedArray.map((neighborhood) => (
                         <Chip
                           key={neighborhood}
-                          label={neighborhood}
+                          label={getNeighborhoodLabel(neighborhood)}
                           size="small"
                         />
                       ))
@@ -1503,7 +1535,7 @@ export function FilterBar({
                         {selectedArray.slice(0, 2).map((neighborhood) => (
                           <Chip
                             key={neighborhood}
-                            label={neighborhood}
+                            label={getNeighborhoodLabel(neighborhood)}
                             size="small"
                           />
                         ))}
@@ -1637,14 +1669,14 @@ export function FilterBar({
               </MenuItem>
             ) : (
               <>
-                {filterOptions(neighborhoods, neighborhoodSearchInput).map(
+                {filterNeighborhoodOptions(neighborhoods, neighborhoodSearchInput).map(
                   (neighborhood) => {
                     const isSelected =
-                      tempFilters.neighborhoods.includes(neighborhood);
+                      tempFilters.neighborhoods.includes(neighborhood.name);
                     return (
                       <MenuItem
-                        key={neighborhood}
-                        value={neighborhood}
+                        key={`${neighborhood.name}-${neighborhood.city.name}`}
+                        value={neighborhood.name}
                         selected={isSelected}
                         onClick={() => {
                           console.log(
@@ -1657,9 +1689,9 @@ export function FilterBar({
                           // Toggle: se já está selecionado, remove; se não, adiciona
                           const newNeighborhoods = isSelected
                             ? currentNeighborhoods.filter(
-                                (n) => n !== neighborhood
+                                (n) => n !== neighborhood.name
                               )
-                            : [...currentNeighborhoods, neighborhood];
+                            : [...currentNeighborhoods, neighborhood.name];
 
                           console.log(
                             "Atualizando bairros de",
@@ -1675,12 +1707,12 @@ export function FilterBar({
                           // Mas o handleNeighborhoodChange já vai atualizar o estado
                         }}
                       >
-                        {neighborhood}
+                        {neighborhood.name} - {neighborhood.city.name}
                       </MenuItem>
                     );
                   }
                 )}
-                {filterOptions(neighborhoods, neighborhoodSearchInput)
+                {filterNeighborhoodOptions(neighborhoods, neighborhoodSearchInput)
                   .length === 0 && (
                   <MenuItem disabled>
                     <em>Nenhum bairro encontrado</em>
