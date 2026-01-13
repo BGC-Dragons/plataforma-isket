@@ -352,6 +352,14 @@ export function PropertyLocalization({
           zoomControl: true,
           streetViewControl: true,
           mapTypeControl: true,
+          mapTypeControlOptions: {
+            position: google.maps.ControlPosition.LEFT_BOTTOM,
+            style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
+            mapTypeIds: [
+              google.maps.MapTypeId.ROADMAP,
+              google.maps.MapTypeId.SATELLITE,
+            ],
+          },
           fullscreenControl: true,
           gestureHandling: "greedy", // Permite zoom com scroll sem precisar de Ctrl
         }}
