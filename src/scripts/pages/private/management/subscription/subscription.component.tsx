@@ -925,7 +925,12 @@ export function SubscriptionSection() {
             <List dense>
               {purchase.defaultCityStateCode && (
                 <ListItem
-                  sx={{ py: 0.5 }}
+                  sx={{
+                    py: 0.5,
+                    backgroundColor: theme.palette.mode === "dark" 
+                      ? "rgba(255, 255, 255, 0.03)" 
+                      : "rgba(0, 0, 0, 0.02)",
+                  }}
                   secondaryAction={
                     <IconButton
                       edge="end"
@@ -979,10 +984,23 @@ export function SubscriptionSection() {
                     const stateAcronym =
                       cityParts[cityParts.length - 1].toUpperCase();
 
+                    // Calcula o índice real considerando se há cidade padrão
+                    const realIndex = purchase.defaultCityStateCode
+                      ? index + 1
+                      : index;
+
                     return (
                       <ListItem
                         key={index}
-                        sx={{ py: 0.5 }}
+                        sx={{
+                          py: 0.5,
+                          backgroundColor:
+                            realIndex % 2 === 0
+                              ? "transparent"
+                              : theme.palette.mode === "dark"
+                              ? "rgba(255, 255, 255, 0.03)"
+                              : "rgba(0, 0, 0, 0.02)",
+                        }}
                         secondaryAction={
                           <IconButton
                             edge="end"
