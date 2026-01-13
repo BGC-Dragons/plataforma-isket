@@ -96,8 +96,10 @@ export function ContactSourcingDetails({
     IPropertyListingAcquisitionContact[]
   >([]);
   const [isLoadingContacts, setIsLoadingContacts] = useState(false);
-  const [isCreatePropertyCaptureModalOpen, setIsCreatePropertyCaptureModalOpen] =
-    useState(false);
+  const [
+    isCreatePropertyCaptureModalOpen,
+    setIsCreatePropertyCaptureModalOpen,
+  ] = useState(false);
   const [selectedPropertyForCapture, setSelectedPropertyForCapture] =
     useState<IRevealedProperty | null>(null);
 
@@ -792,43 +794,85 @@ export function ContactSourcingDetails({
           flexDirection: "column",
           flex: 1,
           minHeight: 0,
+          position: "relative",
         }}
       >
+        {/* Close Button - Fixed in top right */}
+        <IconButton
+          onClick={onClose}
+          sx={{
+            position: "absolute",
+            top: 8,
+            right: 8,
+            zIndex: 1300,
+            color: theme.palette.text.secondary,
+            backgroundColor: theme.palette.background.paper,
+            "&:hover": {
+              backgroundColor: theme.palette.action.hover,
+            },
+          }}
+        >
+          <Close />
+        </IconButton>
+
         {/* Header */}
         <Box
           sx={{
             display: "flex",
-            alignItems: "center",
+            flexDirection: { xs: "column", md: "row" },
+            alignItems: { xs: "flex-start", md: "center" },
             justifyContent: "space-between",
             p: 3,
+            pr: { xs: 3, md: 10 },
             borderBottom: `1px solid ${theme.palette.divider}`,
+            gap: { xs: 2, md: 0 },
           }}
         >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 2,
+              flexDirection: { xs: "row", md: "row" },
+              width: { xs: "100%", md: "auto" },
+            }}
+          >
             <Typography
               variant="h5"
               sx={{
                 fontWeight: 700,
-                fontSize: "1.5rem",
+                fontSize: { xs: "1rem", md: "1.5rem" },
                 color: theme.palette.text.primary,
               }}
             >
               Captação por contato
             </Typography>
             <Chip
-              icon={<AccessTime sx={{ fontSize: "1rem" }} />}
+              icon={
+                <AccessTime sx={{ fontSize: { xs: "0.75rem", md: "1rem" } }} />
+              }
               label="Em processo"
               sx={{
                 backgroundColor: "#ff9800",
                 color: "#fff",
                 fontWeight: 500,
+                fontSize: { xs: "0.7rem", md: "0.875rem" },
+                height: { xs: 24, md: 32 },
                 "& .MuiChip-icon": {
                   color: "#fff",
                 },
               }}
             />
           </Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 2,
+              width: { xs: "100%", md: "auto" },
+              flexWrap: { xs: "wrap", md: "nowrap" },
+            }}
+          >
             <Button
               onClick={onReject}
               variant="contained"
@@ -836,9 +880,12 @@ export function ContactSourcingDetails({
               sx={{
                 textTransform: "none",
                 borderRadius: 2,
-                px: 2,
+                px: { xs: 1.5, md: 2 },
+                py: { xs: 0.75, md: 1 },
+                fontSize: { xs: "0.75rem", md: "0.875rem" },
                 backgroundColor: theme.palette.error.main,
                 color: theme.palette.common.white,
+                flex: { xs: "1 1 calc(50% - 8px)", md: "0 0 auto" },
                 "&:hover": {
                   backgroundColor: theme.palette.error.dark,
                 },
@@ -853,9 +900,12 @@ export function ContactSourcingDetails({
               sx={{
                 textTransform: "none",
                 borderRadius: 2,
-                px: 2,
+                px: { xs: 1.5, md: 2 },
+                py: { xs: 0.75, md: 1 },
+                fontSize: { xs: "0.75rem", md: "0.875rem" },
                 backgroundColor: theme.palette.success.main,
                 color: theme.palette.common.white,
+                flex: { xs: "1 1 calc(50% - 8px)", md: "0 0 auto" },
                 "&:hover": {
                   backgroundColor: theme.palette.success.dark,
                 },
@@ -863,17 +913,6 @@ export function ContactSourcingDetails({
             >
               Imóveis captados
             </Button>
-            <IconButton
-              onClick={onClose}
-              sx={{
-                color: theme.palette.text.secondary,
-                "&:hover": {
-                  backgroundColor: theme.palette.action.hover,
-                },
-              }}
-            >
-              <Close />
-            </IconButton>
           </Box>
         </Box>
 
@@ -899,9 +938,10 @@ export function ContactSourcingDetails({
             <Box
               sx={{
                 display: "flex",
-                alignItems: "center",
+                flexDirection: { xs: "column", md: "row" },
+                alignItems: { xs: "flex-start", md: "center" },
                 justifyContent: "space-between",
-                gap: 2,
+                gap: { xs: 2, md: 2 },
               }}
             >
               {/* Title and CPF together */}
@@ -911,6 +951,7 @@ export function ContactSourcingDetails({
                   flexDirection: "column",
                   gap: 0.25,
                   flex: 1,
+                  width: { xs: "100%", md: "auto" },
                 }}
               >
                 {isEditingTitle ? (
@@ -920,6 +961,7 @@ export function ContactSourcingDetails({
                       alignItems: "center",
                       gap: 1,
                       flex: 1,
+                      width: "100%",
                     }}
                   >
                     <TextField
@@ -937,7 +979,7 @@ export function ContactSourcingDetails({
                         flex: 1,
                         "& .MuiInputBase-input": {
                           fontWeight: 700,
-                          fontSize: "1rem",
+                          fontSize: { xs: "0.875rem", md: "1rem" },
                           color: theme.palette.text.primary,
                         },
                       }}
@@ -965,7 +1007,7 @@ export function ContactSourcingDetails({
                       onClick={() => setIsEditingTitle(true)}
                       sx={{
                         fontWeight: 700,
-                        fontSize: "1rem",
+                        fontSize: { xs: "0.875rem", md: "1rem" },
                         color: theme.palette.text.primary,
                         cursor: "pointer",
                         lineHeight: 1.2,
@@ -1000,78 +1042,93 @@ export function ContactSourcingDetails({
                     lineHeight: 1.2,
                   }}
                 >
-                  CPF: {data.cpf || "CPF não informado"}
+                  CPF: {formatCPF(data.cpf)}
                 </Typography>
               </Box>
 
               {/* Phone and Email buttons - centered vertically */}
               <Box
                 sx={{
-                  display: "flex",
+                  display: { xs: "flex", md: "flex" },
+                  flexDirection: { xs: "column", md: "row" },
                   gap: 1,
-                  alignItems: "center",
-                  alignSelf: "center",
+                  alignItems: { xs: "flex-start", md: "center" },
+                  alignSelf: { xs: "flex-start", md: "center" },
                   flexWrap: "wrap",
+                  width: { xs: "100%", md: "auto" },
                 }}
               >
-                <Button
-                  size="small"
-                  variant="outlined"
-                  startIcon={<Phone />}
-                  endIcon={<ArrowDropDown />}
-                  onClick={handleOpenPhonesDialog}
-                  disabled={!mainContact}
+                <Box
                   sx={{
-                    borderColor:
-                      mainPhones.length > 0 ? "#4caf50" : theme.palette.divider,
-                    color:
-                      mainPhones.length > 0
-                        ? "#4caf50"
-                        : theme.palette.text.secondary,
-                    backgroundColor: "transparent",
-                    textTransform: "none",
-                    fontSize: "0.75rem",
-                    px: 1.5,
-                    "&:hover": {
-                      borderColor:
-                        mainPhones.length > 0
-                          ? "#388e3c"
-                          : theme.palette.text.secondary,
-                      backgroundColor: "transparent",
-                    },
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.5,
+                    width: { xs: "100%", md: "auto" },
                   }}
                 >
-                  Telefone(s){" "}
-                  <Box
-                    component="span"
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<Phone />}
+                    endIcon={<ArrowDropDown />}
+                    onClick={handleOpenPhonesDialog}
+                    disabled={!mainContact}
                     sx={{
-                      backgroundColor:
+                      borderColor:
+                        mainPhones.length > 0
+                          ? "#4caf50"
+                          : theme.palette.divider,
+                      color:
                         mainPhones.length > 0
                           ? "#4caf50"
                           : theme.palette.text.secondary,
-                      color: "#fff",
-                      borderRadius: "50%",
-                      width: 20,
-                      height: 20,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: "0.7rem",
-                      fontWeight: 600,
-                      ml: 0.5,
+                      backgroundColor: "transparent",
+                      textTransform: "none",
+                      fontSize: { xs: "0.7rem", md: "0.75rem" },
+                      px: { xs: 1, md: 1.5 },
+                      py: { xs: 0.5, md: 0.75 },
+                      flex: { xs: 1, md: "0 0 auto" },
+                      "&:hover": {
+                        borderColor:
+                          mainPhones.length > 0
+                            ? "#388e3c"
+                            : theme.palette.text.secondary,
+                        backgroundColor: "transparent",
+                      },
                     }}
                   >
-                    {mainPhones.length}
-                  </Box>
-                </Button>
-                <IconButton
-                  size="small"
-                  onClick={handleAddPhone}
-                  disabled={!mainContact}
-                  sx={{ color: "#4caf50" }}
-                >
-                  <Add fontSize="small" />
-                </IconButton>
+                    Telefone(s){" "}
+                    <Box
+                      component="span"
+                      sx={{
+                        backgroundColor:
+                          mainPhones.length > 0
+                            ? "#4caf50"
+                            : theme.palette.text.secondary,
+                        color: "#fff",
+                        borderRadius: "50%",
+                        width: 20,
+                        height: 20,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "0.7rem",
+                        fontWeight: 600,
+                        ml: 0.5,
+                      }}
+                    >
+                      {mainPhones.length}
+                    </Box>
+                  </Button>
+                  <IconButton
+                    size="small"
+                    onClick={handleAddPhone}
+                    disabled={!mainContact}
+                    sx={{ color: "#4caf50" }}
+                  >
+                    <Add fontSize="small" />
+                  </IconButton>
+                </Box>
                 {isAddingPhone && (
                   <Box
                     sx={{
@@ -1106,53 +1163,64 @@ export function ContactSourcingDetails({
                     </IconButton>
                   </Box>
                 )}
-                <Button
-                  size="small"
-                  variant="outlined"
-                  startIcon={<Email />}
-                  endIcon={<ArrowDropDown />}
-                  onClick={handleOpenEmailsDialog}
-                  disabled={!mainContact}
+                <Box
                   sx={{
-                    borderColor: theme.palette.divider,
-                    color: theme.palette.text.secondary,
-                    backgroundColor: "transparent",
-                    textTransform: "none",
-                    fontSize: "0.75rem",
-                    px: 1.5,
-                    "&:hover": {
-                      borderColor: theme.palette.text.secondary,
-                      backgroundColor: "transparent",
-                    },
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.5,
+                    width: { xs: "100%", md: "auto" },
                   }}
                 >
-                  E-mail{" "}
-                  <Box
-                    component="span"
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<Email />}
+                    endIcon={<ArrowDropDown />}
+                    onClick={handleOpenEmailsDialog}
+                    disabled={!mainContact}
                     sx={{
-                      backgroundColor: theme.palette.text.secondary,
-                      color: "#fff",
-                      borderRadius: "50%",
-                      width: 20,
-                      height: 20,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: "0.7rem",
-                      fontWeight: 600,
-                      ml: 0.5,
+                      borderColor: theme.palette.divider,
+                      color: theme.palette.text.secondary,
+                      backgroundColor: "transparent",
+                      textTransform: "none",
+                      fontSize: { xs: "0.7rem", md: "0.75rem" },
+                      px: { xs: 1, md: 1.5 },
+                      py: { xs: 0.5, md: 0.75 },
+                      flex: { xs: 1, md: "0 0 auto" },
+                      "&:hover": {
+                        borderColor: theme.palette.text.secondary,
+                        backgroundColor: "transparent",
+                      },
                     }}
                   >
-                    {mainEmails.length}
-                  </Box>
-                </Button>
-                <IconButton
-                  size="small"
-                  onClick={handleAddEmail}
-                  disabled={!mainContact}
-                >
-                  <Add fontSize="small" />
-                </IconButton>
+                    E-mail{" "}
+                    <Box
+                      component="span"
+                      sx={{
+                        backgroundColor: theme.palette.text.secondary,
+                        color: "#fff",
+                        borderRadius: "50%",
+                        width: 20,
+                        height: 20,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "0.7rem",
+                        fontWeight: 600,
+                        ml: 0.5,
+                      }}
+                    >
+                      {mainEmails.length}
+                    </Box>
+                  </Button>
+                  <IconButton
+                    size="small"
+                    onClick={handleAddEmail}
+                    disabled={!mainContact}
+                  >
+                    <Add fontSize="small" />
+                  </IconButton>
+                </Box>
                 {isAddingEmail && (
                   <Box
                     sx={{
