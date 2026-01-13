@@ -636,7 +636,8 @@ export function PropertySourcingModal({
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            p: 3,
+            px: 3,
+            py: 2,
             borderBottom: `1px solid ${theme.palette.divider}`,
           }}
         >
@@ -644,7 +645,7 @@ export function PropertySourcingModal({
             variant="h5"
             sx={{
               fontWeight: 700,
-              fontSize: "1.5rem",
+              fontSize: "1.25rem",
               color: theme.palette.text.primary,
             }}
           >
@@ -664,23 +665,23 @@ export function PropertySourcingModal({
         </Box>
 
         {/* Content */}
-        <Box sx={{ p: 3 }}>
+        <Box sx={{ p: { xs: 2, sm: 3 } }}>
           <Typography
             variant="body1"
             sx={{
-              mb: 3,
+              mb: { xs: 2, sm: 3 },
               color: theme.palette.text.secondary,
-              fontSize: "1rem",
+              fontSize: { xs: "0.875rem", sm: "1rem" },
             }}
           >
             Preencha as informações do imóvel que deseja captar.
           </Typography>
 
           {/* Form Fields */}
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: { xs: 2, sm: 3 } }}>
             {/* Mensagem de erro */}
             {saveError && (
-              <Alert severity="error" onClose={() => setSaveError(null)}>
+              <Alert severity="error" onClose={() => setSaveError(null)} sx={{ fontSize: { xs: "0.875rem", sm: "1rem" } }}>
                 {saveError}
               </Alert>
             )}
@@ -720,7 +721,7 @@ export function PropertySourcingModal({
                     ...params.InputProps,
                     startAdornment: (
                       <InputAdornment position="start">
-                        <Search sx={{ color: theme.palette.text.secondary }} />
+                        <Search sx={{ color: theme.palette.text.secondary, fontSize: { xs: "1.125rem", sm: "1.25rem" } }} />
                       </InputAdornment>
                     ),
                     endAdornment: formData.address ? (
@@ -748,6 +749,10 @@ export function PropertySourcingModal({
                   sx={{
                     "& .MuiOutlinedInput-root": {
                       borderRadius: 2,
+                      fontSize: { xs: "0.9375rem", sm: "1rem" },
+                    },
+                    "& .MuiInputLabel-root": {
+                      fontSize: { xs: "0.9375rem", sm: "1rem" },
                     },
                   }}
                 />
@@ -761,13 +766,13 @@ export function PropertySourcingModal({
                       width: "100%",
                     }}
                   >
-                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 500, fontSize: { xs: "0.9375rem", sm: "1rem" } }}>
                       {option.structured_formatting.main_text}
                     </Typography>
                     {option.structured_formatting.secondary_text && (
                       <Typography
                         variant="caption"
-                        sx={{ color: theme.palette.text.secondary }}
+                        sx={{ color: theme.palette.text.secondary, fontSize: { xs: "0.8125rem", sm: "0.875rem" } }}
                       >
                         {option.structured_formatting.secondary_text}
                       </Typography>
@@ -781,7 +786,7 @@ export function PropertySourcingModal({
             <Box
               sx={{
                 display: "flex",
-                gap: 2,
+                gap: { xs: 1.5, sm: 2 },
                 flexDirection: { xs: "column", sm: "row" },
               }}
             >
@@ -793,6 +798,10 @@ export function PropertySourcingModal({
                   flex: { xs: 1, sm: "0 0 120px" },
                   "& .MuiOutlinedInput-root": {
                     borderRadius: 2,
+                    fontSize: { xs: "0.9375rem", sm: "1rem" },
+                  },
+                  "& .MuiInputLabel-root": {
+                    fontSize: { xs: "0.9375rem", sm: "1rem" },
                   },
                 }}
               />
@@ -804,6 +813,10 @@ export function PropertySourcingModal({
                   flex: { xs: 1, sm: "0 0 200px" },
                   "& .MuiOutlinedInput-root": {
                     borderRadius: 2,
+                    fontSize: { xs: "0.9375rem", sm: "1rem" },
+                  },
+                  "& .MuiInputLabel-root": {
+                    fontSize: { xs: "0.9375rem", sm: "1rem" },
                   },
                 }}
               />
@@ -812,6 +825,10 @@ export function PropertySourcingModal({
                   flex: 1,
                   "& .MuiOutlinedInput-root": {
                     borderRadius: 2,
+                    fontSize: { xs: "0.9375rem", sm: "1rem" },
+                  },
+                  "& .MuiInputLabel-root": {
+                    fontSize: { xs: "0.9375rem", sm: "1rem" },
                   },
                 }}
               >
@@ -822,7 +839,7 @@ export function PropertySourcingModal({
                   label="Tipo do imóvel"
                 >
                   {propertyTypes.map((type) => (
-                    <MenuItem key={type} value={type}>
+                    <MenuItem key={type} value={type} sx={{ fontSize: { xs: "0.9375rem", sm: "1rem" } }}>
                       {type}
                     </MenuItem>
                   ))}
@@ -839,6 +856,10 @@ export function PropertySourcingModal({
               sx={{
                 "& .MuiOutlinedInput-root": {
                   borderRadius: 2,
+                  fontSize: { xs: "0.9375rem", sm: "1rem" },
+                },
+                "& .MuiInputLabel-root": {
+                  fontSize: { xs: "0.9375rem", sm: "1rem" },
                 },
               }}
             />
@@ -849,53 +870,61 @@ export function PropertySourcingModal({
       {/* Actions */}
       <DialogActions
         sx={{
-          p: 3,
+          p: { xs: 2, sm: 3 },
           borderTop: `1px solid ${theme.palette.divider}`,
-          justifyContent: "space-between",
+          flexDirection: "column",
+          gap: { xs: 1.5, sm: 2 },
         }}
       >
-        <Button
-          onClick={handleClear}
-          sx={{
-            textTransform: "none",
-          }}
-        >
-          Limpar
-        </Button>
-        <Box sx={{ display: "flex", gap: 2 }}>
+        <Box sx={{ display: "flex", gap: { xs: 1, sm: 2 }, width: "100%" }}>
+          <Button
+            onClick={handleClear}
+            sx={{
+              textTransform: "none",
+              fontSize: { xs: "0.875rem", sm: "1rem" },
+              px: { xs: 1.5, sm: 3 },
+              flex: 1,
+            }}
+          >
+            Limpar
+          </Button>
           <Button
             onClick={handleClose}
             variant="contained"
             sx={{
               textTransform: "none",
               borderRadius: 2,
-              px: 3,
+              px: { xs: 1.5, sm: 3 },
+              fontSize: { xs: "0.875rem", sm: "1rem" },
               borderColor: theme.palette.divider,
+              flex: 1,
             }}
           >
             Cancelar
           </Button>
-          <Button
-            onClick={handleSave}
-            variant="contained"
-            disabled={isSaving}
-            sx={{
-              textTransform: "none",
-              borderRadius: 2,
-              px: 3,
-              backgroundColor: theme.palette.primary.main,
-              "&:hover": {
-                backgroundColor: theme.palette.primary.dark,
-              },
-              "&:disabled": {
-                backgroundColor: theme.palette.action.disabledBackground,
-              },
-            }}
-            startIcon={isSaving ? <CircularProgress size={16} /> : null}
-          >
-            {isSaving ? "Captando..." : "Captar imóvel"}
-          </Button>
         </Box>
+        <Button
+          onClick={handleSave}
+          variant="contained"
+          disabled={isSaving}
+          fullWidth
+          sx={{
+            textTransform: "none",
+            borderRadius: 2,
+            px: { xs: 1.5, sm: 3 },
+            fontSize: { xs: "0.875rem", sm: "1rem" },
+            backgroundColor: theme.palette.primary.main,
+            "&:hover": {
+              backgroundColor: theme.palette.primary.dark,
+            },
+            "&:disabled": {
+              backgroundColor: theme.palette.action.disabledBackground,
+            },
+          }}
+          startIcon={isSaving ? <CircularProgress size={16} /> : null}
+        >
+          {isSaving ? "Captando..." : "Captar imóvel"}
+        </Button>
       </DialogActions>
     </Dialog>
   );

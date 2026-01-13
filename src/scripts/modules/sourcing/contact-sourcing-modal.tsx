@@ -292,7 +292,8 @@ export function ContactSourcingModal({
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            p: 3,
+            px: 3,
+            py: 2,
             borderBottom: `1px solid ${theme.palette.divider}`,
           }}
         >
@@ -300,7 +301,7 @@ export function ContactSourcingModal({
             variant="h5"
             sx={{
               fontWeight: 700,
-              fontSize: "1.5rem",
+              fontSize: "1.25rem",
               color: theme.palette.text.primary,
             }}
           >
@@ -320,13 +321,13 @@ export function ContactSourcingModal({
         </Box>
 
         {/* Content */}
-        <Box sx={{ p: 3 }}>
+        <Box sx={{ p: { xs: 2, sm: 3 } }}>
           <Typography
             variant="body1"
             sx={{
-              mb: 3,
+              mb: { xs: 2, sm: 3 },
               color: theme.palette.text.secondary,
-              fontSize: "1rem",
+              fontSize: { xs: "0.875rem", sm: "1rem" },
             }}
           >
             Preencha as informações do imóvel que deseja captar.
@@ -334,13 +335,13 @@ export function ContactSourcingModal({
 
           {/* Error Message */}
           {saveError && (
-            <Alert severity="error" sx={{ mb: 3 }}>
+            <Alert severity="error" sx={{ mb: { xs: 2, sm: 3 }, fontSize: { xs: "0.875rem", sm: "1rem" } }}>
               {saveError}
             </Alert>
           )}
 
           {/* Form Fields */}
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: { xs: 2, sm: 3 } }}>
             {/* Nome */}
             <TextField
               label="Nome *"
@@ -351,6 +352,10 @@ export function ContactSourcingModal({
               sx={{
                 "& .MuiOutlinedInput-root": {
                   borderRadius: 2,
+                  fontSize: { xs: "0.9375rem", sm: "1rem" },
+                },
+                "& .MuiInputLabel-root": {
+                  fontSize: { xs: "0.9375rem", sm: "1rem" },
                 },
               }}
             />
@@ -359,7 +364,7 @@ export function ContactSourcingModal({
             <Box
               sx={{
                 display: "flex",
-                gap: 2,
+                gap: { xs: 1.5, sm: 2 },
                 flexDirection: { xs: "column", sm: "row" },
               }}
             >
@@ -375,6 +380,10 @@ export function ContactSourcingModal({
                   flex: { xs: 1, sm: "0 0 150px" },
                   "& .MuiOutlinedInput-root": {
                     borderRadius: 2,
+                    fontSize: { xs: "0.9375rem", sm: "1rem" },
+                  },
+                  "& .MuiInputLabel-root": {
+                    fontSize: { xs: "0.9375rem", sm: "1rem" },
                   },
                 }}
               />
@@ -387,6 +396,10 @@ export function ContactSourcingModal({
                   flex: 1,
                   "& .MuiOutlinedInput-root": {
                     borderRadius: 2,
+                    fontSize: { xs: "0.9375rem", sm: "1rem" },
+                  },
+                  "& .MuiInputLabel-root": {
+                    fontSize: { xs: "0.9375rem", sm: "1rem" },
                   },
                 }}
               />
@@ -401,6 +414,10 @@ export function ContactSourcingModal({
                   flex: { xs: 1, sm: "0 0 180px" },
                   "& .MuiOutlinedInput-root": {
                     borderRadius: 2,
+                    fontSize: { xs: "0.9375rem", sm: "1rem" },
+                  },
+                  "& .MuiInputLabel-root": {
+                    fontSize: { xs: "0.9375rem", sm: "1rem" },
                   },
                 }}
               />
@@ -415,6 +432,10 @@ export function ContactSourcingModal({
               sx={{
                 "& .MuiOutlinedInput-root": {
                   borderRadius: 2,
+                  fontSize: { xs: "0.9375rem", sm: "1rem" },
+                },
+                "& .MuiInputLabel-root": {
+                  fontSize: { xs: "0.9375rem", sm: "1rem" },
                 },
               }}
             />
@@ -425,58 +446,66 @@ export function ContactSourcingModal({
       {/* Actions */}
       <DialogActions
         sx={{
-          p: 3,
+          p: { xs: 2, sm: 3 },
           borderTop: `1px solid ${theme.palette.divider}`,
-          justifyContent: "space-between",
+          flexDirection: "column",
+          gap: { xs: 1.5, sm: 2 },
         }}
       >
-        <Button
-          onClick={handleClear}
-          sx={{
-            textTransform: "none",
-            color: theme.palette.common.white,
-          }}
-        >
-          Limpar
-        </Button>
-        <Box sx={{ display: "flex", gap: 2 }}>
+        <Box sx={{ display: "flex", gap: { xs: 1, sm: 2 }, width: "100%" }}>
+          <Button
+            onClick={handleClear}
+            sx={{
+              textTransform: "none",
+              color: theme.palette.common.white,
+              fontSize: { xs: "0.875rem", sm: "1rem" },
+              px: { xs: 1.5, sm: 3 },
+              flex: 1,
+            }}
+          >
+            Limpar
+          </Button>
           <Button
             onClick={handleClose}
             variant="contained"
             sx={{
               textTransform: "none",
               borderRadius: 2,
-              px: 3,
+              px: { xs: 1.5, sm: 3 },
+              fontSize: { xs: "0.875rem", sm: "1rem" },
               borderColor: theme.palette.divider,
               color: theme.palette.common.white,
+              flex: 1,
             }}
           >
             Cancelar
           </Button>
-          <Button
-            onClick={handleSave}
-            variant="contained"
-            disabled={isSaving}
-            sx={{
-              textTransform: "none",
-              borderRadius: 2,
-              px: 3,
-              backgroundColor: theme.palette.primary.main,
-              "&:hover": {
-                backgroundColor: theme.palette.primary.dark,
-              },
-            }}
-          >
-            {isSaving ? (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <CircularProgress size={16} sx={{ color: "inherit" }} />
-                Captando...
-              </Box>
-            ) : (
-              "Captar contato"
-            )}
-          </Button>
         </Box>
+        <Button
+          onClick={handleSave}
+          variant="contained"
+          disabled={isSaving}
+          fullWidth
+          sx={{
+            textTransform: "none",
+            borderRadius: 2,
+            px: { xs: 1.5, sm: 3 },
+            fontSize: { xs: "0.875rem", sm: "1rem" },
+            backgroundColor: theme.palette.primary.main,
+            "&:hover": {
+              backgroundColor: theme.palette.primary.dark,
+            },
+          }}
+        >
+          {isSaving ? (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <CircularProgress size={16} sx={{ color: "inherit" }} />
+              Captando...
+            </Box>
+          ) : (
+            "Captar contato"
+          )}
+        </Button>
       </DialogActions>
     </Dialog>
   );
