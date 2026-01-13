@@ -757,6 +757,28 @@ export function ContactSourcingDetails({
     return relationships[relationship] || relationship;
   };
 
+  // Helper para extrair valor de string ou objeto
+  const extractStringValue = (
+    value:
+      | string
+      | {
+          phone?: string;
+          email?: string;
+          value?: string;
+          [key: string]: unknown;
+        }
+      | unknown
+  ): string => {
+    if (typeof value === "string") {
+      return value;
+    }
+    if (value && typeof value === "object") {
+      const obj = value as { phone?: string; email?: string; value?: string };
+      return obj.phone || obj.email || obj.value || String(value);
+    }
+    return String(value);
+  };
+
   return (
     <Dialog
       open={open}
@@ -1870,28 +1892,32 @@ export function ContactSourcingDetails({
                       >
                         {/* Renderizar emails (array ou string) */}
                         {contact.emails && contact.emails.length > 0
-                          ? contact.emails.map((email, index) => (
-                              <Button
-                                key={`email-${index}`}
-                                size="small"
-                                variant="outlined"
-                                startIcon={<Email />}
-                                sx={{
-                                  borderColor: theme.palette.divider,
-                                  color: theme.palette.text.primary,
-                                  backgroundColor: "transparent",
-                                  textTransform: "none",
-                                  fontSize: "0.75rem",
-                                  px: 1.5,
-                                  "&:hover": {
-                                    borderColor: theme.palette.text.secondary,
+                          ? contact.emails.map((email, index) => {
+                              // Extrair email se for objeto ou usar diretamente se for string
+                              const emailValue = extractStringValue(email);
+                              return (
+                                <Button
+                                  key={`email-${index}`}
+                                  size="small"
+                                  variant="outlined"
+                                  startIcon={<Email />}
+                                  sx={{
+                                    borderColor: theme.palette.divider,
+                                    color: theme.palette.text.primary,
                                     backgroundColor: "transparent",
-                                  },
-                                }}
-                              >
-                                E-mail: {email}
-                              </Button>
-                            ))
+                                    textTransform: "none",
+                                    fontSize: "0.75rem",
+                                    px: 1.5,
+                                    "&:hover": {
+                                      borderColor: theme.palette.text.secondary,
+                                      backgroundColor: "transparent",
+                                    },
+                                  }}
+                                >
+                                  E-mail: {emailValue}
+                                </Button>
+                              );
+                            })
                           : contact.email && (
                               <Button
                                 size="small"
@@ -1910,33 +1936,37 @@ export function ContactSourcingDetails({
                                   },
                                 }}
                               >
-                                E-mail: {contact.email}
+                                E-mail: {extractStringValue(contact.email)}
                               </Button>
                             )}
                         {/* Renderizar phones (array ou string) */}
                         {contact.phones && contact.phones.length > 0
-                          ? contact.phones.map((phone, index) => (
-                              <Button
-                                key={`phone-${index}`}
-                                size="small"
-                                variant="outlined"
-                                startIcon={<Phone />}
-                                sx={{
-                                  borderColor: theme.palette.divider,
-                                  color: theme.palette.text.primary,
-                                  backgroundColor: "transparent",
-                                  textTransform: "none",
-                                  fontSize: "0.75rem",
-                                  px: 1.5,
-                                  "&:hover": {
-                                    borderColor: theme.palette.text.secondary,
+                          ? contact.phones.map((phone, index) => {
+                              // Extrair phone se for objeto ou usar diretamente se for string
+                              const phoneValue = extractStringValue(phone);
+                              return (
+                                <Button
+                                  key={`phone-${index}`}
+                                  size="small"
+                                  variant="outlined"
+                                  startIcon={<Phone />}
+                                  sx={{
+                                    borderColor: theme.palette.divider,
+                                    color: theme.palette.text.primary,
                                     backgroundColor: "transparent",
-                                  },
-                                }}
-                              >
-                                Telefone: {phone}
-                              </Button>
-                            ))
+                                    textTransform: "none",
+                                    fontSize: "0.75rem",
+                                    px: 1.5,
+                                    "&:hover": {
+                                      borderColor: theme.palette.text.secondary,
+                                      backgroundColor: "transparent",
+                                    },
+                                  }}
+                                >
+                                  Telefone: {phoneValue}
+                                </Button>
+                              );
+                            })
                           : contact.phone && (
                               <Button
                                 size="small"
@@ -1955,7 +1985,7 @@ export function ContactSourcingDetails({
                                   },
                                 }}
                               >
-                                Telefone: {contact.phone}
+                                Telefone: {extractStringValue(contact.phone)}
                               </Button>
                             )}
                       </Box>
@@ -2005,36 +2035,40 @@ export function ContactSourcingDetails({
           </Box>
           {selectedContact?.phones && selectedContact.phones.length > 0 ? (
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-              {selectedContact.phones.map((phone, index) => (
-                <Paper
-                  key={index}
-                  elevation={0}
-                  sx={{
-                    p: 2,
-                    border: `1px solid ${theme.palette.divider}`,
-                    borderRadius: 2,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 2,
-                  }}
-                >
-                  <Phone sx={{ color: "#4caf50" }} />
-                  <Typography variant="body1" sx={{ flex: 1 }}>
-                    {phone}
-                  </Typography>
-                  <IconButton
-                    size="small"
-                    onClick={() => {
-                      // Copiar para clipboard
-                      navigator.clipboard.writeText(phone);
+              {selectedContact.phones.map((phone, index) => {
+                // Extrair phone se for objeto ou usar diretamente se for string
+                const phoneValue = extractStringValue(phone);
+                return (
+                  <Paper
+                    key={index}
+                    elevation={0}
+                    sx={{
+                      p: 2,
+                      border: `1px solid ${theme.palette.divider}`,
+                      borderRadius: 2,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 2,
                     }}
-                    sx={{ color: theme.palette.text.secondary }}
-                    title="Copiar telefone"
                   >
-                    <ContentCopy fontSize="small" />
-                  </IconButton>
-                </Paper>
-              ))}
+                    <Phone sx={{ color: "#4caf50" }} />
+                    <Typography variant="body1" sx={{ flex: 1 }}>
+                      {phoneValue}
+                    </Typography>
+                    <IconButton
+                      size="small"
+                      onClick={() => {
+                        // Copiar para clipboard
+                        navigator.clipboard.writeText(phoneValue);
+                      }}
+                      sx={{ color: theme.palette.text.secondary }}
+                      title="Copiar telefone"
+                    >
+                      <ContentCopy fontSize="small" />
+                    </IconButton>
+                  </Paper>
+                );
+              })}
             </Box>
           ) : (
             <Box
@@ -2089,36 +2123,40 @@ export function ContactSourcingDetails({
           </Box>
           {selectedContact?.emails && selectedContact.emails.length > 0 ? (
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-              {selectedContact.emails.map((email, index) => (
-                <Paper
-                  key={index}
-                  elevation={0}
-                  sx={{
-                    p: 2,
-                    border: `1px solid ${theme.palette.divider}`,
-                    borderRadius: 2,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 2,
-                  }}
-                >
-                  <Email sx={{ color: theme.palette.text.secondary }} />
-                  <Typography variant="body1" sx={{ flex: 1 }}>
-                    {email}
-                  </Typography>
-                  <IconButton
-                    size="small"
-                    onClick={() => {
-                      // Copiar para clipboard
-                      navigator.clipboard.writeText(email);
+              {selectedContact.emails.map((email, index) => {
+                // Extrair email se for objeto ou usar diretamente se for string
+                const emailValue = extractStringValue(email);
+                return (
+                  <Paper
+                    key={index}
+                    elevation={0}
+                    sx={{
+                      p: 2,
+                      border: `1px solid ${theme.palette.divider}`,
+                      borderRadius: 2,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 2,
                     }}
-                    sx={{ color: theme.palette.text.secondary }}
-                    title="Copiar e-mail"
                   >
-                    <ContentCopy fontSize="small" />
-                  </IconButton>
-                </Paper>
-              ))}
+                    <Email sx={{ color: theme.palette.text.secondary }} />
+                    <Typography variant="body1" sx={{ flex: 1 }}>
+                      {emailValue}
+                    </Typography>
+                    <IconButton
+                      size="small"
+                      onClick={() => {
+                        // Copiar para clipboard
+                        navigator.clipboard.writeText(emailValue);
+                      }}
+                      sx={{ color: theme.palette.text.secondary }}
+                      title="Copiar e-mail"
+                    >
+                      <ContentCopy fontSize="small" />
+                    </IconButton>
+                  </Paper>
+                );
+              })}
             </Box>
           ) : (
             <Box
