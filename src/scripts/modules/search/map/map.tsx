@@ -188,10 +188,13 @@ export function MapComponent({
     []
   );
   const [map, setMap] = useState<google.maps.Map | null>(null);
-  const heatmapLayerRef = useRef<google.maps.visualization.HeatmapLayer | null>(null);
+  const heatmapLayerRef = useRef<google.maps.visualization.HeatmapLayer | null>(
+    null
+  );
   const [freehandActive, setFreehandActive] = useState<boolean>(false);
   const isMouseDownRef = useRef<boolean>(false);
   const freehandPolylineRef = useRef<google.maps.Polyline | null>(null);
+  const lastPointRef = useRef<google.maps.LatLng | null>(null);
   const mouseMoveListenerRef = useRef<google.maps.MapsEventListener | null>(
     null
   );
@@ -1233,12 +1236,81 @@ export function MapComponent({
   const stopFreehand = useCallback(() => {
     setFreehandActive(false);
     isMouseDownRef.current = false;
+    lastPointRef.current = null;
     teardownFreehandListeners();
     if (map) {
       map.setOptions({ draggable: true });
       map.setOptions({ draggableCursor: undefined });
     }
   }, [map, teardownFreehandListeners]);
+
+  // Função para simplificar um path removendo pontos redundantes
+  const simplifyPolygonPath = useCallback(
+    (path: google.maps.MVCArray<google.maps.LatLng>): google.maps.LatLng[] => {
+      if (path.getLength() < 3) {
+        // Polígono precisa de pelo menos 3 pontos
+        const simplified: google.maps.LatLng[] = [];
+        for (let i = 0; i < path.getLength(); i++) {
+          simplified.push(path.getAt(i));
+        }
+        return simplified;
+      }
+
+      // Distância mínima em metros para considerar um ponto redundante
+      const MIN_DISTANCE_FOR_SIMPLIFICATION = 100; // metros
+
+      const simplified: google.maps.LatLng[] = [];
+      const pathLength = path.getLength();
+
+      // Sempre manter o primeiro ponto
+      simplified.push(path.getAt(0));
+
+      for (let i = 1; i < pathLength - 1; i++) {
+        const prevPoint = simplified[simplified.length - 1];
+        const currentPoint = path.getAt(i);
+        const nextPoint = path.getAt(i + 1);
+
+        // Calcular distância do ponto atual ao segmento formado pelos pontos adjacentes
+        const distanceToSegment =
+          google.maps.geometry.spherical.computeDistanceBetween(
+            currentPoint,
+            prevPoint
+          );
+
+        // Se a distância for significativa, manter o ponto
+        // Também verificar se o ponto não está muito próximo do próximo ponto
+        const distanceToNext =
+          google.maps.geometry.spherical.computeDistanceBetween(
+            currentPoint,
+            nextPoint
+          );
+
+        if (
+          distanceToSegment >= MIN_DISTANCE_FOR_SIMPLIFICATION ||
+          distanceToNext >= MIN_DISTANCE_FOR_SIMPLIFICATION
+        ) {
+          simplified.push(currentPoint);
+        }
+      }
+
+      // Sempre manter o último ponto
+      simplified.push(path.getAt(pathLength - 1));
+
+      // Garantir que temos pelo menos 3 pontos
+      if (simplified.length < 3 && pathLength >= 3) {
+        // Se simplificamos demais, manter pelo menos 3 pontos
+        simplified.length = 0;
+        simplified.push(path.getAt(0));
+        if (pathLength > 1) {
+          simplified.push(path.getAt(Math.floor(pathLength / 2)));
+        }
+        simplified.push(path.getAt(pathLength - 1));
+      }
+
+      return simplified;
+    },
+    []
+  );
 
   const startFreehand = useCallback(() => {
     if (!map) return;
@@ -1266,16 +1338,43 @@ export function MapComponent({
           strokeWeight: 2,
         });
         const path = freehandPolylineRef.current.getPath();
-        if (e.latLng) path.push(e.latLng);
+        if (e.latLng) {
+          path.push(e.latLng);
+          lastPointRef.current = e.latLng;
+        }
       }
     );
+
+    // Distância mínima em metros para adicionar um novo ponto durante o desenho
+    const MIN_DISTANCE_DURING_DRAWING = 200; // metros
 
     mouseMoveListenerRef.current = map.addListener(
       "mousemove",
       (e: google.maps.MapMouseEvent) => {
-        if (!isMouseDownRef.current || !freehandPolylineRef.current) return;
+        if (
+          !isMouseDownRef.current ||
+          !freehandPolylineRef.current ||
+          !e.latLng
+        )
+          return;
+
+        // Verificar distância mínima antes de adicionar o ponto
+        if (lastPointRef.current) {
+          const distance =
+            google.maps.geometry.spherical.computeDistanceBetween(
+              lastPointRef.current,
+              e.latLng
+            );
+
+          // Só adicionar ponto se estiver a pelo menos MIN_DISTANCE_DURING_DRAWING metros
+          if (distance < MIN_DISTANCE_DURING_DRAWING) {
+            return;
+          }
+        }
+
         const path = freehandPolylineRef.current.getPath();
-        if (e.latLng) path.push(e.latLng);
+        path.push(e.latLng);
+        lastPointRef.current = e.latLng;
       }
     );
 
@@ -1284,9 +1383,19 @@ export function MapComponent({
       isMouseDownRef.current = false;
       // Converte o polyline para polygon
       const path = freehandPolylineRef.current.getPath();
+
+      // Simplificar o path antes de criar o polígono
+      const simplifiedPath = simplifyPolygonPath(path);
+
+      // Criar um novo MVCArray com os pontos simplificados
+      const simplifiedMVCArray = new google.maps.MVCArray<google.maps.LatLng>();
+      simplifiedPath.forEach((point) => {
+        simplifiedMVCArray.push(point);
+      });
+
       const polygon = new google.maps.Polygon({
         map,
-        paths: path,
+        paths: simplifiedMVCArray,
         fillColor: "#4285F4",
         fillOpacity: 0.2,
         strokeColor: "#4285F4",
@@ -1332,6 +1441,7 @@ export function MapComponent({
       // Isso permite que o usuário mexa no mapa sem criar um novo desenho
       setFreehandActive(false);
       isMouseDownRef.current = false;
+      lastPointRef.current = null;
       teardownFreehandListeners();
       if (map) {
         map.setOptions({ draggable: true });
@@ -1344,6 +1454,7 @@ export function MapComponent({
     onDrawingComplete,
     teardownFreehandListeners,
     addOverlayListeners,
+    simplifyPolygonPath,
   ]);
 
   const toggleFreehand = useCallback(() => {
@@ -1670,7 +1781,9 @@ export function MapComponent({
 
     // Converter dados de [longitude, latitude] para google.maps.LatLng
     const heatmapPoints = heatmapData
-      .filter((coord) => coord.length === 2 && !isNaN(coord[0]) && !isNaN(coord[1]))
+      .filter(
+        (coord) => coord.length === 2 && !isNaN(coord[0]) && !isNaN(coord[1])
+      )
       .map((coord) => {
         // API retorna [longitude, latitude], Google Maps usa {lat, lng}
         return new google.maps.LatLng(coord[1], coord[0]);
