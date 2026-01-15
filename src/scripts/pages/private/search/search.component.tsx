@@ -976,11 +976,13 @@ export function SearchComponent() {
     isFetchingInitial.current = true;
 
     // Usar cidades do contexto se disponíveis e válidas, senão usar array vazio
+    // (a cidade padrão será usada internamente pelo applyFilters quando cities estiver vazio)
     const initialCities = contextCities.length > 0
       ? contextCities.filter((city) => availableCities.includes(city))
       : [];
 
     // Criar filtros - usar cidades do contexto se disponíveis
+    // Se não houver cidades no contexto, deixar vazio para que applyFilters use a cidade padrão
     const initialFilters: FilterState = {
       search: "",
       cities: initialCities,

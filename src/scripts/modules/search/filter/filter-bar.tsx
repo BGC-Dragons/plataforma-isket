@@ -886,6 +886,9 @@ export function FilterBar({
         hasInitializedFromContextRef.current = true;
       }
     } else {
+      // Se não há cidades no contexto, não fazer nada aqui
+      // Deixar cities vazio para que a cidade padrão seja usada quando os filtros forem aplicados
+      // Não inicializar com defaultCity aqui para não sobrescrever a lógica de cidade padrão do plano
       hasInitializedFromContextRef.current = true;
     }
   }, [contextCities, availableCities, externalFilters, tempFilters, setContextCities]);
