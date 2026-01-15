@@ -35,6 +35,7 @@ import {
   Stop,
   Delete,
   Gesture,
+  OpenWith,
 } from "@mui/icons-material";
 import { GOOGLE_CONFIG } from "../../../config/google.constant";
 import type { INeighborhoodFull } from "../../../../services/get-locations-neighborhoods.service";
@@ -175,6 +176,7 @@ export function MapComponent({
   } | null>(null);
   const [drawingMode, setDrawingMode] =
     useState<google.maps.drawing.OverlayType | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [drawingManager, setDrawingManager] =
     useState<google.maps.drawing.DrawingManager | null>(null);
   const drawingManagerRef = useRef<google.maps.drawing.DrawingManager | null>(
@@ -1403,7 +1405,7 @@ export function MapComponent({
         strokeWeight: 2,
         clickable: true,
         editable: true,
-        draggable: true,
+        draggable: isEditMode,
       });
       freehandPolylineRef.current.setMap(null);
       freehandPolylineRef.current = null;
@@ -1455,6 +1457,7 @@ export function MapComponent({
     teardownFreehandListeners,
     addOverlayListeners,
     simplifyPolygonPath,
+    isEditMode,
   ]);
 
   const toggleFreehand = useCallback(() => {
@@ -1908,7 +1911,7 @@ export function MapComponent({
         strokeWeight: 2,
         clickable: true,
         editable: true,
-        draggable: true,
+        draggable: isEditMode,
       });
 
       // Armazenar referência ao círculo do endereço
@@ -1970,7 +1973,7 @@ export function MapComponent({
       setAddressMarker(null);
       setAddressCenter(null);
     }
-  }, [filters?.addressCoordinates, map, addOverlayListeners]);
+  }, [filters?.addressCoordinates, map, addOverlayListeners, isEditMode]);
 
   // Atualizar refs sempre que mudarem
   useEffect(() => {
@@ -1978,8 +1981,32 @@ export function MapComponent({
   }, [drawnOverlays]);
 
   useEffect(() => {
+    drawnOverlays.forEach((overlay) => {
+      const overlayInstance = overlay.overlay as
+        | google.maps.Polygon
+        | google.maps.Circle
+        | null;
+      if (overlayInstance && typeof overlayInstance.setOptions === "function") {
+        overlayInstance.setOptions({ draggable: isEditMode });
+      }
+    });
+  }, [drawnOverlays, isEditMode]);
+
+  useEffect(() => {
+    if (drawnOverlays.length === 0 && isEditMode) {
+      setIsEditMode(false);
+    }
+  }, [drawnOverlays.length, isEditMode]);
+
+  useEffect(() => {
     drawingManagerRef.current = drawingManager;
   }, [drawingManager]);
+
+  useEffect(() => {
+    if (!map) return;
+    if (freehandActive) return;
+    map.setOptions({ draggable: true, draggableCursor: undefined });
+  }, [map, freehandActive]);
 
   // Limpar polígonos dos bairros quando os bairros mudarem
   // Isso previne que polígonos antigos fiquem no mapa quando os bairros são atualizados
@@ -2490,7 +2517,7 @@ export function MapComponent({
                 strokeWeight: 2,
                 clickable: true,
                 editable: true,
-                draggable: true,
+                draggable: isEditMode,
               },
               circleOptions: {
                 fillColor: "#4285F4",
@@ -2500,7 +2527,7 @@ export function MapComponent({
                 strokeWeight: 2,
                 clickable: true,
                 editable: true,
-                draggable: true,
+                draggable: isEditMode,
               },
               // Retângulo foi substituído por desenho livre
             }}
@@ -3180,6 +3207,38 @@ export function MapComponent({
             >
               <Gesture fontSize="inherit" />
             </Button>
+
+            {/* Botão Editar (mover desenhos) */}
+            {drawnOverlays.length > 0 && (
+              <Button
+                variant={isEditMode ? "contained" : "outlined"}
+                size="small"
+                onClick={() => setIsEditMode((prev) => !prev)}
+                title={
+                  isEditMode ? "Desativar edição" : "Ativar edição dos desenhos"
+                }
+                aria-label="Editar desenhos"
+                sx={{
+                  minWidth: 18,
+                  height: 18,
+                  borderRadius: 0.25,
+                  backgroundColor: isEditMode
+                    ? theme.palette.primary.main
+                    : "transparent",
+                  color: isEditMode
+                    ? theme.palette.primary.contrastText
+                    : theme.palette.text.primary,
+                  borderColor: theme.palette.divider,
+                  "&:hover": {
+                    backgroundColor: isEditMode
+                      ? theme.palette.primary.dark
+                      : theme.palette.action.hover,
+                  },
+                }}
+              >
+                <OpenWith fontSize="inherit" />
+              </Button>
+            )}
 
             {/* Botão Parar Desenho */}
             {drawingMode && (
