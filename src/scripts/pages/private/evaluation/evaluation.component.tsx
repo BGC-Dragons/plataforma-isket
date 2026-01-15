@@ -29,6 +29,8 @@ import { EvaluationActionBar } from "../../../modules/evaluation/evaluation-acti
 import { GenerateReportModal } from "../../../modules/evaluation/generate-report-modal";
 import { AnalysisSummaryDrawer } from "../../../modules/evaluation/analysis-summary-drawer";
 import { CustomPagination } from "../../../library/components/custom-pagination";
+import { ListViewImageCarousel } from "../../../modules/evaluation/list-view-image-carousel";
+import { FullscreenGallery } from "../../../modules/search/property-details/fullscreen-gallery";
 import { useAuth } from "../../../modules/access-manager/auth.hook";
 import { useCitySelection } from "../../../modules/city-selection/city-selection.context";
 import {
@@ -210,6 +212,16 @@ export function EvaluationComponent() {
     useState("area-total");
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isAnalysisDrawerOpen, setIsAnalysisDrawerOpen] = useState(false);
+  const [galleryState, setGalleryState] = useState<{
+    open: boolean;
+    images: string[];
+    initialIndex: number;
+    propertyTitle?: string;
+  }>({
+    open: false,
+    images: [],
+    initialIndex: 0,
+  });
 
   // Refs para controle de paginação
   const previousPage = useRef(1);
@@ -1931,46 +1943,19 @@ export function EvaluationComponent() {
                             }
                           />
 
-                          {/* Foto miniatura */}
-                          <Box
-                            sx={{
-                              width: 80,
-                              height: 60,
-                              borderRadius: 1,
-                              overflow: "hidden",
-                              backgroundColor: theme.palette.grey[200],
-                              flexShrink: 0,
+                          {/* Carrossel de fotos */}
+                          <ListViewImageCarousel
+                            images={property.images || []}
+                            propertyTitle={property.title}
+                            onOpenGallery={(initialIndex) => {
+                              setGalleryState({
+                                open: true,
+                                images: property.images || [],
+                                initialIndex,
+                                propertyTitle: property.title,
+                              });
                             }}
-                          >
-                            {property.images && property.images.length > 0 ? (
-                              <Box
-                                component="img"
-                                src={property.images[0]}
-                                alt={property.title}
-                                sx={{
-                                  width: "100%",
-                                  height: "100%",
-                                  objectFit: "cover",
-                                }}
-                              />
-                            ) : (
-                              <Box
-                                sx={{
-                                  width: "100%",
-                                  height: "100%",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  backgroundColor: theme.palette.grey[200],
-                                  color: theme.palette.grey[500],
-                                }}
-                              >
-                                <Typography variant="caption">
-                                  Sem foto
-                                </Typography>
-                              </Box>
-                            )}
-                          </Box>
+                          />
 
                           {/* Informações da propriedade */}
                           <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -2293,6 +2278,21 @@ export function EvaluationComponent() {
         propertyTypesData={propertyTypeDistribution}
         pricePerM2Data={pricePerM2Data}
         areaType={mapCalculationCriterionToAreaType(calculationCriterion)}
+      />
+
+      {/* Galeria em Tela Cheia */}
+      <FullscreenGallery
+        open={galleryState.open}
+        onClose={() =>
+          setGalleryState({
+            open: false,
+            images: [],
+            initialIndex: 0,
+          })
+        }
+        images={galleryState.images}
+        initialIndex={galleryState.initialIndex}
+        propertyTitle={galleryState.propertyTitle}
       />
     </Box>
   );
