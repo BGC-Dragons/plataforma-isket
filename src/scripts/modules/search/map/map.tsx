@@ -96,6 +96,7 @@ interface MapProps {
   useMapSearch?: boolean; // Se true, usa busca do mapa ao invés de properties
   onNeighborhoodClick?: (neighborhood: INeighborhoodFull) => void; // Callback quando um bairro é clicado
   heatmapData?: number[][]; // Array de [longitude, latitude] para heatmap
+  refreshKey?: number; // Força atualização do mapa ao retornar dos detalhes
 }
 
 // Configurações do mapa
@@ -152,6 +153,7 @@ export function MapComponent({
   useMapSearch = true, // Por padrão usa busca do mapa
   onNeighborhoodClick,
   heatmapData,
+  refreshKey,
 }: MapProps) {
   // Fallback: pegar token do localStorage se não foi passado via props
   const token =
@@ -652,6 +654,18 @@ export function MapComponent({
     const newZoom = map.getZoom() || zoom;
     fetchMapDataRef.current(bounds, newZoom);
   }, [filtersKey, map, useMapSearch, token, zoom]);
+
+  useEffect(() => {
+    if (refreshKey === undefined) return;
+    if (!map || !useMapSearch || !token || !fetchMapDataRef.current) return;
+
+    lastSearchKeyRef.current = null;
+    const bounds = map.getBounds();
+    if (!bounds) return;
+
+    const newZoom = map.getZoom() || zoom;
+    fetchMapDataRef.current(bounds, newZoom);
+  }, [refreshKey, map, useMapSearch, token, zoom]);
 
   // Efeito para animar o mapa quando center ou zoom mudarem
   useEffect(() => {

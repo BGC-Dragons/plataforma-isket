@@ -132,11 +132,11 @@ export function PropertyLocalization({
     null
   );
 
-  // Carrega o script do Google Maps com ID único para evitar conflitos
+  // Carrega o script do Google Maps compartilhado pela busca
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: GOOGLE_CONFIG.MAPS_API_KEY,
-    libraries: ["places"],
-    id: "google-maps-script-property-localization-v2",
+    libraries: ["places", "drawing", "geometry", "visualization"],
+    id: "google-maps-script",
   });
 
   // Inicializar PlacesService quando o mapa estiver carregado

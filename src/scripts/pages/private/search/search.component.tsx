@@ -200,6 +200,8 @@ export function SearchComponent() {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartY, setDragStartY] = useState(0);
   const [dragStartPosition, setDragStartPosition] = useState(0);
+  const [mapRefreshKey, setMapRefreshKey] = useState(0);
+  const previousPropertyIdRef = useRef<string | undefined>(propertyId);
   const [neighborhoodsData, setNeighborhoodsData] = useState<
     INeighborhoodFull[]
   >([]);
@@ -313,6 +315,15 @@ export function SearchComponent() {
     } else {
       setPropertyDetailsOpen(false);
     }
+  }, [propertyId]);
+
+  useEffect(() => {
+    const hadPropertyDetails = Boolean(previousPropertyIdRef.current);
+    const hasPropertyDetails = Boolean(propertyId);
+    if (hadPropertyDetails && !hasPropertyDetails) {
+      setMapRefreshKey((prev) => prev + 1);
+    }
+    previousPropertyIdRef.current = propertyId;
   }, [propertyId]);
 
   // Remover scroll do body apenas nesta página
@@ -1678,6 +1689,7 @@ export function SearchComponent() {
               allNeighborhoodsForCityBounds={allNeighborhoodsForBounds}
               filters={currentFilters}
               cityToCodeMap={cityToCodeMap}
+              refreshKey={mapRefreshKey}
               token={
                 auth.store.token ||
                 localStorage.getItem("auth_token") ||
@@ -2683,6 +2695,7 @@ export function SearchComponent() {
                 allNeighborhoodsForCityBounds={allNeighborhoodsForBounds}
                 filters={currentFilters}
                 cityToCodeMap={cityToCodeMap}
+                refreshKey={mapRefreshKey}
                 token={
                   auth.store.token ||
                   localStorage.getItem("auth_token") ||
@@ -2839,6 +2852,7 @@ export function SearchComponent() {
                 allNeighborhoodsForCityBounds={allNeighborhoodsForBounds}
                 filters={currentFilters}
                 cityToCodeMap={cityToCodeMap}
+                refreshKey={mapRefreshKey}
                 token={
                   auth.store.token ||
                   localStorage.getItem("auth_token") ||
