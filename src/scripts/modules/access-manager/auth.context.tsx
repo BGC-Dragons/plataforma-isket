@@ -3,7 +3,6 @@ import { useNavigate } from "react-router";
 import { postAuthGoogle } from "../../../services/post-auth-google.service";
 import { postAuthRefreshToken } from "../../../services/post-auth-refresh-token.service";
 import { getAuthMe } from "../../../services/get-auth-me.service";
-import { setupAxiosInterceptors } from "../../../services/helpers/axios-interceptor.function";
 import { clearAllUserDataCache } from "../../../services/helpers/clear-swr-cache.function";
 import type { IAuthStore, IAuthUser } from "./auth.interface";
 import type { IAuth } from "./auth-context.types";
@@ -20,10 +19,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   });
   const [isValidating, setIsValidating] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-
-  useEffect(() => {
-    setupAxiosInterceptors();
-  }, []);
 
   const handleUpdateStore = useCallback(
     (

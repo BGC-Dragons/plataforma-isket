@@ -1,5 +1,5 @@
-import axios from "axios";
 import { postAuthRefreshToken } from "../post-auth-refresh-token.service";
+import { isketApiClient } from "../clients/isket-api.client";
 
 let isRefreshing = false;
 let failedQueue: Array<{
@@ -19,9 +19,19 @@ const processQueue = (error: unknown, token: string | null = null) => {
   failedQueue = [];
 };
 
+const refreshEndpointPath = "/auth/refreshToken";
+
+const isRefreshRequest = (url?: string) => {
+  if (!url) {
+    return false;
+  }
+
+  return url.includes(refreshEndpointPath);
+};
+
 export const setupAxiosInterceptors = () => {
   // Interceptor para adicionar token em todas as requisições
-  axios.interceptors.request.use(
+  isketApiClient.interceptors.request.use(
     (config) => {
       const token = localStorage.getItem("auth_token");
       if (token) {
@@ -35,12 +45,16 @@ export const setupAxiosInterceptors = () => {
   );
 
   // Interceptor para lidar com tokens expirados
-  axios.interceptors.response.use(
+  isketApiClient.interceptors.response.use(
     (response) => response,
     async (error) => {
       const originalRequest = error.config;
 
-      if (error.response?.status === 401 && !originalRequest._retry) {
+      if (
+        error.response?.status === 401 &&
+        !originalRequest?._retry &&
+        !isRefreshRequest(originalRequest?.url)
+      ) {
         if (isRefreshing) {
           // Se já está renovando, adiciona à fila
           return new Promise((resolve, reject) => {
@@ -48,7 +62,7 @@ export const setupAxiosInterceptors = () => {
           })
             .then((token) => {
               originalRequest.headers.Authorization = `Bearer ${token}`;
-              return axios(originalRequest);
+              return isketApiClient(originalRequest);
             })
             .catch((err) => {
               return Promise.reject(err);
@@ -85,7 +99,7 @@ export const setupAxiosInterceptors = () => {
           processQueue(null, response.data.accessToken);
 
           // Retry da requisição original
-          return axios(originalRequest);
+          return isketApiClient(originalRequest);
         } catch (refreshError) {
           processQueue(refreshError, null);
 
