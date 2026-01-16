@@ -1,27 +1,28 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { useState, useEffect, useCallback, type ReactNode } from "react";
+import {
+  CitySelectionContext,
+  type CitySelectionContextType,
+} from "./city-selection-context-definition";
 
 const CITY_SELECTION_STORAGE_KEY = "isket_selected_cities";
-
-interface CitySelectionContextType {
-  cities: string[];
-  setCities: (cities: string[]) => void;
-  clearCities: () => void;
-}
-
-const CitySelectionContext = createContext<CitySelectionContextType | undefined>(undefined);
 
 interface CitySelectionProviderProps {
   children: ReactNode;
 }
 
-export function CitySelectionProvider({ children }: CitySelectionProviderProps) {
+export function CitySelectionProvider({
+  children,
+}: CitySelectionProviderProps) {
   // Inicializar do localStorage
   const [cities, setCitiesState] = useState<string[]>(() => {
     try {
       const stored = localStorage.getItem(CITY_SELECTION_STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.every((item) => typeof item === "string")) {
+        if (
+          Array.isArray(parsed) &&
+          parsed.every((item) => typeof item === "string")
+        ) {
           return parsed;
         }
       }
@@ -35,7 +36,10 @@ export function CitySelectionProvider({ children }: CitySelectionProviderProps) 
   useEffect(() => {
     try {
       if (cities.length > 0) {
-        localStorage.setItem(CITY_SELECTION_STORAGE_KEY, JSON.stringify(cities));
+        localStorage.setItem(
+          CITY_SELECTION_STORAGE_KEY,
+          JSON.stringify(cities)
+        );
       } else {
         localStorage.removeItem(CITY_SELECTION_STORAGE_KEY);
       }
@@ -63,12 +67,4 @@ export function CitySelectionProvider({ children }: CitySelectionProviderProps) 
       {children}
     </CitySelectionContext.Provider>
   );
-}
-
-export function useCitySelection(): CitySelectionContextType {
-  const context = useContext(CitySelectionContext);
-  if (context === undefined) {
-    throw new Error("useCitySelection deve ser usado dentro de CitySelectionProvider");
-  }
-  return context;
 }

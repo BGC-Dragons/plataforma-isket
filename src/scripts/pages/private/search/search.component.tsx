@@ -48,7 +48,7 @@ import {
   useGetPurchases,
   type IGetPurchasesResponseSuccess,
 } from "../../../../services/get-purchases.service";
-import { useCitySelection } from "../../../modules/city-selection/city-selection.context";
+import { useCitySelection } from "../../../modules/city-selection/city-selection.hook";
 import {
   postPropertyAdSearch,
   type SortBy,

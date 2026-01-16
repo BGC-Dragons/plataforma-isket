@@ -17,7 +17,7 @@ import {
 import { Search, FilterList, Close } from "@mui/icons-material";
 import { FilterModal } from "./filter-modal";
 import { useAuth } from "../../access-manager/auth.hook";
-import { useCitySelection } from "../../city-selection/city-selection.context";
+import { useCitySelection } from "../../city-selection/city-selection.hook";
 import {
   postNeighborhoodsFindManyByCities,
   type INeighborhood,

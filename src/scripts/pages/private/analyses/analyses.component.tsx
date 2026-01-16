@@ -23,7 +23,7 @@ import { postAnalyticsSearchDemandHeatMap } from "../../../../services/post-anal
 import { mapFiltersToApi } from "../../../../services/helpers/map-filters-to-api.helper";
 import type { ILocalFilterState } from "../../../../services/helpers/map-filters-to-api.helper";
 import { useAuth } from "../../../modules/access-manager/auth.hook";
-import { useCitySelection } from "../../../modules/city-selection/city-selection.context";
+import { useCitySelection } from "../../../modules/city-selection/city-selection.hook";
 import { getNeighborhoods } from "../../../../services/get-locations-neighborhoods.service";
 import type { INeighborhoodFull } from "../../../../services/get-locations-neighborhoods.service";
 import { getCityByCode } from "../../../../services/get-locations-city-by-code.service";

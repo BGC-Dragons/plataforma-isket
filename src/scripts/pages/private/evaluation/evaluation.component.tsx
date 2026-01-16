@@ -32,7 +32,7 @@ import { CustomPagination } from "../../../library/components/custom-pagination"
 import { ListViewImageCarousel } from "../../../modules/evaluation/list-view-image-carousel";
 import { FullscreenGallery } from "../../../modules/search/property-details/fullscreen-gallery";
 import { useAuth } from "../../../modules/access-manager/auth.hook";
-import { useCitySelection } from "../../../modules/city-selection/city-selection.context";
+import { useCitySelection } from "../../../modules/city-selection/city-selection.hook";
 import {
   postPropertyAdSearch,
   type SortBy,
