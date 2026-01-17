@@ -1757,7 +1757,7 @@ export function SearchComponent() {
                 flex: 1,
                 overflow: "auto",
                 px: 2,
-                pb: 2,
+                pb: 13,
                 "&::-webkit-scrollbar": {
                   width: 6,
                 },
@@ -1941,7 +1941,7 @@ export function SearchComponent() {
 
                   {/* Paginação */}
                   {!loading &&
-                    filteredProperties.length > 0 &&
+                    paginatedProperties.length > 0 &&
                     totalPages > 1 && (
                       <CustomPagination
                         currentPage={currentPage}
