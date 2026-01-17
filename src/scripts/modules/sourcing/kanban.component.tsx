@@ -510,7 +510,7 @@ export function Kanban({
     // Sempre priorizar dados da API quando disponíveis
     if (stages && stages.length > 0) {
       const mappedColumns = mapStagesToColumns(stages);
-      
+
       // Se há busca ativa, filtrar os cards
       if (searchQuery.trim()) {
         const searchNormalized = normalizeText(searchQuery);
@@ -871,7 +871,6 @@ export function Kanban({
           width: "100%",
           px: 2,
           py: 2,
-          mb: { xs: 12, sm: 0 },
           backgroundColor: theme.palette.background.paper,
           boxSizing: "border-box",
           "&::-webkit-scrollbar": {

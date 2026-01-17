@@ -60,12 +60,13 @@ export function EvaluationActionBar({
         sx={{
           backgroundColor: theme.palette.primary.main,
           color: theme.palette.primary.contrastText,
-          px: 3,
-          py: 2,
+          px: { xs: 2, sm: 3 },
+          py: { xs: 2, sm: 2 },
           borderRadius: 3,
           display: "flex",
-          alignItems: "center",
-          gap: 3,
+          flexDirection: { xs: "column", sm: "row" },
+          alignItems: { xs: "stretch", sm: "center" },
+          gap: { xs: 2, sm: 3 },
           flexWrap: "wrap",
           boxShadow: theme.shadows[8],
         }}
@@ -147,7 +148,15 @@ export function EvaluationActionBar({
         </Box>
 
         {/* Botões de ação */}
-        <Box sx={{ display: "flex", gap: 1.5, ml: "auto" }}>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: { xs: "column", sm: "row" },
+            gap: { xs: 1, sm: 1.5 },
+            width: { xs: "100%", sm: "auto" },
+            ml: { xs: 0, sm: "auto" },
+          }}
+        >
           <Button
             variant="contained"
             startIcon={<Description />}
@@ -162,6 +171,7 @@ export function EvaluationActionBar({
               py: 0.75,
               borderRadius: 2,
               boxShadow: theme.shadows[2],
+              width: { xs: "100%", sm: "auto" },
               "&:hover": {
                 backgroundColor: theme.palette.grey[100],
                 boxShadow: theme.shadows[4],
@@ -184,6 +194,7 @@ export function EvaluationActionBar({
               py: 0.75,
               borderRadius: 2,
               boxShadow: theme.shadows[2],
+              width: { xs: "100%", sm: "auto" },
               "&:hover": {
                 backgroundColor: theme.palette.grey[100],
                 boxShadow: theme.shadows[4],
@@ -206,6 +217,7 @@ export function EvaluationActionBar({
               py: 0.75,
               borderRadius: 2,
               boxShadow: theme.shadows[2],
+              width: { xs: "100%", sm: "auto" },
               "&:hover": {
                 backgroundColor: theme.palette.grey[100],
                 boxShadow: theme.shadows[4],

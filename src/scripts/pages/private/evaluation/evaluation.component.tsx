@@ -14,6 +14,7 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  useMediaQuery,
 } from "@mui/material";
 import {
   ViewModule,
@@ -188,7 +189,9 @@ const getIconColor = getPropertyTypeColor;
 export function EvaluationComponent() {
   const theme = useTheme();
   const auth = useAuth();
-  const { cities: contextCities, setCities: setContextCities } = useCitySelection();
+  const { cities: contextCities, setCities: setContextCities } =
+    useCitySelection();
+  const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm")); // < 600px
 
   const { data: purchasesData } = useGetPurchases();
 
@@ -1113,9 +1116,10 @@ export function EvaluationComponent() {
         isFetchingInitial.current = true;
 
         // Usar cidades do contexto se disponíveis e válidas, senão usar array vazio
-        const initialCities = contextCities.length > 0
-          ? contextCities.filter((city) => availableCities.includes(city))
-          : [];
+        const initialCities =
+          contextCities.length > 0
+            ? contextCities.filter((city) => availableCities.includes(city))
+            : [];
 
         const initialFilters: FilterState = {
           search: "",
@@ -1185,7 +1189,14 @@ export function EvaluationComponent() {
     };
 
     fetchInitial();
-  }, [availableCities.length, cityToCodeMap, currentFilters, applyFilters, contextCities, availableCities]);
+  }, [
+    availableCities.length,
+    cityToCodeMap,
+    currentFilters,
+    applyFilters,
+    contextCities,
+    availableCities,
+  ]);
 
   // Buscar propriedades quando a página muda
   useEffect(() => {
@@ -1595,6 +1606,13 @@ export function EvaluationComponent() {
     calculateAverages();
   }, [calculateAverages]);
 
+  // Força visualização em cards quando a tela for menor que 600px
+  useEffect(() => {
+    if (isSmallScreen) {
+      setViewMode("cards");
+    }
+  }, [isSmallScreen]);
+
   const handleAnalysisSummary = useCallback(() => {
     calculateAverages();
     setIsAnalysisDrawerOpen(true);
@@ -1629,6 +1647,7 @@ export function EvaluationComponent() {
     <Box
       sx={{
         backgroundColor: theme.palette.background.default,
+        py: { xs: 0, sm: 1 },
         px: { xs: 0, sm: 2 },
         position: "relative",
         overflow: "hidden",
@@ -1655,6 +1674,7 @@ export function EvaluationComponent() {
               minWidth: 0,
               display: "flex",
               flexDirection: "column",
+              px: { xs: 2, sm: 0 },
             }}
           >
             {/* Título */}
@@ -1662,15 +1682,16 @@ export function EvaluationComponent() {
               variant="h5"
               sx={{
                 fontWeight: 600,
-                mb: 3,
+                mb: { xs: 1.5, sm: 3 },
                 color: theme.palette.text.primary,
+                fontSize: { xs: "1rem", sm: "1.5rem" },
               }}
             >
               Selecione os imóveis que deseja incluir na avaliação
             </Typography>
 
             {/* Barra de Filtros */}
-            <Box sx={{ mb: 3 }}>
+            <Box sx={{ mb: { xs: 1, sm: 3 } }}>
               <FilterBar
                 onFiltersChange={handleFilterChange}
                 defaultCity={defaultCity}
@@ -1683,7 +1704,7 @@ export function EvaluationComponent() {
             {/* Contador de Resultados, Selecionar Todos e Visualização */}
             <Box
               sx={{
-                mb: 3,
+                mb: { xs: 1.5, sm: 3 },
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
@@ -1750,60 +1771,62 @@ export function EvaluationComponent() {
                 </FormControl>
 
                 {/* Botões de visualização */}
-                <Box
-                  sx={{
-                    display: "flex",
-                    borderRadius: 2,
-                    overflow: "hidden",
-                    border: `1px solid ${theme.palette.divider}`,
-                    backgroundColor: theme.palette.background.paper,
-                  }}
-                >
-                  <IconButton
-                    onClick={() => setViewMode("cards")}
+                {!isSmallScreen && (
+                  <Box
                     sx={{
-                      borderRadius: 0,
-                      backgroundColor:
-                        viewMode === "cards"
-                          ? theme.palette.primary.main
-                          : "transparent",
-                      color:
-                        viewMode === "cards"
-                          ? theme.palette.primary.contrastText
-                          : theme.palette.text.secondary,
-                      "&:hover": {
+                      display: "flex",
+                      borderRadius: 2,
+                      overflow: "hidden",
+                      border: `1px solid ${theme.palette.divider}`,
+                      backgroundColor: theme.palette.background.paper,
+                    }}
+                  >
+                    <IconButton
+                      onClick={() => setViewMode("cards")}
+                      sx={{
+                        borderRadius: 0,
                         backgroundColor:
                           viewMode === "cards"
-                            ? theme.palette.primary.dark
-                            : theme.palette.action.hover,
-                      },
-                    }}
-                  >
-                    <ViewModule fontSize="small" />
-                  </IconButton>
-                  <IconButton
-                    onClick={() => setViewMode("list")}
-                    sx={{
-                      borderRadius: 0,
-                      backgroundColor:
-                        viewMode === "list"
-                          ? theme.palette.primary.main
-                          : "transparent",
-                      color:
-                        viewMode === "list"
-                          ? theme.palette.primary.contrastText
-                          : theme.palette.text.secondary,
-                      "&:hover": {
+                            ? theme.palette.primary.main
+                            : "transparent",
+                        color:
+                          viewMode === "cards"
+                            ? theme.palette.primary.contrastText
+                            : theme.palette.text.secondary,
+                        "&:hover": {
+                          backgroundColor:
+                            viewMode === "cards"
+                              ? theme.palette.primary.dark
+                              : theme.palette.action.hover,
+                        },
+                      }}
+                    >
+                      <ViewModule fontSize="small" />
+                    </IconButton>
+                    <IconButton
+                      onClick={() => setViewMode("list")}
+                      sx={{
+                        borderRadius: 0,
                         backgroundColor:
                           viewMode === "list"
-                            ? theme.palette.primary.dark
-                            : theme.palette.action.hover,
-                      },
-                    }}
-                  >
-                    <ViewList fontSize="small" />
-                  </IconButton>
-                </Box>
+                            ? theme.palette.primary.main
+                            : "transparent",
+                        color:
+                          viewMode === "list"
+                            ? theme.palette.primary.contrastText
+                            : theme.palette.text.secondary,
+                        "&:hover": {
+                          backgroundColor:
+                            viewMode === "list"
+                              ? theme.palette.primary.dark
+                              : theme.palette.action.hover,
+                        },
+                      }}
+                    >
+                      <ViewList fontSize="small" />
+                    </IconButton>
+                  </Box>
+                )}
               </Box>
             </Box>
 
@@ -2076,9 +2099,14 @@ export function EvaluationComponent() {
                           <Box
                             sx={{
                               display: { xs: "none", sm: "flex" },
-                              alignItems: "center",
+                              flexDirection: "column",
+                              alignItems: "flex-start",
                               gap: 2,
                               color: "text.secondary",
+                              "@media (min-width: 1400px)": {
+                                flexDirection: "row",
+                                alignItems: "center",
+                              },
                             }}
                           >
                             {property.propertyType === "TERRENO" ? (

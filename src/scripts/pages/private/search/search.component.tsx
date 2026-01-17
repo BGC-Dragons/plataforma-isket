@@ -173,7 +173,8 @@ export function SearchComponent() {
   const navigate = useNavigate();
   const { propertyId } = useParams<{ propertyId?: string }>();
   const auth = useAuth();
-  const { cities: contextCities, setCities: setContextCities } = useCitySelection();
+  const { cities: contextCities, setCities: setContextCities } =
+    useCitySelection();
 
   const [filteredProperties, setFilteredProperties] = useState<PropertyData[]>(
     []
@@ -988,9 +989,10 @@ export function SearchComponent() {
 
     // Usar cidades do contexto se disponíveis e válidas, senão usar array vazio
     // (a cidade padrão será usada internamente pelo applyFilters quando cities estiver vazio)
-    const initialCities = contextCities.length > 0
-      ? contextCities.filter((city) => availableCities.includes(city))
-      : [];
+    const initialCities =
+      contextCities.length > 0
+        ? contextCities.filter((city) => availableCities.includes(city))
+        : [];
 
     // Criar filtros - usar cidades do contexto se disponíveis
     // Se não houver cidades no contexto, deixar vazio para que applyFilters use a cidade padrão
@@ -1718,7 +1720,6 @@ export function SearchComponent() {
               zIndex: 1200,
               transition: isDragging ? "none" : "height 0.3s ease-out",
               boxShadow: theme.shadows[24],
-              pb: 23,
             }}
             onTouchStart={handleBottomSheetTouchStart}
             onTouchMove={handleBottomSheetTouchMove}

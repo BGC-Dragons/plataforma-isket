@@ -499,7 +499,6 @@ export function SourcingComponent() {
             overflow: viewMode === "list" ? "hidden" : "hidden",
             display: "flex",
             flexDirection: "column",
-            pb: { xs: 8, sm: 0 }, // Adicionar padding bottom no mobile para os botões não cobrirem o conteúdo
           }}
         >
           {viewMode === "grid" ? (
@@ -528,7 +527,6 @@ export function SourcingComponent() {
             flexDirection: "row",
             gap: 1,
             p: 0.5,
-            mb: "100px",
             borderTop: `1px solid ${theme.palette.divider}`,
             backgroundColor: theme.palette.background.paper,
             position: "fixed",
