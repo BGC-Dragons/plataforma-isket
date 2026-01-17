@@ -2200,6 +2200,7 @@ export function SearchComponent() {
                     flex: 1,
                     overflow: "auto",
                     pr: 1, // Padding para scrollbar
+                    pb: isMediumScreen ? 12 : 0, // Espaço para o botão flutuante
                     "&::-webkit-scrollbar": {
                       width: 6,
                     },
