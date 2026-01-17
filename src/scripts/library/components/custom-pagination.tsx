@@ -17,7 +17,7 @@ export function CustomPagination({
   currentPage,
   totalPages,
   onPageChange,
-  maxVisiblePages = 5,
+  maxVisiblePages = 4,
 }: CustomPaginationProps) {
   const theme = useTheme();
 

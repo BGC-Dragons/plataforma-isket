@@ -1947,7 +1947,7 @@ export function SearchComponent() {
                         currentPage={currentPage}
                         totalPages={totalPages}
                         onPageChange={setCurrentPage}
-                        maxVisiblePages={5}
+                        maxVisiblePages={4}
                       />
                     )}
                 </Box>
@@ -2662,7 +2662,7 @@ export function SearchComponent() {
                         currentPage={currentPage}
                         totalPages={totalPages}
                         onPageChange={setCurrentPage}
-                        maxVisiblePages={5}
+                        maxVisiblePages={4}
                       />
                     )}
                 </Box>

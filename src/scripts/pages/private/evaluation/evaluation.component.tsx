@@ -2225,7 +2225,7 @@ export function EvaluationComponent() {
                     currentPage={currentPage}
                     totalPages={totalPages}
                     onPageChange={setCurrentPage}
-                    maxVisiblePages={5}
+                    maxVisiblePages={4}
                   />
                 )}
               </Box>
