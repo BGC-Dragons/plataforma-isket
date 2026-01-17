@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   Box,
   Typography,
@@ -9,6 +10,7 @@ import {
   useTheme,
   Paper,
   Tooltip,
+  useMediaQuery,
 } from "@mui/material";
 import {
   Close,
@@ -16,6 +18,8 @@ import {
   PictureAsPdf,
   TableChart,
   InfoOutlined,
+  ExpandLess,
+  ExpandMore,
 } from "@mui/icons-material";
 
 interface EvaluationActionBarProps {
@@ -38,6 +42,12 @@ export function EvaluationActionBar({
   onExportExcel,
 }: EvaluationActionBarProps) {
   const theme = useTheme();
+  const isXs = useMediaQuery(theme.breakpoints.down("sm"));
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  useEffect(() => {
+    setIsCollapsed(isXs);
+  }, [isXs]);
 
   if (selectedCount === 0) {
     return null;
@@ -72,7 +82,40 @@ export function EvaluationActionBar({
         }}
       >
         {/* Contador de selecionados */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            position: "relative",
+            pr: isXs ? 3 : 0,
+          }}
+        >
+          {isXs && (
+            <IconButton
+              size="small"
+              onClick={() => setIsCollapsed((prev) => !prev)}
+              aria-label={
+                isCollapsed ? "Expandir selecionados" : "Colapsar selecionados"
+              }
+              sx={{
+                position: "absolute",
+                top: -6,
+                right: -6,
+                color: theme.palette.primary.contrastText,
+                p: 0.5,
+                "&:hover": {
+                  backgroundColor: "rgba(255, 255, 255, 0.15)",
+                },
+              }}
+            >
+              {isCollapsed ? (
+                <ExpandMore fontSize="small" />
+              ) : (
+                <ExpandLess fontSize="small" />
+              )}
+            </IconButton>
+          )}
           <Typography
             variant="body1"
             sx={{ fontWeight: 600, fontSize: "0.95rem" }}
@@ -94,139 +137,143 @@ export function EvaluationActionBar({
           </IconButton>
         </Box>
 
-        {/* Critério de cálculo */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Typography
-            variant="body2"
-            sx={{ fontSize: "0.9rem", whiteSpace: "nowrap" }}
-          >
-            Critério de cálculo:
-          </Typography>
-          <FormControl
-            size="small"
-            sx={{
-              minWidth: 150,
-              "& .MuiOutlinedInput-root": {
-                backgroundColor: theme.palette.background.paper,
-                color: theme.palette.text.primary,
-                height: 32,
-                "& fieldset": {
-                  borderColor: theme.palette.divider,
-                },
-              },
-            }}
-          >
-            <Select
-              value={calculationCriterion}
-              onChange={(e) => onCalculationCriterionChange(e.target.value)}
-              displayEmpty
-              sx={{
-                fontSize: "0.9rem",
-                "& .MuiSelect-select": {
-                  py: 0.75,
-                },
-              }}
-            >
-              <MenuItem value="area-total">Área total</MenuItem>
-              <MenuItem value="area-util">Área útil</MenuItem>
-            </Select>
-          </FormControl>
-          <Tooltip title="Informações sobre o critério de cálculo">
-            <IconButton
-              size="small"
-              sx={{
-                color: theme.palette.primary.contrastText,
-                p: 0.5,
-                "&:hover": {
-                  backgroundColor: "rgba(255, 255, 255, 0.15)",
-                },
-              }}
-            >
-              <InfoOutlined fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        </Box>
+        {(!isXs || !isCollapsed) && (
+          <>
+            {/* Critério de cálculo */}
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Typography
+                variant="body2"
+                sx={{ fontSize: "0.9rem", whiteSpace: "nowrap" }}
+              >
+                Critério de cálculo:
+              </Typography>
+              <FormControl
+                size="small"
+                sx={{
+                  minWidth: 150,
+                  "& .MuiOutlinedInput-root": {
+                    backgroundColor: theme.palette.background.paper,
+                    color: theme.palette.text.primary,
+                    height: 32,
+                    "& fieldset": {
+                      borderColor: theme.palette.divider,
+                    },
+                  },
+                }}
+              >
+                <Select
+                  value={calculationCriterion}
+                  onChange={(e) => onCalculationCriterionChange(e.target.value)}
+                  displayEmpty
+                  sx={{
+                    fontSize: "0.9rem",
+                    "& .MuiSelect-select": {
+                      py: 0.75,
+                    },
+                  }}
+                >
+                  <MenuItem value="area-total">Área total</MenuItem>
+                  <MenuItem value="area-util">Área útil</MenuItem>
+                </Select>
+              </FormControl>
+              <Tooltip title="Informações sobre o critério de cálculo">
+                <IconButton
+                  size="small"
+                  sx={{
+                    color: theme.palette.primary.contrastText,
+                    p: 0.5,
+                    "&:hover": {
+                      backgroundColor: "rgba(255, 255, 255, 0.15)",
+                    },
+                  }}
+                >
+                  <InfoOutlined fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Box>
 
-        {/* Botões de ação */}
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: { xs: "column", sm: "row" },
-            gap: { xs: 1, sm: 1.5 },
-            width: { xs: "100%", sm: "auto" },
-            ml: { xs: 0, sm: "auto" },
-          }}
-        >
-          <Button
-            variant="contained"
-            startIcon={<Description />}
-            onClick={onAnalysisSummary}
-            sx={{
-              backgroundColor: theme.palette.background.paper,
-              color: theme.palette.text.primary,
-              textTransform: "none",
-              fontWeight: 600,
-              fontSize: "0.9rem",
-              px: 2,
-              py: 0.75,
-              borderRadius: 2,
-              boxShadow: theme.shadows[2],
-              width: { xs: "100%", sm: "auto" },
-              "&:hover": {
-                backgroundColor: theme.palette.grey[100],
-                boxShadow: theme.shadows[4],
-              },
-            }}
-          >
-            Resumo da Análise
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<PictureAsPdf />}
-            onClick={onGenerateReport}
-            sx={{
-              backgroundColor: theme.palette.background.paper,
-              color: theme.palette.text.primary,
-              textTransform: "none",
-              fontWeight: 600,
-              fontSize: "0.9rem",
-              px: 2,
-              py: 0.75,
-              borderRadius: 2,
-              boxShadow: theme.shadows[2],
-              width: { xs: "100%", sm: "auto" },
-              "&:hover": {
-                backgroundColor: theme.palette.grey[100],
-                boxShadow: theme.shadows[4],
-              },
-            }}
-          >
-            Gerar Relatório
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<TableChart />}
-            onClick={onExportExcel}
-            sx={{
-              backgroundColor: theme.palette.background.paper,
-              color: theme.palette.text.primary,
-              textTransform: "none",
-              fontWeight: 600,
-              fontSize: "0.9rem",
-              px: 2,
-              py: 0.75,
-              borderRadius: 2,
-              boxShadow: theme.shadows[2],
-              width: { xs: "100%", sm: "auto" },
-              "&:hover": {
-                backgroundColor: theme.palette.grey[100],
-                boxShadow: theme.shadows[4],
-              },
-            }}
-          >
-            Exportar Excel
-          </Button>
-        </Box>
+            {/* Botões de ação */}
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: { xs: "column", sm: "row" },
+                gap: { xs: 1, sm: 1.5 },
+                width: { xs: "100%", sm: "auto" },
+                ml: { xs: 0, sm: "auto" },
+              }}
+            >
+              <Button
+                variant="contained"
+                startIcon={<Description />}
+                onClick={onAnalysisSummary}
+                sx={{
+                  backgroundColor: theme.palette.background.paper,
+                  color: theme.palette.text.primary,
+                  textTransform: "none",
+                  fontWeight: 600,
+                  fontSize: "0.9rem",
+                  px: 2,
+                  py: 0.75,
+                  borderRadius: 2,
+                  boxShadow: theme.shadows[2],
+                  width: { xs: "100%", sm: "auto" },
+                  "&:hover": {
+                    backgroundColor: theme.palette.grey[100],
+                    boxShadow: theme.shadows[4],
+                  },
+                }}
+              >
+                Resumo da Análise
+              </Button>
+              <Button
+                variant="contained"
+                startIcon={<PictureAsPdf />}
+                onClick={onGenerateReport}
+                sx={{
+                  backgroundColor: theme.palette.background.paper,
+                  color: theme.palette.text.primary,
+                  textTransform: "none",
+                  fontWeight: 600,
+                  fontSize: "0.9rem",
+                  px: 2,
+                  py: 0.75,
+                  borderRadius: 2,
+                  boxShadow: theme.shadows[2],
+                  width: { xs: "100%", sm: "auto" },
+                  "&:hover": {
+                    backgroundColor: theme.palette.grey[100],
+                    boxShadow: theme.shadows[4],
+                  },
+                }}
+              >
+                Gerar Relatório
+              </Button>
+              <Button
+                variant="contained"
+                startIcon={<TableChart />}
+                onClick={onExportExcel}
+                sx={{
+                  backgroundColor: theme.palette.background.paper,
+                  color: theme.palette.text.primary,
+                  textTransform: "none",
+                  fontWeight: 600,
+                  fontSize: "0.9rem",
+                  px: 2,
+                  py: 0.75,
+                  borderRadius: 2,
+                  boxShadow: theme.shadows[2],
+                  width: { xs: "100%", sm: "auto" },
+                  "&:hover": {
+                    backgroundColor: theme.palette.grey[100],
+                    boxShadow: theme.shadows[4],
+                  },
+                }}
+              >
+                Exportar Excel
+              </Button>
+            </Box>
+          </>
+        )}
       </Paper>
     </Box>
   );
