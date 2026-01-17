@@ -1878,6 +1878,7 @@ export function EvaluationComponent() {
                   flex: 1,
                   overflow: "auto",
                   pr: 1,
+                  pb: selectedProperties.size > 0 ? 12 : 0,
                   "&::-webkit-scrollbar": {
                     width: 6,
                   },
