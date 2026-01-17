@@ -162,7 +162,7 @@ export function FloatingTopMenu() {
           right: 0,
           height: { xs: 76, sm: 84 },
           backgroundColor: theme.palette.background.default,
-          zIndex: theme.zIndex.appBar - 1,
+          zIndex: theme.zIndex.modal,
         }}
       />
 
@@ -175,7 +175,7 @@ export function FloatingTopMenu() {
           transform: "translateX(-50%)",
           width: "calc(100% - 32px)",
           maxWidth: "none",
-          zIndex: theme.zIndex.appBar,
+          zIndex: theme.zIndex.modal + 1,
           filter:
             "drop-shadow(0 4px 6px rgba(0, 0, 0, 0.07)) drop-shadow(0 1px 3px rgba(0, 0, 0, 0.06))",
         }}

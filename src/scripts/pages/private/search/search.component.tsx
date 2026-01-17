@@ -327,20 +327,6 @@ export function SearchComponent() {
     previousPropertyIdRef.current = propertyId;
   }, [propertyId]);
 
-  // Remover scroll do body apenas nesta página
-  useEffect(() => {
-    // Salvar o estado original do overflow
-    const originalOverflow = document.body.style.overflow;
-
-    // Remover scroll do body
-    document.body.style.overflow = "hidden";
-
-    // Cleanup: restaurar o scroll quando sair da página
-    return () => {
-      document.body.style.overflow = originalOverflow;
-    };
-  }, []);
-
   // Função para mapear SortOption local para SortBy/SortOrder da API
   const mapSortOptionToApi = (
     sortOption: SortOption
@@ -1541,9 +1527,10 @@ export function SearchComponent() {
 
   const handleBottomSheetTouchMove = (e: React.TouchEvent) => {
     if (!isDragging) return;
+    e.preventDefault();
     const currentY = e.touches[0].clientY;
     const deltaY = currentY - dragStartY;
-    const windowHeight = window.innerHeight;
+    const windowHeight = window.visualViewport?.height ?? window.innerHeight;
     const minPosition = windowHeight * 0.3; // 30% da tela visível no mínimo
     const maxPosition = windowHeight * 0.95; // 95% da tela no máximo
 
@@ -1557,7 +1544,7 @@ export function SearchComponent() {
   const handleBottomSheetTouchEnd = () => {
     if (!isDragging) return;
     setIsDragging(false);
-    const windowHeight = window.innerHeight;
+    const windowHeight = window.visualViewport?.height ?? window.innerHeight;
     const threshold = windowHeight * 0.5; // 50% da tela como ponto de decisão
 
     // Snap para cima ou para baixo baseado na posição
@@ -1578,7 +1565,7 @@ export function SearchComponent() {
   // Efeito para atualizar posição inicial do bottom sheet
   useEffect(() => {
     if (isMobile) {
-      const windowHeight = window.innerHeight;
+      const windowHeight = window.visualViewport?.height ?? window.innerHeight;
       setBottomSheetPosition(windowHeight * 0.3); // Começar com 30% visível
     }
   }, [isMobile]);
@@ -1589,7 +1576,7 @@ export function SearchComponent() {
 
     const handleMouseMove = (e: MouseEvent) => {
       const deltaY = e.clientY - dragStartY;
-      const windowHeight = window.innerHeight;
+      const windowHeight = window.visualViewport?.height ?? window.innerHeight;
       const minPosition = windowHeight * 0.3;
       const maxPosition = windowHeight * 0.95;
 
@@ -1603,7 +1590,7 @@ export function SearchComponent() {
     const handleMouseUp = () => {
       if (!isDragging) return;
       setIsDragging(false);
-      const windowHeight = window.innerHeight;
+      const windowHeight = window.visualViewport?.height ?? window.innerHeight;
       const threshold = windowHeight * 0.5;
 
       if (bottomSheetPosition < threshold) {
@@ -1625,7 +1612,8 @@ export function SearchComponent() {
   return (
     <Box
       sx={{
-        minHeight: "100vh",
+        height: "100%",
+        minHeight: "100%",
         backgroundColor: theme.palette.background.default,
         py: { xs: 0, sm: 1 },
         px: { xs: 0, sm: 2 },
@@ -1637,7 +1625,7 @@ export function SearchComponent() {
         // Layout Mobile com Bottom Sheet
         <Box
           sx={{
-            height: "100vh",
+            height: "100%",
             width: "100%",
             display: "flex",
             flexDirection: "column",
@@ -1709,21 +1697,19 @@ export function SearchComponent() {
               bottom: 0,
               left: 0,
               right: 0,
-              height: `calc(100vh - ${bottomSheetPosition}px)`,
-              maxHeight: "95vh",
-              minHeight: "30vh",
+              height: `calc(var(--app-height, 100vh) - ${bottomSheetPosition}px)`,
+              maxHeight: "calc(var(--app-height, 100vh) * 0.95)",
+              minHeight: "calc(var(--app-height, 100vh) * 0.3)",
               borderTopLeftRadius: 16,
               borderTopRightRadius: 16,
               display: "flex",
               flexDirection: "column",
               overflow: "hidden",
+              overscrollBehavior: "contain",
               zIndex: 1200,
               transition: isDragging ? "none" : "height 0.3s ease-out",
               boxShadow: theme.shadows[24],
             }}
-            onTouchStart={handleBottomSheetTouchStart}
-            onTouchMove={handleBottomSheetTouchMove}
-            onTouchEnd={handleBottomSheetTouchEnd}
           >
             {/* Barrinha cinza de arrasto */}
             <Box
@@ -1735,11 +1721,15 @@ export function SearchComponent() {
                 py: 1.5,
                 cursor: "grab",
                 userSelect: "none",
+                touchAction: "none",
                 "&:active": {
                   cursor: "grabbing",
                 },
               }}
               onMouseDown={handleBottomSheetMouseDown}
+              onTouchStart={handleBottomSheetTouchStart}
+              onTouchMove={handleBottomSheetTouchMove}
+              onTouchEnd={handleBottomSheetTouchEnd}
             >
               <Box
                 sx={{
@@ -1757,7 +1747,10 @@ export function SearchComponent() {
                 flex: 1,
                 overflow: "auto",
                 px: 2,
-                pb: 13,
+                paddingBottom: `calc(${theme.spacing(
+                  13
+                )} + env(safe-area-inset-bottom))`,
+                overscrollBehaviorY: "contain",
                 "&::-webkit-scrollbar": {
                   width: 6,
                 },
@@ -1963,7 +1956,7 @@ export function SearchComponent() {
             sx={{
               display: "flex",
               gap: 3,
-              height: "calc(100vh - 130px)", // Altura ajustável baseada na tela
+              height: "calc(var(--app-height, 100vh) - 130px)", // Altura ajustável baseada na tela
               minHeight: 600,
             }}
           >
@@ -2200,7 +2193,11 @@ export function SearchComponent() {
                     flex: 1,
                     overflow: "auto",
                     pr: 1, // Padding para scrollbar
-                    pb: isMediumScreen ? 12 : 0, // Espaço para o botão flutuante
+                    paddingBottom: isMediumScreen
+                      ? `calc(${theme.spacing(
+                          12
+                        )} + env(safe-area-inset-bottom))`
+                      : "env(safe-area-inset-bottom)", // Espaço para o botão flutuante
                     "&::-webkit-scrollbar": {
                       width: 6,
                     },

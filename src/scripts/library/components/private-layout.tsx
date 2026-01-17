@@ -1,6 +1,7 @@
 import React from "react";
 import { Box, useTheme } from "@mui/material";
 import { FloatingTopMenu } from "./floating-top-menu";
+import { useViewportHeight } from "../hooks/use-viewport-height";
 
 interface PrivateLayoutProps {
   children: React.ReactNode;
@@ -8,11 +9,12 @@ interface PrivateLayoutProps {
 
 export function PrivateLayout({ children }: PrivateLayoutProps) {
   const theme = useTheme();
+  useViewportHeight();
 
   return (
     <Box
       sx={{
-        height: "100vh",
+        height: "var(--app-height, 100vh)",
         display: "flex",
         flexDirection: "column",
         backgroundColor: theme.palette.background.default,
