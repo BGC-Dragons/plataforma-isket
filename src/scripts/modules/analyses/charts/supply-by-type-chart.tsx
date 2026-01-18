@@ -30,7 +30,7 @@ export function SupplyByTypeChart({ data }: SupplyByTypeChartProps) {
   const sortedData = [...data].sort((a, b) => b.count - a.count);
 
   return (
-    <Box sx={{ minWidth: 0, overflow: "hidden" }}>
+    <Box sx={{ minWidth: 0, maxWidth: "100%", overflow: "hidden" }}>
       <Box
         sx={{
           display: "flex",
@@ -39,7 +39,9 @@ export function SupplyByTypeChart({ data }: SupplyByTypeChartProps) {
           height: maxBarHeight + 80, // Altura total incluindo espaço para labels
           px: { xs: 1, sm: 2 },
           minWidth: 0,
+          // Removido maxWidth para permitir scroll horizontal quando necessário
           overflowX: "auto",
+          overflowY: "hidden",
           "&::-webkit-scrollbar": {
             height: 4,
           },
@@ -68,8 +70,9 @@ export function SupplyByTypeChart({ data }: SupplyByTypeChartProps) {
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
-                flex: 1,
+                flex: `0 0 ${100 / sortedData.length}%`, // Cada item ocupa uma fração igual, mas pode ultrapassar
                 gap: 1,
+                minWidth: 60, // Largura mínima para permitir scroll quando há muitos itens
               }}
             >
               {/* Barra vertical */}
@@ -116,6 +119,7 @@ export function SupplyByTypeChart({ data }: SupplyByTypeChartProps) {
                   alignItems: "center",
                   gap: 0.5,
                   width: "100%",
+                  minWidth: 0,
                 }}
               >
                 <Typography

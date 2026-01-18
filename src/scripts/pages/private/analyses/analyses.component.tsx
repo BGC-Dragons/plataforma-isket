@@ -1069,19 +1069,40 @@ export function AnalysesComponent() {
         backgroundColor: theme.palette.background.default,
         px: { xs: 0, sm: 2 },
         position: "relative",
-        overflow: "hidden",
+        overflow: { xs: "auto", sm: "hidden" },
+        overflowX: "hidden", // Prevenir scroll horizontal em toda a tela
         display: "flex",
         flexDirection: "column",
-        height: "100%",
+        height: {
+          xs: "calc(var(--app-height, 100vh) - 130px)",
+          sm: "100%",
+        },
+        "&::-webkit-scrollbar": {
+          width: 6,
+        },
+        "&::-webkit-scrollbar-track": {
+          backgroundColor: theme.palette.grey[200],
+          borderRadius: 3,
+        },
+        "&::-webkit-scrollbar-thumb": {
+          backgroundColor: theme.palette.grey[400],
+          borderRadius: 3,
+          "&:hover": {
+            backgroundColor: theme.palette.grey[600],
+          },
+        },
       }}
     >
-      <Container maxWidth={false} sx={{ px: 0 }}>
+      <Container maxWidth={false} sx={{ px: 0, overflowX: "hidden", maxWidth: "100%" }}>
         <Box
           sx={{
             display: "flex",
             gap: 3,
-            height: "calc(100vh - 130px)",
-            minHeight: 600,
+            height: { xs: "auto", sm: "calc(var(--app-height, 100vh) - 130px)" },
+            minHeight: { xs: "auto", sm: 600 },
+            minWidth: 0,
+            maxWidth: "100%",
+            overflowX: "hidden",
           }}
         >
           {/* Coluna Esquerda: Accordions */}
@@ -1089,12 +1110,20 @@ export function AnalysesComponent() {
             sx={{
               flex: 1.5,
               minWidth: 0,
+              maxWidth: "100%", // Prevenir overflow horizontal
+              minHeight: 0,
               display: "flex",
               flexDirection: "column",
-              overflowY: "auto",
+              overflowY: { xs: "visible", sm: "auto" },
+              overflowX: "hidden", // Prevenir scroll horizontal
               p: { xs: 2, sm: 0 },
               px: { xs: 2, sm: 2 },
-              pb: { xs: 10, sm: 2 },
+              pb: {
+                xs: isSmallScreen
+                  ? `calc(${theme.spacing(12)} + env(safe-area-inset-bottom))`
+                  : theme.spacing(2),
+                sm: theme.spacing(2),
+              },
               "&::-webkit-scrollbar": {
                 width: 6,
               },
@@ -1202,7 +1231,7 @@ export function AnalysesComponent() {
         <Box
           sx={{
             position: "fixed",
-            bottom: 24,
+            bottom: `calc(24px + env(safe-area-inset-bottom))`,
             left: "50%",
             transform: "translateX(-50%)",
             zIndex: 1300,

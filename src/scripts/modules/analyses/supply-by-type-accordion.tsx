@@ -60,6 +60,9 @@ export function SupplyByTypeAccordion({
         sx={{
           p: { xs: 2, sm: 3 },
           overflowX: "hidden",
+          overflowY: "visible",
+          maxWidth: "100%",
+          minWidth: 0,
         }}
       >
         {loading ? (
