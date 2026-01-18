@@ -1650,11 +1650,33 @@ export function EvaluationComponent() {
         py: { xs: 0, sm: 1 },
         px: { xs: 0, sm: 2 },
         position: "relative",
-        overflow: "hidden",
+        overflow: { xs: "auto", sm: "hidden" },
         display: "flex",
         flexDirection: "column",
-        height: "100%",
-        pb: selectedProperties.size > 0 ? 12 : 0, // Espaço para o action bar flutuante
+        height: {
+          xs: "calc(var(--app-height, 100vh) - 130px)",
+          sm: "100%",
+        },
+        pb: {
+          xs: selectedProperties.size > 0
+            ? `calc(${theme.spacing(12)} + env(safe-area-inset-bottom))`
+            : "env(safe-area-inset-bottom)",
+          sm: selectedProperties.size > 0 ? 12 : 0,
+        }, // Espaço para o action bar flutuante
+        "&::-webkit-scrollbar": {
+          width: 6,
+        },
+        "&::-webkit-scrollbar-track": {
+          backgroundColor: theme.palette.grey[200],
+          borderRadius: 3,
+        },
+        "&::-webkit-scrollbar-thumb": {
+          backgroundColor: theme.palette.grey[400],
+          borderRadius: 3,
+          "&:hover": {
+            backgroundColor: theme.palette.grey[600],
+          },
+        },
       }}
     >
       <Container maxWidth={false} sx={{ px: 0 }}>
@@ -1663,8 +1685,8 @@ export function EvaluationComponent() {
           sx={{
             display: "flex",
             gap: 3,
-            height: "calc(100vh - 130px)",
-            minHeight: 600,
+            height: { xs: "auto", sm: "calc(var(--app-height, 100vh) - 130px)" },
+            minHeight: { xs: "auto", sm: 600 },
           }}
         >
           {/* Coluna Esquerda: Cards de Propriedades */}
@@ -1672,6 +1694,7 @@ export function EvaluationComponent() {
             sx={{
               flex: 1.5, // 60% do espaço
               minWidth: 0,
+              minHeight: 0,
               display: "flex",
               flexDirection: "column",
               px: { xs: 2, sm: 0 },
@@ -1875,9 +1898,9 @@ export function EvaluationComponent() {
             ) : (
               <Box
                 sx={{
-                  flex: 1,
-                  overflow: "auto",
-                  pr: 1,
+                  flex: { xs: "none", sm: 1 },
+                  overflow: { xs: "visible", sm: "auto" },
+                  pr: { xs: 0, sm: 1 },
                   pb: selectedProperties.size > 0 ? 12 : 0,
                   "&::-webkit-scrollbar": {
                     width: 6,
