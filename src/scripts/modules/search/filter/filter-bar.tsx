@@ -622,7 +622,6 @@ export function FilterBar({
       try {
         const request: google.maps.places.AutocompletionRequest = {
           input: query,
-          types: ["address"],
           componentRestrictions: { country: "br" },
           language: "pt-BR",
         };
