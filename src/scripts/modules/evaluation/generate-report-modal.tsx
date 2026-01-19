@@ -22,6 +22,7 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   Divider,
+  useMediaQuery,
 } from "@mui/material";
 import {
   Close,
@@ -30,6 +31,8 @@ import {
   ZoomOut,
   ExpandMore,
   ExpandLess,
+  Edit,
+  Visibility,
 } from "@mui/icons-material";
 import {
   createInitialReportData,
@@ -81,6 +84,8 @@ export function GenerateReportModal({
   calculationCriterion = "area-total",
 }: GenerateReportModalProps) {
   const theme = useTheme();
+  const isSmallScreen = useMediaQuery("(max-width: 1000px)");
+  const [viewMode, setViewMode] = useState<"form" | "preview">("form");
   const [activeTab, setActiveTab] = useState(0);
   const [previewScale, setPreviewScale] = useState(0.6);
   const [reportAreaType, setReportAreaType] = useState<"USABLE" | "TOTAL">(
@@ -351,14 +356,23 @@ export function GenerateReportModal({
     <Modal
       open={open}
       onClose={onClose}
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        p: 2,
+      BackdropProps={{
+        sx: {
+          backgroundColor: "rgba(0, 0, 0, 0.5)",
+        },
       }}
     >
-      <Paper
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          p: 2,
+          height: "100%",
+          width: "100%",
+        }}
+      >
+        <Paper
         sx={{
           width: "95vw",
           maxWidth: 1600,
@@ -403,11 +417,19 @@ export function GenerateReportModal({
           {/* Left Column - Form (40%) */}
           <Box
             sx={{
-              width: "40%",
-              borderRight: `1px solid ${theme.palette.divider}`,
-              display: "flex",
+              width: isSmallScreen
+                ? viewMode === "form"
+                  ? "100%"
+                  : 0
+                : "40%",
+              borderRight: isSmallScreen
+                ? "none"
+                : `1px solid ${theme.palette.divider}`,
+              display:
+                isSmallScreen && viewMode !== "form" ? "none" : "flex",
               flexDirection: "column",
               overflow: "hidden",
+              transition: "width 0.3s ease",
             }}
           >
             <Tabs
@@ -1188,10 +1210,16 @@ export function GenerateReportModal({
           {/* Right Column - Preview (60%) */}
           <Box
             sx={{
-              width: "60%",
-              display: "flex",
+              width: isSmallScreen
+                ? viewMode === "preview"
+                  ? "100%"
+                  : 0
+                : "60%",
+              display:
+                isSmallScreen && viewMode !== "preview" ? "none" : "flex",
               flexDirection: "column",
               backgroundColor: theme.palette.grey[100],
+              transition: "width 0.3s ease",
             }}
           >
             {/* Preview Header */}
@@ -1302,6 +1330,56 @@ export function GenerateReportModal({
           </Button>
         </Box>
       </Paper>
+
+      {/* Botões flutuantes de toggle - apenas em telas pequenas */}
+      {isSmallScreen && viewMode === "form" && (
+        <IconButton
+          onClick={() => setViewMode("preview")}
+          aria-label="Ver preview do relatório"
+          sx={{
+            position: "fixed",
+            right: 16,
+            top: "50%",
+            transform: "translateY(-50%)",
+            zIndex: theme.zIndex.modal + 1,
+            backgroundColor: theme.palette.background.paper,
+            boxShadow: theme.shadows[8],
+            "&:hover": {
+              backgroundColor: theme.palette.background.paper,
+              boxShadow: theme.shadows[12],
+            },
+            width: 48,
+            height: 48,
+          }}
+        >
+          <Visibility />
+        </IconButton>
+      )}
+
+      {isSmallScreen && viewMode === "preview" && (
+        <IconButton
+          onClick={() => setViewMode("form")}
+          aria-label="Editar dados do relatório"
+          sx={{
+            position: "fixed",
+            left: 16,
+            top: "50%",
+            transform: "translateY(-50%)",
+            zIndex: theme.zIndex.modal + 1,
+            backgroundColor: theme.palette.background.paper,
+            boxShadow: theme.shadows[8],
+            "&:hover": {
+              backgroundColor: theme.palette.background.paper,
+              boxShadow: theme.shadows[12],
+            },
+            width: 48,
+            height: 48,
+          }}
+        >
+          <Edit />
+        </IconButton>
+      )}
+      </Box>
     </Modal>
   );
 }
