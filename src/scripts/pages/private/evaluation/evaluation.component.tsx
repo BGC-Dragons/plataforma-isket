@@ -1651,6 +1651,7 @@ export function EvaluationComponent() {
         px: { xs: 0, sm: 2 },
         position: "relative",
         overflow: { xs: "auto", sm: "hidden" },
+        overflowX: "hidden", // Prevenir scroll horizontal em mobile
         display: "flex",
         flexDirection: "column",
         height: {
@@ -1679,7 +1680,7 @@ export function EvaluationComponent() {
         },
       }}
     >
-      <Container maxWidth={false} sx={{ px: 0 }}>
+      <Container maxWidth={false} sx={{ px: 0, maxWidth: "100%", minWidth: 0 }}>
         {/* Layout Principal: Cards + Mapa */}
         <Box
           sx={{
@@ -1687,6 +1688,9 @@ export function EvaluationComponent() {
             gap: 3,
             height: { xs: "auto", sm: "calc(var(--app-height, 100vh) - 130px)" },
             minHeight: { xs: "auto", sm: 600 },
+            minWidth: 0,
+            maxWidth: "100%",
+            overflowX: "hidden", // Prevenir scroll horizontal
           }}
         >
           {/* Coluna Esquerda: Cards de Propriedades */}
@@ -1694,10 +1698,12 @@ export function EvaluationComponent() {
             sx={{
               flex: 1.5, // 60% do espaço
               minWidth: 0,
+              maxWidth: "100%", // Prevenir overflow horizontal
               minHeight: 0,
               display: "flex",
               flexDirection: "column",
               px: { xs: 2, sm: 0 },
+              overflowX: "hidden", // Prevenir scroll horizontal
             }}
           >
             {/* Título */}
@@ -1737,6 +1743,9 @@ export function EvaluationComponent() {
                 borderRadius: 2,
                 p: 2,
                 border: `1px solid ${theme.palette.divider}`,
+                maxWidth: "100%",
+                minWidth: 0,
+                overflowX: "hidden",
               }}
             >
               <Typography variant="body1" sx={{ fontWeight: 500 }}>
@@ -1900,8 +1909,11 @@ export function EvaluationComponent() {
                 sx={{
                   flex: { xs: "none", sm: 1 },
                   overflow: { xs: "visible", sm: "auto" },
+                  overflowX: "hidden", // Prevenir scroll horizontal
                   pr: { xs: 0, sm: 1 },
                   pb: selectedProperties.size > 0 ? 12 : 0,
+                  maxWidth: "100%", // Prevenir overflow horizontal
+                  minWidth: 0,
                   "&::-webkit-scrollbar": {
                     width: 6,
                   },
@@ -1930,6 +1942,9 @@ export function EvaluationComponent() {
                           lg: "repeat(3, 1fr)",
                         },
                         gap: 2,
+                        maxWidth: "100%",
+                        minWidth: 0,
+                        overflowX: "hidden",
                       }}
                     >
                       {properties.map((property) => (
@@ -1959,6 +1974,9 @@ export function EvaluationComponent() {
                         display: "flex",
                         flexDirection: "column",
                         gap: 1,
+                        maxWidth: "100%",
+                        minWidth: 0,
+                        overflowX: "hidden",
                       }}
                     >
                       {properties.map((property, index) => (
