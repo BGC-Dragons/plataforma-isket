@@ -26,7 +26,10 @@ import {
 } from "../../../services/get-property-listing-acquisitions-stages.service";
 import { mapPropertyTypeToApi } from "../../../services/helpers/map-property-type-to-api.helper";
 import { postPropertyListingAcquisitionContactHistory } from "../../../services/post-property-listing-acquisition-contact-history.service";
-import { putRevealedProperty } from "../../../services/get-property-listing-acquisitions-revealed-properties.service";
+import {
+  putRevealedProperty,
+  postRevealedPropertiesMultiple,
+} from "../../../services/get-property-listing-acquisitions-revealed-properties.service";
 import type { IRevealedProperty } from "../../../services/get-property-listing-acquisitions-revealed-properties.service";
 
 interface CreatePropertyCaptureModalProps {
@@ -301,15 +304,61 @@ export function CreatePropertyCaptureModal({
       );
 
       // 5. Atualizar propriedade revelada para marcar como captada
-      await putRevealedProperty(
-        property.acquisitionId,
-        property.id,
-        {
-          captureCreated: true,
-          captureId: acquisitionId,
-        },
-        auth.store.token
-      );
+      // Verificar se a propriedade já existe na API (tem acquisitionId válido e não é ID temporário)
+      const isValidAcquisitionId =
+        property.acquisitionId &&
+        property.acquisitionId.trim() !== "" &&
+        !property.id.startsWith("temp-");
+
+      if (isValidAcquisitionId) {
+        // Propriedade já existe na API, apenas atualizar
+        await putRevealedProperty(
+          property.acquisitionId,
+          property.id,
+          {
+            captureCreated: true,
+            captureId: acquisitionId,
+          },
+          auth.store.token
+        );
+      } else {
+        // Propriedade não existe na API ainda, precisa salvar primeiro
+        // Salvar a propriedade revelada na captação recém-criada
+        const response = await postRevealedPropertiesMultiple(
+          acquisitionId,
+          {
+            cpf: contactCpf.replace(/\D/g, ""), // Apenas números
+            properties: [
+              {
+                address: property.address,
+                complement: property.complement,
+                city: property.city,
+                state: property.state,
+                postalCode: property.postalCode,
+                neighborhood: property.neighborhood,
+                selectedRelation: property.selectedRelation || "owner",
+              },
+            ],
+          },
+          auth.store.token
+        );
+
+        // Se a resposta contém propriedades, atualizar a primeira para marcar como captada
+        const savedProperties =
+          response.data?.properties || response.data?.createdProperties || [];
+        if (savedProperties.length > 0) {
+          const savedProperty = savedProperties[0];
+          await putRevealedProperty(
+            acquisitionId,
+            savedProperty.id,
+            {
+              captureCreated: true,
+              captureId: acquisitionId,
+            },
+            auth.store.token
+          );
+        }
+      }
 
       // Limpar cache e atualizar os stages/acquisitions
       clearPropertyListingAcquisitionsStagesCache();

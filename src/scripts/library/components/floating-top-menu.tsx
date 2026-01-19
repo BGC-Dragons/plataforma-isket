@@ -162,7 +162,7 @@ export function FloatingTopMenu() {
           right: 0,
           height: { xs: 76, sm: 84 },
           backgroundColor: theme.palette.background.default,
-          zIndex: theme.zIndex.modal,
+          zIndex: theme.zIndex.appBar,
         }}
       />
 
@@ -175,7 +175,7 @@ export function FloatingTopMenu() {
           transform: "translateX(-50%)",
           width: "calc(100% - 32px)",
           maxWidth: "none",
-          zIndex: theme.zIndex.modal + 1,
+          zIndex: theme.zIndex.appBar + 1,
           filter:
             "drop-shadow(0 4px 6px rgba(0, 0, 0, 0.07)) drop-shadow(0 1px 3px rgba(0, 0, 0, 0.06))",
         }}
@@ -366,7 +366,7 @@ export function FloatingTopMenu() {
                       }
                       anchorEl={usagePopupAnchor}
                       placement="bottom"
-                      sx={{ zIndex: 9999 }}
+                      sx={{ zIndex: theme.zIndex.appBar + 2 }}
                     >
                       <Paper
                         sx={{
@@ -439,7 +439,7 @@ export function FloatingTopMenu() {
                       }
                       anchorEl={usagePopupAnchor}
                       placement="bottom"
-                      sx={{ zIndex: 9999 }}
+                      sx={{ zIndex: theme.zIndex.appBar + 2 }}
                     >
                       <Paper
                         sx={{

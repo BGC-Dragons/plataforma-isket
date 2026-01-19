@@ -261,6 +261,25 @@ export function SourcingComponent() {
     setIsContactModalOpen(true);
   };
 
+  const handleView = (resident: ResidentResult) => {
+    console.log("Visualizar dados de:", resident);
+
+    // Criar dados de contato a partir do residente
+    const contactData: ContactSourcingData = {
+      name: resident.name.replace(/\s+UNDEFINED$/i, "").trim(), // Remover UNDEFINED se houver
+      cpf: resident.cpf.replace(/\D/g, ""), // Apenas números
+      email: "",
+      phone: "",
+      title: `Imóvel de ${resident.name.replace(/\s+UNDEFINED$/i, "").trim()}`,
+    };
+
+    // Abrir o modal de detalhes de captação por contato (apenas visualização)
+    setContactData(contactData);
+    setAcquisitionProcessId(undefined);
+    setAcquisitionStatus(undefined);
+    setIsContactDetailsOpen(true);
+  };
+
   const handleCardClick = async (card: KanbanCardData) => {
     try {
       if (!auth.store.token) {
@@ -688,6 +707,7 @@ export function SourcingComponent() {
         onBack={handleBackToSearch}
         results={residentSearchResults}
         onReveal={handleReveal}
+        onView={handleView}
       />
     </Box>
   );

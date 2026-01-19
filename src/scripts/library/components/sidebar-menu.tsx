@@ -306,7 +306,7 @@ export function SidebarMenu() {
         placement="right-start"
         transition
         disablePortal
-        sx={{ zIndex: 1300 }}
+        sx={{ zIndex: theme.zIndex.appBar + 1 }}
       >
         {({ TransitionProps, placement }) => (
           <Grow

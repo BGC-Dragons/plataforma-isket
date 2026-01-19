@@ -1268,6 +1268,7 @@ export function AnalysesComponent() {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            zIndex: theme.zIndex.modal + 2,
           }}
         >
           <Box

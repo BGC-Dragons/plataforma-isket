@@ -232,7 +232,7 @@ export function ContactSourcingDetails({
   const remainingResidentSearchCredits = getRemainingResidentSearchCredits();
 
   const handleRevealProperties = async () => {
-    if (!acquisitionProcessId || !auth.store.token || !data.cpf) {
+    if (!auth.store.token || !data.cpf) {
       setRevealError(
         "CPF não encontrado. Não é possível revelar propriedades."
       );
@@ -542,56 +542,85 @@ export function ContactSourcingDetails({
         );
       }
 
-      // 3. Criar propriedades reveladas
-      // SEMPRE fazer a chamada POST, mesmo se não houver propriedades extraídas
-      // A API pode precisar atualizar os dados mesmo sem novas propriedades
-      console.log(
-        "Fazendo POST para criar/atualizar propriedades reveladas..."
-      );
-      console.log("acquisitionProcessId:", acquisitionProcessId);
-      console.log(
-        "Payload completo:",
-        JSON.stringify(
+      // 3. Criar propriedades reveladas (apenas se houver acquisitionProcessId)
+      if (acquisitionProcessId) {
+        // SEMPRE fazer a chamada POST, mesmo se não houver propriedades extraídas
+        // A API pode precisar atualizar os dados mesmo sem novas propriedades
+        console.log(
+          "Fazendo POST para criar/atualizar propriedades reveladas..."
+        );
+        console.log("acquisitionProcessId:", acquisitionProcessId);
+        console.log(
+          "Payload completo:",
+          JSON.stringify(
+            {
+              cpf: data.cpf.replace(/\D/g, ""),
+              properties: properties,
+            },
+            null,
+            2
+          )
+        );
+
+        const response = await postRevealedPropertiesMultiple(
+          acquisitionProcessId,
           {
-            cpf: data.cpf.replace(/\D/g, ""),
+            cpf: data.cpf.replace(/\D/g, ""), // Apenas números
             properties: properties,
           },
-          null,
-          2
-        )
-      );
+          auth.store.token
+        );
 
-      const response = await postRevealedPropertiesMultiple(
-        acquisitionProcessId,
-        {
-          cpf: data.cpf.replace(/\D/g, ""), // Apenas números
-          properties: properties,
-        },
-        auth.store.token
-      );
+        console.log("Resposta do POST:", response);
+        console.log("Status da resposta:", response.status);
+        console.log("Dados da resposta:", response.data);
 
-      console.log("Resposta do POST:", response);
-      console.log("Status da resposta:", response.status);
-      console.log("Dados da resposta:", response.data);
+        // 4. Usar as propriedades da resposta diretamente (como na plataforma antiga)
+        const responseData = response.data;
+        // A API retorna 'properties' na resposta (não 'createdProperties' como a documentação dizia)
+        const returnedProperties =
+          responseData?.properties || responseData?.createdProperties || [];
+        console.log("Propriedades retornadas pela API:", returnedProperties);
+        console.log("Total de propriedades:", returnedProperties.length);
+        // Sempre usar a resposta do POST diretamente, sem fazer GET adicional
+        setRevealedProperties(returnedProperties);
+
+        if (properties.length === 0) {
+          console.log(
+            "Nenhuma propriedade nova foi extraída, mas a chamada POST foi feita"
+          );
+        }
+      } else {
+        // Se não houver acquisitionProcessId, apenas mostrar as propriedades encontradas
+        // Converter as propriedades encontradas para o formato esperado
+        const now = new Date().toISOString();
+        const formattedProperties: IRevealedProperty[] = properties.map(
+          (prop, index) => ({
+            id: `temp-${index}`,
+            acquisitionId: "",
+            address: prop.address,
+            complement: prop.complement,
+            city: prop.city,
+            state: prop.state,
+            postalCode: prop.postalCode,
+            neighborhood: prop.neighborhood,
+            selectedRelation: prop.selectedRelation || "owner",
+            captureCreated: false,
+            captureId: undefined,
+            revealedAt: now,
+            createdAt: now,
+            updatedAt: now,
+          })
+        );
+        setRevealedProperties(formattedProperties);
+        console.log(
+          "Propriedades encontradas (sem salvar, pois não há captação):",
+          formattedProperties
+        );
+      }
 
       // Limpar erro após sucesso
       setRevealError(null);
-
-      // 4. Usar as propriedades da resposta diretamente (como na plataforma antiga)
-      const responseData = response.data;
-      // A API retorna 'properties' na resposta (não 'createdProperties' como a documentação dizia)
-      const returnedProperties =
-        responseData?.properties || responseData?.createdProperties || [];
-      console.log("Propriedades retornadas pela API:", returnedProperties);
-      console.log("Total de propriedades:", returnedProperties.length);
-      // Sempre usar a resposta do POST diretamente, sem fazer GET adicional
-      setRevealedProperties(returnedProperties);
-
-      if (properties.length === 0) {
-        console.log(
-          "Nenhuma propriedade nova foi extraída, mas a chamada POST foi feita"
-        );
-      }
     } catch (error: unknown) {
       console.error("Erro ao revelar propriedades:", error);
       if (error && typeof error === "object" && "response" in error) {
@@ -1427,9 +1456,7 @@ export function ContactSourcingDetails({
                 variant="contained"
                 fullWidth
                 onClick={handleRevealProperties}
-                disabled={
-                  isRevealingProperties || !data.cpf || !acquisitionProcessId
-                }
+                disabled={isRevealingProperties}
                 sx={{
                   backgroundColor: "#1976d2",
                   textTransform: "none",
@@ -1687,7 +1714,6 @@ export function ContactSourcingDetails({
                         <Button
                           size="small"
                           variant="contained"
-                          disabled={property.captureCreated}
                           onClick={() => handleCreateCapture(property)}
                           sx={{
                             backgroundColor: "#1976d2",
@@ -1698,11 +1724,6 @@ export function ContactSourcingDetails({
                             flex: { xs: 1, md: "0 0 auto" },
                             "&:hover": {
                               backgroundColor: "#1565c0",
-                            },
-                            "&:disabled": {
-                              backgroundColor:
-                                theme.palette.action.disabledBackground,
-                              color: theme.palette.action.disabled,
                             },
                           }}
                         >
@@ -1805,7 +1826,6 @@ export function ContactSourcingDetails({
                 startIcon={<Description />}
                 fullWidth
                 onClick={() => setIsCreateContactModalOpen(true)}
-                disabled={!acquisitionProcessId}
                 sx={{
                   backgroundColor: "#1976d2",
                   textTransform: "none",

@@ -23,6 +23,7 @@ interface SearchResidentResultModalProps {
   onBack: () => void;
   results?: ResidentResult[];
   onReveal?: (resident: ResidentResult) => void;
+  onView?: (resident: ResidentResult) => void;
 }
 
 export function SearchResidentResultModal({
@@ -31,6 +32,7 @@ export function SearchResidentResultModal({
   onBack,
   results = [],
   onReveal,
+  onView,
 }: SearchResidentResultModalProps) {
   const theme = useTheme();
 
@@ -226,7 +228,7 @@ export function SearchResidentResultModal({
                   </Typography>
                 </Box>
 
-                {/* Botão */}
+                {/* Botões */}
                 <Box
                   sx={{
                     display: "flex",
@@ -234,6 +236,26 @@ export function SearchResidentResultModal({
                     flexShrink: 0,
                   }}
                 >
+                  <Button
+                    variant="contained"
+                    onClick={() => onView?.(resident)}
+                    sx={{
+                      textTransform: "none",
+                      borderRadius: 1.5,
+                      px: 2,
+                      py: 0.75,
+                      fontSize: "0.75rem",
+                      borderColor: theme.palette.primary.main,
+                      color: theme.palette.common.white,
+                      backgroundColor: theme.palette.primary.light,
+                      "&:hover": {
+                        borderColor: theme.palette.primary.dark,
+                        backgroundColor: theme.palette.primary.main,
+                      },
+                    }}
+                  >
+                    Revelar
+                  </Button>
                   <Button
                     variant="contained"
                     onClick={() => onReveal?.(resident)}
