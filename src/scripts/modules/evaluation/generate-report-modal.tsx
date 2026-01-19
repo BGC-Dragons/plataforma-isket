@@ -428,7 +428,26 @@ export function GenerateReportModal({
               <Tab label="Estilo" />
             </Tabs>
 
-            <Box sx={{ flex: 1, overflow: "auto" }}>
+            <Box
+              sx={{
+                flex: 1,
+                overflow: "auto",
+                "&::-webkit-scrollbar": {
+                  width: 6,
+                },
+                "&::-webkit-scrollbar-track": {
+                  backgroundColor: theme.palette.grey[200],
+                  borderRadius: 3,
+                },
+                "&::-webkit-scrollbar-thumb": {
+                  backgroundColor: theme.palette.grey[400],
+                  borderRadius: 3,
+                  "&:hover": {
+                    backgroundColor: theme.palette.grey[600],
+                  },
+                },
+              }}
+            >
               {/* Tab 0: Geral */}
               <TabPanel value={activeTab} index={0}>
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -966,20 +985,6 @@ export function GenerateReportModal({
               {/* Tab 3: Análise */}
               <TabPanel value={activeTab} index={3}>
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                  <Button
-                    variant="contained"
-                    size="small"
-                    onClick={() => {
-                      if (reportData) {
-                        const analysis = generateInitialAnalysis(reportData);
-                        setReportData((prev) =>
-                          prev ? { ...prev, analysis } : null
-                        );
-                      }
-                    }}
-                  >
-                    Gerar Análises Automaticamente
-                  </Button>
                   <TextField
                     label="Visão Geral do Mercado"
                     fullWidth
@@ -1226,6 +1231,20 @@ export function GenerateReportModal({
                 p: 3,
                 display: "flex",
                 justifyContent: "center",
+                "&::-webkit-scrollbar": {
+                  width: 6,
+                },
+                "&::-webkit-scrollbar-track": {
+                  backgroundColor: theme.palette.grey[200],
+                  borderRadius: 3,
+                },
+                "&::-webkit-scrollbar-thumb": {
+                  backgroundColor: theme.palette.grey[400],
+                  borderRadius: 3,
+                  "&:hover": {
+                    backgroundColor: theme.palette.grey[600],
+                  },
+                },
               }}
             >
               <Box
