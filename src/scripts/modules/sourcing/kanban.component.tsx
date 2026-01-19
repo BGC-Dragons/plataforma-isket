@@ -46,6 +46,7 @@ import {
   closestCorners,
   KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   useDroppable,
@@ -56,6 +57,7 @@ import {
   verticalListSortingStrategy,
   rectSortingStrategy,
   useSortable,
+  arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
@@ -303,6 +305,7 @@ function SortableColumn({
             p: 1,
             display: "flex",
             flexDirection: "column",
+            touchAction: "pan-y",
           }}
         >
           <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
@@ -349,7 +352,7 @@ function SortableCard({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
+    opacity: isDragging ? 0.3 : 1,
   };
 
   // Criar handler de clique que verifica se não está arrastando
@@ -543,6 +546,12 @@ export function Kanban({
         distance: 8, // Só ativa o drag após mover 8px
       },
     }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 200,
+        tolerance: 5,
+      },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
@@ -704,11 +713,48 @@ export function Kanban({
     }
 
     if (!destinationCardColumn) return;
-    if (sourceCardColumn.id === destinationCardColumn.id) return;
+
+    if (sourceCardColumn.id === destinationCardColumn.id) {
+      const sourceIndex = sourceCardColumn.cards.findIndex(
+        (card) => card.id === activeId
+      );
+      const destinationIndex =
+        overId === destinationCardColumn.id
+          ? destinationCardColumn.cards.length - 1
+          : destinationCardColumn.cards.findIndex((card) => card.id === overId);
+
+      if (sourceIndex === -1 || destinationIndex === -1) return;
+      if (sourceIndex === destinationIndex) return;
+
+      setLocalColumns((prev) =>
+        prev.map((col) => {
+          if (col.id !== sourceCardColumn.id) return col;
+          return {
+            ...col,
+            cards: arrayMove(col.cards, sourceIndex, destinationIndex),
+          };
+        })
+      );
+
+      return;
+    }
 
     // Mover card
     const card = sourceCardColumn.cards.find((c) => c.id === activeId);
     if (!card) return;
+
+    // Determinar a posição de inserção na coluna de destino
+    let insertIndex = destinationCardColumn.cards.length; // Padrão: inserir no final
+    
+    // Se o overId é um card dentro da coluna de destino, inserir na posição desse card
+    if (overId !== destinationCardColumn.id) {
+      const overCardIndex = destinationCardColumn.cards.findIndex(
+        (c) => c.id === overId
+      );
+      if (overCardIndex !== -1) {
+        insertIndex = overCardIndex;
+      }
+    }
 
     setLocalColumns((prev) =>
       prev.map((col) => {
@@ -719,9 +765,11 @@ export function Kanban({
           };
         }
         if (col.id === destinationCardColumn.id) {
+          const newCards = [...col.cards];
+          newCards.splice(insertIndex, 0, card);
           return {
             ...col,
-            cards: [...col.cards, card],
+            cards: newCards,
           };
         }
         return col;
@@ -911,15 +959,24 @@ export function Kanban({
 
       <DragOverlay>
         {activeCard ? (
-          <Box sx={{ opacity: 0.8, transform: "rotate(5deg)" }}>
+          <Box
+            sx={{
+              opacity: 0.95,
+              transform: "scale(1.05)",
+              boxShadow: theme.shadows[8],
+              transition: "none",
+            }}
+          >
             <KanbanCard card={activeCard} />
           </Box>
         ) : activeColumn ? (
           <Box
             sx={{
               minWidth: 300,
-              opacity: 0.8,
-              transform: "rotate(5deg)",
+              opacity: 0.95,
+              transform: "scale(1.02)",
+              boxShadow: theme.shadows[8],
+              transition: "none",
             }}
           >
             <SortableColumn
