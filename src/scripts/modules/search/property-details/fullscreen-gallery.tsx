@@ -250,19 +250,6 @@ export function FullscreenGallery({
               background: `linear-gradient(to top, ${theme.palette.common.black} 0%, transparent 100%)`,
               overflowX: "auto",
               overflowY: "hidden",
-              "&::-webkit-scrollbar": {
-                height: 6,
-              },
-              "&::-webkit-scrollbar-track": {
-                backgroundColor: theme.palette.common.black + "40",
-              },
-              "&::-webkit-scrollbar-thumb": {
-                backgroundColor: theme.palette.common.white + "60",
-                borderRadius: 3,
-                "&:hover": {
-                  backgroundColor: theme.palette.common.white + "80",
-                },
-              },
             }}
           >
             <Stack

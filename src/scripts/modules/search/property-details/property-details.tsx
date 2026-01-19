@@ -383,20 +383,6 @@ export function PropertyDetails({
             flex: 1,
             overflow: "auto",
             p: 3,
-            "&::-webkit-scrollbar": {
-              width: 6,
-            },
-            "&::-webkit-scrollbar-track": {
-              backgroundColor: theme.palette.grey[200],
-              borderRadius: 3,
-            },
-            "&::-webkit-scrollbar-thumb": {
-              backgroundColor: theme.palette.grey[400],
-              borderRadius: 3,
-              "&:hover": {
-                backgroundColor: theme.palette.grey[600],
-              },
-            },
           }}
         >
           {loading ? (

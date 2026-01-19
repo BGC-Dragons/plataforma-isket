@@ -97,27 +97,19 @@ export const theme = createTheme({
         "*": {
           /* Webkit (Chrome, Edge, Safari) */
           "&::-webkit-scrollbar": {
-            width: "8px",
-            height: "8px",
+            width: "6px",
+            height: "6px",
           },
           "&::-webkit-scrollbar-track": {
-            background: "#f8f9fa",
+            backgroundColor: "#eeeeee", // grey[200]
+            borderRadius: "3px",
           },
           "&::-webkit-scrollbar-thumb": {
-            background: "#262353",
-            borderRadius: "0px", // deixa quadrada
-            transition: "background 0.2s ease",
+            backgroundColor: "#bdbdbd", // grey[400]
+            borderRadius: "3px",
             "&:hover": {
-              background: "#e3003a",
+              backgroundColor: "#757575", // grey[600]
             },
-          },
-          "&::-webkit-scrollbar-corner": {
-            background: "#f8f9fa",
-          },
-          "&::-webkit-scrollbar-button": {
-            display: "none", // remove setas
-            width: 0,
-            height: 0,
           },
         },
 
@@ -127,23 +119,15 @@ export const theme = createTheme({
             height: "6px",
           },
           "&::-webkit-scrollbar-track": {
-            background: "#f8f9fa",
+            backgroundColor: "#eeeeee", // grey[200]
+            borderRadius: "3px",
           },
           "&::-webkit-scrollbar-thumb": {
-            background: "#262353",
-            borderRadius: "0px", // quadrada
-            transition: "background 0.2s ease",
+            backgroundColor: "#bdbdbd", // grey[400]
+            borderRadius: "3px",
             "&:hover": {
-              background: "#e3003a",
+              backgroundColor: "#757575", // grey[600]
             },
-          },
-          "&::-webkit-scrollbar-corner": {
-            background: "#f8f9fa",
-          },
-          "&::-webkit-scrollbar-button": {
-            display: "none", // remove setas
-            width: 0,
-            height: 0,
           },
         },
       },

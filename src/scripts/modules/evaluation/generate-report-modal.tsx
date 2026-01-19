@@ -454,20 +454,6 @@ export function GenerateReportModal({
               sx={{
                 flex: 1,
                 overflow: "auto",
-                "&::-webkit-scrollbar": {
-                  width: 6,
-                },
-                "&::-webkit-scrollbar-track": {
-                  backgroundColor: theme.palette.grey[200],
-                  borderRadius: 3,
-                },
-                "&::-webkit-scrollbar-thumb": {
-                  backgroundColor: theme.palette.grey[400],
-                  borderRadius: 3,
-                  "&:hover": {
-                    backgroundColor: theme.palette.grey[600],
-                  },
-                },
               }}
             >
               {/* Tab 0: Geral */}
@@ -1259,20 +1245,6 @@ export function GenerateReportModal({
                 p: 3,
                 display: "flex",
                 justifyContent: "center",
-                "&::-webkit-scrollbar": {
-                  width: 6,
-                },
-                "&::-webkit-scrollbar-track": {
-                  backgroundColor: theme.palette.grey[200],
-                  borderRadius: 3,
-                },
-                "&::-webkit-scrollbar-thumb": {
-                  backgroundColor: theme.palette.grey[400],
-                  borderRadius: 3,
-                  "&:hover": {
-                    backgroundColor: theme.palette.grey[600],
-                  },
-                },
               }}
             >
               <Box

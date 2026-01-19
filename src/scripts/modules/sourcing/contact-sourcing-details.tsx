@@ -1335,20 +1335,6 @@ export function ContactSourcingDetails({
                 flexDirection: "column",
                 overflowY: "auto",
                 height: "100%",
-                "&::-webkit-scrollbar": {
-                  width: "4px",
-                },
-                "&::-webkit-scrollbar-track": {
-                  background: "transparent",
-                  margin: "8px 0",
-                },
-                "&::-webkit-scrollbar-thumb": {
-                  background: theme.palette.divider,
-                  borderRadius: "2px",
-                  "&:hover": {
-                    background: theme.palette.text.secondary,
-                  },
-                },
               }}
             >
               <Typography
@@ -1765,20 +1751,6 @@ export function ContactSourcingDetails({
                 flexDirection: "column",
                 overflowY: "auto",
                 height: "100%",
-                "&::-webkit-scrollbar": {
-                  width: "4px",
-                },
-                "&::-webkit-scrollbar-track": {
-                  background: "transparent",
-                  margin: "8px 0",
-                },
-                "&::-webkit-scrollbar-thumb": {
-                  background: theme.palette.divider,
-                  borderRadius: "2px",
-                  "&:hover": {
-                    background: theme.palette.text.secondary,
-                  },
-                },
               }}
             >
               <Box

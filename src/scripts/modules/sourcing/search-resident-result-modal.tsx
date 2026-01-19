@@ -150,19 +150,6 @@ export function SearchResidentResultModal({
             flex: 1,
             overflowY: "auto",
             p: 3,
-            "&::-webkit-scrollbar": {
-              width: "8px",
-            },
-            "&::-webkit-scrollbar-track": {
-              backgroundColor: "transparent",
-            },
-            "&::-webkit-scrollbar-thumb": {
-              backgroundColor: theme.palette.divider,
-              borderRadius: "4px",
-              "&:hover": {
-                backgroundColor: theme.palette.text.secondary,
-              },
-            },
           }}
         >
           <Box

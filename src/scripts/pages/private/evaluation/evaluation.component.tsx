@@ -1664,20 +1664,6 @@ export function EvaluationComponent() {
             : "env(safe-area-inset-bottom)",
           sm: selectedProperties.size > 0 ? 12 : 0,
         }, // Espaço para o action bar flutuante
-        "&::-webkit-scrollbar": {
-          width: 6,
-        },
-        "&::-webkit-scrollbar-track": {
-          backgroundColor: theme.palette.grey[200],
-          borderRadius: 3,
-        },
-        "&::-webkit-scrollbar-thumb": {
-          backgroundColor: theme.palette.grey[400],
-          borderRadius: 3,
-          "&:hover": {
-            backgroundColor: theme.palette.grey[600],
-          },
-        },
       }}
     >
       <Container maxWidth={false} sx={{ px: 0, maxWidth: "100%", minWidth: 0 }}>
@@ -1914,20 +1900,6 @@ export function EvaluationComponent() {
                   pb: selectedProperties.size > 0 ? 12 : 0,
                   maxWidth: "100%", // Prevenir overflow horizontal
                   minWidth: 0,
-                  "&::-webkit-scrollbar": {
-                    width: 6,
-                  },
-                  "&::-webkit-scrollbar-track": {
-                    backgroundColor: theme.palette.grey[200],
-                    borderRadius: 3,
-                  },
-                  "&::-webkit-scrollbar-thumb": {
-                    backgroundColor: theme.palette.grey[400],
-                    borderRadius: 3,
-                    "&:hover": {
-                      backgroundColor: theme.palette.grey[600],
-                    },
-                  },
                 }}
               >
                 {properties.length > 0 ? (

@@ -434,20 +434,6 @@ export function ResidentSearchModal({
           p: 0,
           overflow: "auto",
           pr: 1,
-          "&::-webkit-scrollbar": {
-            width: 6,
-          },
-          "&::-webkit-scrollbar-track": {
-            backgroundColor: theme.palette.grey[200],
-            borderRadius: 3,
-          },
-          "&::-webkit-scrollbar-thumb": {
-            backgroundColor: theme.palette.grey[400],
-            borderRadius: 3,
-            "&:hover": {
-              backgroundColor: theme.palette.grey[600],
-            },
-          },
         }}
       >
         {/* Header */}

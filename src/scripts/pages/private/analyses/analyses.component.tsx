@@ -1077,20 +1077,6 @@ export function AnalysesComponent() {
           xs: "calc(var(--app-height, 100vh) - 130px)",
           sm: "100%",
         },
-        "&::-webkit-scrollbar": {
-          width: 6,
-        },
-        "&::-webkit-scrollbar-track": {
-          backgroundColor: theme.palette.grey[200],
-          borderRadius: 3,
-        },
-        "&::-webkit-scrollbar-thumb": {
-          backgroundColor: theme.palette.grey[400],
-          borderRadius: 3,
-          "&:hover": {
-            backgroundColor: theme.palette.grey[600],
-          },
-        },
       }}
     >
       <Container maxWidth={false} sx={{ px: 0, overflowX: "hidden", maxWidth: "100%" }}>
@@ -1123,20 +1109,6 @@ export function AnalysesComponent() {
                   ? `calc(${theme.spacing(12)} + env(safe-area-inset-bottom))`
                   : theme.spacing(2),
                 sm: theme.spacing(2),
-              },
-              "&::-webkit-scrollbar": {
-                width: 6,
-              },
-              "&::-webkit-scrollbar-track": {
-                backgroundColor: theme.palette.grey[200],
-                borderRadius: 3,
-              },
-              "&::-webkit-scrollbar-thumb": {
-                backgroundColor: theme.palette.grey[400],
-                borderRadius: 3,
-                "&:hover": {
-                  backgroundColor: theme.palette.grey[600],
-                },
               },
             }}
           >

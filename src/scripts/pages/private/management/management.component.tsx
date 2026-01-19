@@ -546,20 +546,6 @@ export function ManagementComponent() {
         flexDirection: "column",
         height: "100%",
         overflowY: "auto",
-        "&::-webkit-scrollbar": {
-          width: 6,
-        },
-        "&::-webkit-scrollbar-track": {
-          backgroundColor: theme.palette.grey[200],
-          borderRadius: 3,
-        },
-        "&::-webkit-scrollbar-thumb": {
-          backgroundColor: theme.palette.grey[400],
-          borderRadius: 3,
-          "&:hover": {
-            backgroundColor: theme.palette.grey[600],
-          },
-        },
       }}
     >
       <Box
@@ -636,20 +622,6 @@ export function ManagementComponent() {
               position: "relative",
               borderRight: `1px solid ${theme.palette.divider}`,
               overflowY: "auto",
-              "&::-webkit-scrollbar": {
-                width: 6,
-              },
-              "&::-webkit-scrollbar-track": {
-                backgroundColor: theme.palette.grey[200],
-                borderRadius: 3,
-              },
-              "&::-webkit-scrollbar-thumb": {
-                backgroundColor: theme.palette.grey[400],
-                borderRadius: 3,
-                "&:hover": {
-                  backgroundColor: theme.palette.grey[600],
-                },
-              },
             }}
           >
             {renderSidebar()}
@@ -683,20 +655,6 @@ export function ManagementComponent() {
             borderLeft: {
               xs: "none",
               md: `1px solid ${theme.palette.divider}`,
-            },
-            "&::-webkit-scrollbar": {
-              width: 6,
-            },
-            "&::-webkit-scrollbar-track": {
-              backgroundColor: theme.palette.grey[200],
-              borderRadius: 3,
-            },
-            "&::-webkit-scrollbar-thumb": {
-              backgroundColor: theme.palette.grey[400],
-              borderRadius: 3,
-              "&:hover": {
-                backgroundColor: theme.palette.grey[600],
-              },
             },
           }}
         >

@@ -293,20 +293,6 @@ export function PropertyLocalization({
           boxShadow: theme.shadows[4],
           maxWidth: "calc(100% - 20px)",
           overflowX: "auto",
-          "&::-webkit-scrollbar": {
-            height: 6,
-          },
-          "&::-webkit-scrollbar-track": {
-            backgroundColor: theme.palette.grey[200],
-            borderRadius: 3,
-          },
-          "&::-webkit-scrollbar-thumb": {
-            backgroundColor: theme.palette.grey[400],
-            borderRadius: 3,
-            "&:hover": {
-              backgroundColor: theme.palette.grey[600],
-            },
-          },
         }}
       >
         <Stack direction="row" spacing={1} sx={{ flexWrap: "nowrap" }}>

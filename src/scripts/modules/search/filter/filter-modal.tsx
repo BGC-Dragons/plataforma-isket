@@ -471,22 +471,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
       </DialogTitle>
 
       <DialogContent
-        sx={{
-          "&::-webkit-scrollbar": {
-            width: 6,
-          },
-          "&::-webkit-scrollbar-track": {
-            backgroundColor: theme.palette.grey[200],
-            borderRadius: 3,
-          },
-          "&::-webkit-scrollbar-thumb": {
-            backgroundColor: theme.palette.grey[400],
-            borderRadius: 3,
-            "&:hover": {
-              backgroundColor: theme.palette.grey[600],
-            },
-          },
-        }}
+        sx={{}}
       >
         <FormControl component="fieldset" sx={{ mb: 4, width: "100%", mt: 2 }}>
           <FormLabel component="legend" sx={{ mb: 1, fontWeight: 600 }}>

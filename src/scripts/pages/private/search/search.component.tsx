@@ -1751,20 +1751,6 @@ export function SearchComponent() {
                   13
                 )} + env(safe-area-inset-bottom))`,
                 overscrollBehaviorY: "contain",
-                "&::-webkit-scrollbar": {
-                  width: 6,
-                },
-                "&::-webkit-scrollbar-track": {
-                  backgroundColor: theme.palette.grey[200],
-                  borderRadius: 3,
-                },
-                "&::-webkit-scrollbar-thumb": {
-                  backgroundColor: theme.palette.grey[400],
-                  borderRadius: 3,
-                  "&:hover": {
-                    backgroundColor: theme.palette.grey[600],
-                  },
-                },
               }}
             >
               {/* Contador e Controles */}
@@ -2198,20 +2184,6 @@ export function SearchComponent() {
                           12
                         )} + env(safe-area-inset-bottom))`
                       : "env(safe-area-inset-bottom)", // Espaço para o botão flutuante
-                    "&::-webkit-scrollbar": {
-                      width: 6,
-                    },
-                    "&::-webkit-scrollbar-track": {
-                      backgroundColor: theme.palette.grey[200],
-                      borderRadius: 3,
-                    },
-                    "&::-webkit-scrollbar-thumb": {
-                      backgroundColor: theme.palette.grey[400],
-                      borderRadius: 3,
-                      "&:hover": {
-                        backgroundColor: theme.palette.grey[600],
-                      },
-                    },
                   }}
                 >
                   {error ? (

@@ -248,20 +248,6 @@ export function CitySelect({
               backgroundColor: `${theme.palette.brand.secondary}1F`,
             },
           },
-          "&::-webkit-scrollbar": {
-            width: "8px",
-          },
-          "&::-webkit-scrollbar-track": {
-            background: theme.palette.brand.light,
-            borderRadius: "4px",
-          },
-          "&::-webkit-scrollbar-thumb": {
-            background: theme.palette.brand.primary,
-            borderRadius: "4px",
-            "&:hover": {
-              background: theme.palette.brand.secondary,
-            },
-          },
         },
       }}
     />

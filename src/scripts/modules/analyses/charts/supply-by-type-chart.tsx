@@ -42,20 +42,6 @@ export function SupplyByTypeChart({ data }: SupplyByTypeChartProps) {
           // Removido maxWidth para permitir scroll horizontal quando necessário
           overflowX: "auto",
           overflowY: "hidden",
-          "&::-webkit-scrollbar": {
-            height: 4,
-          },
-          "&::-webkit-scrollbar-track": {
-            backgroundColor: theme.palette.grey[200],
-            borderRadius: 2,
-          },
-          "&::-webkit-scrollbar-thumb": {
-            backgroundColor: theme.palette.grey[400],
-            borderRadius: 2,
-            "&:hover": {
-              backgroundColor: theme.palette.grey[600],
-            },
-          },
         }}
       >
         {sortedData.map((item) => {

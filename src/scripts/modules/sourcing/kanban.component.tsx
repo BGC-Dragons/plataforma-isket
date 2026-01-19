@@ -303,20 +303,6 @@ function SortableColumn({
             p: 1,
             display: "flex",
             flexDirection: "column",
-            "&::-webkit-scrollbar": {
-              width: 6,
-            },
-            "&::-webkit-scrollbar-track": {
-              backgroundColor: theme.palette.grey[200],
-              borderRadius: 3,
-            },
-            "&::-webkit-scrollbar-thumb": {
-              backgroundColor: theme.palette.grey[400],
-              borderRadius: 3,
-              "&:hover": {
-                backgroundColor: theme.palette.grey[600],
-              },
-            },
           }}
         >
           <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
@@ -873,20 +859,6 @@ export function Kanban({
           py: 2,
           backgroundColor: theme.palette.background.paper,
           boxSizing: "border-box",
-          "&::-webkit-scrollbar": {
-            height: 8,
-          },
-          "&::-webkit-scrollbar-track": {
-            backgroundColor: theme.palette.grey[100],
-            borderRadius: 4,
-          },
-          "&::-webkit-scrollbar-thumb": {
-            backgroundColor: theme.palette.grey[400],
-            borderRadius: 4,
-            "&:hover": {
-              backgroundColor: theme.palette.grey[600],
-            },
-          },
         }}
       >
         <SortableContext
