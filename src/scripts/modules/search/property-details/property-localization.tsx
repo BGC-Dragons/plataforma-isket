@@ -679,7 +679,7 @@ export function PropertyLocalization({
 
         {/* Marcadores de POIs customizados */}
         {/* eslint-disable-next-line @typescript-eslint/no-unused-vars */}
-        {Array.from(customPois.entries()).map(([query, queryPois]) => {
+        {Array.from(customPois.entries()).map(([_, queryPois]) => {
           return queryPois.map((poi) => (
             <Marker
               key={`custom-${poi.placeId}`}
