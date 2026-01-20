@@ -317,6 +317,7 @@ export function PropertyLocalization({
               property.coordinates.lng
             ),
             radius: POI_SEARCH_RADIUS,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             type: mappedType as any,
           };
           
@@ -677,6 +678,7 @@ export function PropertyLocalization({
         })}
 
         {/* Marcadores de POIs customizados */}
+        {/* eslint-disable-next-line @typescript-eslint/no-unused-vars */}
         {Array.from(customPois.entries()).map(([query, queryPois]) => {
           return queryPois.map((poi) => (
             <Marker

@@ -18,7 +18,6 @@ import {
   Typography,
   Slider,
   TextField,
-  useTheme,
   InputAdornment,
 } from "@mui/material";
 import { Close, ExpandMore } from "@mui/icons-material";
@@ -115,7 +114,6 @@ export const FilterModal: React.FC<FilterModalProps> = ({
   onClearFilters,
   initialFilters,
 }) => {
-  const theme = useTheme();
   const [areaRange, setAreaRange] = useState<number[]>([0, 1000000]);
   const [precoRange, setPrecoRange] = useState<number[]>([0, 100000000]);
 
