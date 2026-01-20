@@ -21,7 +21,8 @@ import {
   ViewList,
   SquareFoot,
   Bed,
-  Bathroom,
+  Bathtub,
+  DirectionsCar,
 } from "@mui/icons-material";
 import { FilterBar } from "../../../modules/search/filter/filter-bar";
 import { MapComponent } from "../../../modules/search/map/map";
@@ -78,6 +79,7 @@ interface PropertyData {
   propertyType: "COMERCIAL" | "RESIDENCIAL" | "TERRENO";
   bedrooms?: number;
   bathrooms?: number;
+  parking?: number;
   area: number;
   images: string[];
 }
@@ -1969,17 +1971,6 @@ export function EvaluationComponent() {
                             },
                           }}
                         >
-                          {/* Checkbox de seleção */}
-                          <Checkbox
-                            checked={selectedProperties.has(property.id)}
-                            onChange={(e) =>
-                              handlePropertySelect(
-                                property.id,
-                                e.target.checked
-                              )
-                            }
-                          />
-
                           {/* Carrossel de fotos */}
                           <ListViewImageCarousel
                             images={property.images || []}
@@ -2040,14 +2031,48 @@ export function EvaluationComponent() {
                               />
                             </Box>
 
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                color: "text.secondary",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {property.address}
+                              <br />
+                              {property.neighborhood && property.city
+                                ? `${property.neighborhood}, ${property.city}`
+                                : property.city || property.neighborhood}
+                            </Typography>
+                          </Box>
+
+                          {/* Detalhes específicos */}
+                          <Box
+                            sx={{
+                              display: { xs: "none", sm: "flex" },
+                              flexDirection: "column",
+                              alignItems: "flex-end",
+                              gap: 1,
+                              color: "text.secondary",
+                            }}
+                          >
                             {/* Preço e Preço por m² */}
                             <Box
                               sx={{
                                 display: "flex",
-                                alignItems: "center",
-                                gap: 1.5,
-                                mb: 0.5,
-                                flexWrap: "wrap",
+                                flexDirection: "column",
+                                alignItems: "flex-end",
+                                gap: 0.5,
+                                "@media (min-width: 1400px)": {
+                                  flexDirection: "row",
+                                  gap: 1.5,
+                                },
+                                "@media (max-width: 1399px)": {
+                                  flexDirection: "column",
+                                  gap: 0.5,
+                                },
                               }}
                             >
                               <Typography
@@ -2092,38 +2117,15 @@ export function EvaluationComponent() {
                               )}
                             </Box>
 
-                            <Typography
-                              variant="body2"
+                            {/* Ícones de quartos, banheiros, garagem e área */}
+                            <Box
                               sx={{
-                                color: "text.secondary",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 2,
                               }}
                             >
-                              {property.address}
-                              <br />
-                              {property.neighborhood && property.city
-                                ? `${property.neighborhood}, ${property.city}`
-                                : property.city || property.neighborhood}
-                            </Typography>
-                          </Box>
-
-                          {/* Detalhes específicos */}
-                          <Box
-                            sx={{
-                              display: { xs: "none", sm: "flex" },
-                              flexDirection: "column",
-                              alignItems: "flex-start",
-                              gap: 2,
-                              color: "text.secondary",
-                              "@media (min-width: 1400px)": {
-                                flexDirection: "row",
-                                alignItems: "center",
-                              },
-                            }}
-                          >
-                            {property.propertyType === "TERRENO" ? (
+                              {property.propertyType === "TERRENO" ? (
                               <Box
                                 sx={{
                                   display: "flex",
@@ -2160,10 +2162,7 @@ export function EvaluationComponent() {
                                       }}
                                     />
                                     <Typography variant="body2">
-                                      {property.bedrooms}{" "}
-                                      {property.bedrooms === 1
-                                        ? "quarto"
-                                        : "quartos"}
+                                      {property.bedrooms}
                                     </Typography>
                                   </Box>
                                 )}
@@ -2176,7 +2175,7 @@ export function EvaluationComponent() {
                                         gap: 0.5,
                                       }}
                                     >
-                                      <Bathroom
+                                      <Bathtub
                                         sx={{
                                           fontSize: 16,
                                           color: getIconColor(
@@ -2185,10 +2184,29 @@ export function EvaluationComponent() {
                                         }}
                                       />
                                       <Typography variant="body2">
-                                        {property.bathrooms}{" "}
-                                        {property.bathrooms === 1
-                                          ? "banheiro"
-                                          : "banheiros"}
+                                        {property.bathrooms}
+                                      </Typography>
+                                    </Box>
+                                  )}
+                                {property.parking &&
+                                  property.parking > 0 && (
+                                    <Box
+                                      sx={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 0.5,
+                                      }}
+                                    >
+                                      <DirectionsCar
+                                        sx={{
+                                          fontSize: 16,
+                                          color: getIconColor(
+                                            property.propertyType
+                                          ),
+                                        }}
+                                      />
+                                      <Typography variant="body2">
+                                        {property.parking}
                                       </Typography>
                                     </Box>
                                   )}
@@ -2215,7 +2233,19 @@ export function EvaluationComponent() {
                                 )}
                               </>
                             )}
+                            </Box>
                           </Box>
+
+                          {/* Checkbox de seleção */}
+                          <Checkbox
+                            checked={selectedProperties.has(property.id)}
+                            onChange={(e) =>
+                              handlePropertySelect(
+                                property.id,
+                                e.target.checked
+                              )
+                            }
+                          />
                         </Paper>
                       ))}
                     </Box>
