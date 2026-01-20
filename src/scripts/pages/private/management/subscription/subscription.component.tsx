@@ -13,6 +13,7 @@ import {
   IconButton,
   CircularProgress,
   Alert,
+  Snackbar,
   LinearProgress,
   Avatar,
   Tooltip,
@@ -179,10 +180,20 @@ export function SubscriptionSection() {
       );
 
       // Verificar se a resposta contém erro mesmo com status 200
-      if (response.data.status !== "SUCCESS") {
-        throw new Error(
-          "City can only be updated once per month. Please try again later."
-        );
+      // A API pode retornar status 200 com payload contendo status: 403
+      const responseData = response.data as {
+        status?: string | number;
+        message?: string;
+        data?: unknown;
+      };
+
+      if (responseData.status !== "SUCCESS") {
+        // Se status é um número, é um erro (ex: 403)
+        // Extrair mensagem de erro do payload
+        const errorMessage =
+          responseData.message ||
+          "City can only be updated once per month. Please try again later.";
+        throw new Error(errorMessage);
       }
 
       console.log("✅ Cidade atualizada com sucesso");
@@ -198,19 +209,38 @@ export function SubscriptionSection() {
 
       let errorMessage = "Erro ao atualizar cidade. Tente novamente.";
 
-      // Verificar se é erro de limite mensal
-      if (
-        err instanceof Error &&
-        err.message.includes("City can only be updated once per month")
-      ) {
-        errorMessage =
-          "Você só pode atualizar uma cidade por mês. Tente novamente mais tarde.";
-      } else {
-        const axiosError = err as {
-          response?: { status?: number; data?: { message?: string } };
-        };
+      // Verificar se é erro de limite mensal ou se a mensagem já foi extraída
+      if (err instanceof Error) {
+        const errorMsg = err.message.toLowerCase();
+        
+        // Verificar se contém mensagem sobre limite mensal (em inglês ou português)
+        if (
+          errorMsg.includes("city can only be updated once per month") ||
+          errorMsg.includes("só pode atualizar") ||
+          errorMsg.includes("once per month") ||
+          errorMsg.includes("try again later")
+        ) {
+          errorMessage =
+            "Você só pode atualizar uma cidade por mês. Tente novamente mais tarde.";
+        } else if (err.message) {
+          // Traduzir mensagens comuns em inglês
+          if (errorMsg.includes("city can only be updated")) {
+            errorMessage =
+              "Você só pode atualizar uma cidade por mês. Tente novamente mais tarde.";
+          } else {
+            // Usar a mensagem de erro diretamente se disponível
+            errorMessage = err.message;
+          }
+        }
+      }
 
-        if (axiosError.response?.status === 403) {
+      // Verificar também erros do Axios (caso não tenha sido capturado acima)
+      const axiosError = err as {
+        response?: { status?: number; data?: { message?: string; status?: number } };
+      };
+
+      if (errorMessage === "Erro ao atualizar cidade. Tente novamente.") {
+        if (axiosError.response?.status === 403 || axiosError.response?.data?.status === 403) {
           errorMessage =
             "Você só pode atualizar uma cidade por mês. Tente novamente mais tarde.";
         } else if (axiosError.response?.status === 404) {
@@ -231,14 +261,6 @@ export function SubscriptionSection() {
         message: errorMessage,
         type: "error",
       });
-
-      // Scroll para o topo para mostrar a notificação
-      window.scrollTo({ top: 0, behavior: "smooth" });
-
-      // Auto-remover notificação após 5 segundos
-      setTimeout(() => {
-        setNotification(null);
-      }, 5000);
     } finally {
       setIsEditingCity(false);
     }
@@ -458,22 +480,38 @@ export function SubscriptionSection() {
         Assinatura
       </Typography>
 
-      {/* Notificação de erro/sucesso */}
-      {notification && (
+      {/* Toast de notificação no canto superior direito */}
+      <Snackbar
+        open={!!notification}
+        autoHideDuration={5000}
+        onClose={() => setNotification(null)}
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
+        sx={{
+          zIndex: 9999, // Acima de tudo
+          top: { xs: 16, sm: 24 },
+          right: { xs: 16, sm: 24 },
+        }}
+      >
         <Alert
+          onClose={() => setNotification(null)}
           severity={
-            notification.type === "error"
+            notification?.type === "error"
               ? "error"
-              : notification.type === "warning"
+              : notification?.type === "warning"
               ? "warning"
               : "success"
           }
-          sx={{ mb: 2 }}
-          onClose={() => setNotification(null)}
+          sx={{
+            width: "100%",
+            boxShadow: theme.shadows[8],
+            "& .MuiAlert-icon": {
+              fontSize: "1.5rem",
+            },
+          }}
         >
-          {notification.message}
+          {notification?.message}
         </Alert>
-      )}
+      </Snackbar>
 
       <Box
         sx={{
