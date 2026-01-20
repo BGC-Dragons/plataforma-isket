@@ -12,6 +12,7 @@ import {
 import {
   Bed,
   Bathtub,
+  DirectionsCar,
   SquareFoot,
   LocationOn,
   Favorite,
@@ -32,6 +33,7 @@ interface PropertyCardProps {
   propertyType: "COMERCIAL" | "RESIDENCIAL" | "TERRENO";
   bedrooms?: number;
   bathrooms?: number;
+  parking?: number;
   area: number;
   images: string[];
   isFavorite?: boolean;
@@ -51,6 +53,7 @@ export function PropertiesCard({
   propertyType,
   bedrooms = 0,
   bathrooms = 0,
+  parking = 0,
   area,
   images,
   isFavorite = false,
@@ -458,6 +461,20 @@ export function PropertiesCard({
               />
               <Typography variant="body2" sx={{ fontWeight: 500 }}>
                 {bathrooms}
+              </Typography>
+            </Box>
+          )}
+
+          {parking > 0 && (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <DirectionsCar
+                sx={{
+                  fontSize: "1rem",
+                  color: getIconColor(propertyType),
+                }}
+              />
+              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                {parking}
               </Typography>
             </Box>
           )}

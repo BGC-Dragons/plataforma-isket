@@ -12,6 +12,7 @@ export interface PropertyData {
   propertyType: "COMERCIAL" | "RESIDENCIAL" | "TERRENO";
   bedrooms?: number;
   bathrooms?: number;
+  parking?: number;
   area: number;
   images: string[];
   isFavorite?: boolean;

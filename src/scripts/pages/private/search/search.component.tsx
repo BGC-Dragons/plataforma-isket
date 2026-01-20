@@ -24,6 +24,7 @@ import {
   MoreVert,
   OpenInNew,
   Bed,
+  Bathtub,
   DirectionsCar,
   SquareFoot,
   HelpOutline,
@@ -76,6 +77,7 @@ interface PropertyData {
   propertyType: "COMERCIAL" | "RESIDENCIAL" | "TERRENO";
   bedrooms?: number;
   bathrooms?: number;
+  parking?: number;
   area: number;
   images: string[];
   isFavorite?: boolean;
@@ -1881,6 +1883,7 @@ export function SearchComponent() {
                         propertyType={property.propertyType}
                         bedrooms={property.bedrooms}
                         bathrooms={property.bathrooms}
+                        parking={property.parking}
                         area={property.area}
                         images={property.images}
                         isFavorite={property.isFavorite}
@@ -2265,6 +2268,7 @@ export function SearchComponent() {
                             propertyType={property.propertyType}
                             bedrooms={property.bedrooms}
                             bathrooms={property.bathrooms}
+                            parking={property.parking}
                             area={property.area}
                             images={property.images}
                             isFavorite={property.isFavorite}
@@ -2390,57 +2394,6 @@ export function SearchComponent() {
                                   }}
                                 />
                               </Box>
-                              {/* Preço e Preço por m² */}
-                              <Box
-                                sx={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 1.5,
-                                  mb: 0.5,
-                                  flexWrap: "wrap",
-                                }}
-                              >
-                                <Typography
-                                  variant="h6"
-                                  sx={{
-                                    fontWeight: 700,
-                                    color: theme.palette.text.primary,
-                                    fontSize: "1.1rem",
-                                  }}
-                                >
-                                  {formatCurrency(property.price)}
-                                </Typography>
-                                {property.pricePerSquareMeter > 0 && (
-                                  <Box
-                                    sx={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: 0.5,
-                                    }}
-                                  >
-                                    <SquareFoot
-                                      sx={{
-                                        fontSize: "0.875rem",
-                                        color: getIconColor(
-                                          property.propertyType
-                                        ),
-                                      }}
-                                    />
-                                    <Typography
-                                      variant="body2"
-                                      sx={{
-                                        color: theme.palette.text.secondary,
-                                        fontSize: "0.875rem",
-                                      }}
-                                    >
-                                      {formatPricePerSquareMeter(
-                                        property.pricePerSquareMeter
-                                      )}
-                                      /m²
-                                    </Typography>
-                                  </Box>
-                                )}
-                              </Box>
                               <Typography
                                 variant="body2"
                                 sx={{
@@ -2462,79 +2415,88 @@ export function SearchComponent() {
                             <Box
                               sx={{
                                 display: { xs: "none", sm: "flex" },
-                                alignItems: "center",
-                                gap: 2,
+                                flexDirection: "column",
+                                alignItems: "flex-end",
+                                gap: 1,
                                 color: "text.secondary",
                               }}
                             >
-                              {/* Para terrenos, mostrar apenas a área */}
-                              {property.propertyType === "TERRENO" ? (
+                              {/* Preço e Preço por m² */}
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  alignItems: "flex-end",
+                                  gap: 1,
+                                }}
+                              >
                                 <Box
                                   sx={{
                                     display: "flex",
-                                    alignItems: "center",
-                                    gap: 0.5,
+                                    flexDirection: { xs: "column", lg: "row" },
+                                    alignItems: "flex-end",
+                                    gap: { xs: 0.5, lg: 1.5 },
+                                    "@media (min-width: 1400px)": {
+                                      flexDirection: "row",
+                                    },
+                                    "@media (max-width: 1399px)": {
+                                      flexDirection: "column",
+                                    },
                                   }}
                                 >
-                                  <SquareFoot
+                                  <Typography
+                                    variant="h6"
                                     sx={{
-                                      fontSize: 16,
-                                      color: getIconColor(
-                                        property.propertyType
-                                      ),
+                                      fontWeight: 700,
+                                      color: theme.palette.text.primary,
+                                      fontSize: "1.1rem",
                                     }}
-                                  />
-                                  <Typography variant="body2">
-                                    {property.area} m²
+                                  >
+                                    {formatCurrency(property.price)}
                                   </Typography>
+                                  {property.pricePerSquareMeter > 0 && (
+                                    <Box
+                                      sx={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 0.5,
+                                      }}
+                                    >
+                                      <SquareFoot
+                                        sx={{
+                                          fontSize: "0.875rem",
+                                          color: getIconColor(
+                                            property.propertyType
+                                          ),
+                                        }}
+                                      />
+                                      <Typography
+                                        variant="body2"
+                                        sx={{
+                                          color: theme.palette.text.secondary,
+                                          fontSize: "0.875rem",
+                                        }}
+                                      >
+                                        {formatPricePerSquareMeter(
+                                          property.pricePerSquareMeter
+                                        )}
+                                        /m²
+                                      </Typography>
+                                    </Box>
+                                  )}
                                 </Box>
-                              ) : (
-                                /* Para outros tipos, mostrar quartos, banheiros e área */
-                                <>
-                                  {property.bedrooms &&
-                                    property.bedrooms > 0 && (
-                                      <Box
-                                        sx={{
-                                          display: "flex",
-                                          alignItems: "center",
-                                          gap: 0.5,
-                                        }}
-                                      >
-                                        <Bed
-                                          sx={{
-                                            fontSize: 16,
-                                            color: getIconColor(
-                                              property.propertyType
-                                            ),
-                                          }}
-                                        />
-                                        <Typography variant="body2">
-                                          {property.bedrooms}
-                                        </Typography>
-                                      </Box>
-                                    )}
-                                  {property.bathrooms &&
-                                    property.bathrooms > 0 && (
-                                      <Box
-                                        sx={{
-                                          display: "flex",
-                                          alignItems: "center",
-                                          gap: 0.5,
-                                        }}
-                                      >
-                                        <DirectionsCar
-                                          sx={{
-                                            fontSize: 16,
-                                            color: getIconColor(
-                                              property.propertyType
-                                            ),
-                                          }}
-                                        />
-                                        <Typography variant="body2">
-                                          {property.bathrooms}
-                                        </Typography>
-                                      </Box>
-                                    )}
+                              </Box>
+
+                              {/* Ícones de quartos, banheiros, garagem e área */}
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 2,
+                                }}
+                              >
+                                {/* Para terrenos, mostrar apenas a área */}
+                                {property.propertyType === "TERRENO" ? (
                                   <Box
                                     sx={{
                                       display: "flex",
@@ -2554,8 +2516,97 @@ export function SearchComponent() {
                                       {property.area} m²
                                     </Typography>
                                   </Box>
-                                </>
-                              )}
+                                ) : (
+                                  /* Para outros tipos, mostrar quartos, banheiros, garagem e área */
+                                  <>
+                                    {property.bedrooms &&
+                                      property.bedrooms > 0 && (
+                                        <Box
+                                          sx={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: 0.5,
+                                          }}
+                                        >
+                                          <Bed
+                                            sx={{
+                                              fontSize: 16,
+                                              color: getIconColor(
+                                                property.propertyType
+                                              ),
+                                            }}
+                                          />
+                                          <Typography variant="body2">
+                                            {property.bedrooms}
+                                          </Typography>
+                                        </Box>
+                                      )}
+                                    {property.bathrooms &&
+                                      property.bathrooms > 0 && (
+                                        <Box
+                                          sx={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: 0.5,
+                                          }}
+                                        >
+                                          <Bathtub
+                                            sx={{
+                                              fontSize: 16,
+                                              color: getIconColor(
+                                                property.propertyType
+                                              ),
+                                            }}
+                                          />
+                                          <Typography variant="body2">
+                                            {property.bathrooms}
+                                          </Typography>
+                                        </Box>
+                                      )}
+                                    {property.parking &&
+                                      property.parking > 0 && (
+                                        <Box
+                                          sx={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: 0.5,
+                                          }}
+                                        >
+                                          <DirectionsCar
+                                            sx={{
+                                              fontSize: 16,
+                                              color: getIconColor(
+                                                property.propertyType
+                                              ),
+                                            }}
+                                          />
+                                          <Typography variant="body2">
+                                            {property.parking}
+                                          </Typography>
+                                        </Box>
+                                      )}
+                                    <Box
+                                      sx={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 0.5,
+                                      }}
+                                    >
+                                      <SquareFoot
+                                        sx={{
+                                          fontSize: 16,
+                                          color: getIconColor(
+                                            property.propertyType
+                                          ),
+                                        }}
+                                      />
+                                      <Typography variant="body2">
+                                        {property.area} m²
+                                      </Typography>
+                                    </Box>
+                                  </>
+                                )}
+                              </Box>
                             </Box>
 
                             {/* Menu de ações */}

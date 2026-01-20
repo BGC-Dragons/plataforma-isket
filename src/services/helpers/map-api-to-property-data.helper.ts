@@ -13,6 +13,7 @@ export interface IPropertyData {
   propertyType: "COMERCIAL" | "RESIDENCIAL" | "TERRENO";
   bedrooms?: number;
   bathrooms?: number;
+  parking?: number;
   area: number;
   images: string[];
   isFavorite?: boolean;
@@ -130,6 +131,7 @@ export const mapApiToPropertyData = (propertyAd: IPropertyAd): IPropertyData => 
     propertyType,
     bedrooms: propertyAd.rooms,
     bathrooms: propertyAd.bathrooms,
+    parking: propertyAd.parking,
     area,
     images: propertyAd.urlImages || [],
     isFavorite: false, // Inicialmente sempre false, pode ser gerenciado por estado separado

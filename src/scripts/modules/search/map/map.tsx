@@ -28,6 +28,7 @@ import {
 import {
   Close,
   Bed,
+  Bathtub,
   DirectionsCar,
   SquareFoot,
   Edit,
@@ -61,6 +62,7 @@ interface PropertyData {
   propertyType: "COMERCIAL" | "RESIDENCIAL" | "TERRENO";
   bedrooms?: number;
   bathrooms?: number;
+  parking?: number;
   area: number;
   images: string[];
   isFavorite?: boolean;
@@ -2965,7 +2967,7 @@ export function MapComponent({
                             gap: 0.5,
                           }}
                         >
-                          <DirectionsCar
+                          <Bathtub
                             sx={{
                               fontSize: 16,
                               color: getIconColor(
@@ -2978,6 +2980,31 @@ export function MapComponent({
                             sx={{ fontSize: "0.8rem" }}
                           >
                             {selectedProperty.bathrooms}
+                          </Typography>
+                        </Box>
+                      )}
+                    {selectedProperty.parking &&
+                      selectedProperty.parking > 0 && (
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 0.5,
+                          }}
+                        >
+                          <DirectionsCar
+                            sx={{
+                              fontSize: 16,
+                              color: getIconColor(
+                                selectedProperty.propertyType
+                              ),
+                            }}
+                          />
+                          <Typography
+                            variant="body2"
+                            sx={{ fontSize: "0.8rem" }}
+                          >
+                            {selectedProperty.parking}
                           </Typography>
                         </Box>
                       )}
