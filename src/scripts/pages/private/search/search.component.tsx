@@ -174,9 +174,11 @@ export function SearchComponent() {
   // Extrair cidades disponíveis das compras e criar mapeamento cidade -> cityStateCode
   const { availableCities, cityToCodeMap, defaultCityStateCode } =
     useMemo(() => {
+      // Se purchasesData ainda não carregou ou não há compras, retornar vazio
+      // para evitar usar fallback incorreto (ex: Curitiba)
       if (!purchasesData || purchasesData.length === 0) {
         return {
-          availableCities: ["CURITIBA"],
+          availableCities: [],
           cityToCodeMap: {} as Record<string, string>,
           defaultCityStateCode: undefined,
         };
@@ -231,12 +233,13 @@ export function SearchComponent() {
       };
     }, [purchasesData, formatCityNameFromCode]);
 
-  // Cidade padrão (cidade padrão do plano ou primeira cidade disponível ou fallback)
+  // Cidade padrão (cidade padrão do plano ou primeira cidade disponível)
+  // Não usar fallback para evitar buscar cidade incorreta
   const defaultCity = useMemo(() => {
     if (defaultCityStateCode) {
       return formatCityNameFromCode(defaultCityStateCode);
     }
-    return availableCities.length > 0 ? availableCities[0] : "CURITIBA";
+    return availableCities.length > 0 ? availableCities[0] : undefined;
   }, [availableCities, defaultCityStateCode, formatCityNameFromCode]);
 
   // Detectar quando há um propertyId na URL
@@ -1010,15 +1013,18 @@ export function SearchComponent() {
     if (persistedFilters) {
       return;
     }
+    // Só executar quando purchasesData estiver carregado e houver cidade padrão disponível
     if (
+      purchasesData && // Garantir que purchasesData não é undefined
       availableCities.length > 0 &&
       Object.keys(cityToCodeMap).length > 0 &&
+      defaultCityStateCode && // Garantir que há uma cidade padrão do plano
       !currentFilters
     ) {
       fetchInitialProperties();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [availableCities.length, Object.keys(cityToCodeMap).length]);
+  }, [purchasesData, availableCities.length, Object.keys(cityToCodeMap).length, defaultCityStateCode]);
 
   // Função para lidar com mudança de ordenação
   const handleSortChange = (newSortBy: SortOption) => {
@@ -1271,8 +1277,21 @@ export function SearchComponent() {
         return;
       }
 
-      // Criar novos filtros adicionando a geometria do desenho à lista existente
+      // Atualizar a geometria existente quando o desenho é movido/editado
       const existingGeometries = currentFilters?.drawingGeometries || [];
+      const overlayIndex = (overlay.overlay as unknown as {
+        __drawingIndex?: number;
+      })?.__drawingIndex;
+      const nextGeometries = [...existingGeometries];
+      if (typeof overlayIndex === "number" && overlayIndex >= 0) {
+        nextGeometries[overlayIndex] = geometry;
+      } else {
+        const newIndex = nextGeometries.length;
+        (overlay.overlay as unknown as { __drawingIndex?: number }).__drawingIndex =
+          newIndex;
+        nextGeometries.push(geometry);
+      }
+
       const newFilters: FilterState = {
         ...(currentFilters || {
           search: "",
@@ -1331,7 +1350,7 @@ export function SearchComponent() {
           lancamento: false,
           palavras_chave: "",
         }),
-        drawingGeometries: [...existingGeometries, geometry],
+        drawingGeometries: nextGeometries,
       };
 
       // Aplicar filtros com a geometria (isso vai buscar na API)

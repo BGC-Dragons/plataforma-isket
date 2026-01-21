@@ -243,10 +243,18 @@ export function MapComponent({
   const overlayUpdateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
+  const drawingGeometriesKeyRef = useRef<string>("");
+  // Ref para armazenar callback de desenho (garante usar versão mais recente)
+  const onDrawingCompleteRef = useRef(onDrawingComplete);
   // Ref para rastrear polígonos dos bairros para cleanup seguro
   const neighborhoodPolygonsRef = useRef<Map<string, google.maps.Polygon>>(
     new Map()
   );
+
+  // Mantém a ref de onDrawingComplete atualizada
+  useEffect(() => {
+    onDrawingCompleteRef.current = onDrawingComplete;
+  }, [onDrawingComplete]);
 
   // Carrega o script do Google Maps
   const { isLoaded, loadError } = useLoadScript({
@@ -1119,21 +1127,21 @@ export function MapComponent({
     [map, onNeighborhoodClick, calculateNeighborhoodBounds]
   );
 
-  // Função para atualizar geometria e buscar quando overlay é modificado
+  // Função para atualizar geometria e buscar quando overlay é modificado (com debounce)
   const handleOverlayUpdate = useCallback(
     (overlay: google.maps.drawing.OverlayCompleteEvent) => {
-      // Debounce para evitar muitas requisições durante o arrasto
+      // SEMPRE usar debounce para evitar muitas requisições durante edição/arrasto
       if (overlayUpdateTimeoutRef.current) {
         clearTimeout(overlayUpdateTimeoutRef.current);
       }
 
       overlayUpdateTimeoutRef.current = setTimeout(() => {
-        if (onDrawingComplete) {
-          onDrawingComplete(overlay);
+        if (onDrawingCompleteRef.current) {
+          onDrawingCompleteRef.current(overlay);
         }
       }, 500); // 500ms de debounce
     },
-    [onDrawingComplete]
+    []
   );
 
   // Função para adicionar listeners de arrasto/edição aos overlays
@@ -1186,15 +1194,38 @@ export function MapComponent({
         });
         listeners.push(removeAtListener);
 
-        // Listener para quando o polígono é arrastado
+        // Listener para quando o polígono é arrastado (usa ref para pegar callback atualizado)
         const dragendListener = google.maps.event.addListener(
           polygon,
           "dragend",
           () => {
-            handleOverlayUpdate(overlay);
+            // Cancelar debounce pendente para evitar duplicação
+            if (overlayUpdateTimeoutRef.current) {
+              clearTimeout(overlayUpdateTimeoutRef.current);
+              overlayUpdateTimeoutRef.current = null;
+            }
+            if (onDrawingCompleteRef.current) {
+              onDrawingCompleteRef.current(overlay);
+            }
           }
         );
         listeners.push(dragendListener);
+
+        const mouseUpListener = google.maps.event.addListener(
+          polygon,
+          "mouseup",
+          () => {
+            // Cancelar debounce pendente para evitar duplicação
+            if (overlayUpdateTimeoutRef.current) {
+              clearTimeout(overlayUpdateTimeoutRef.current);
+              overlayUpdateTimeoutRef.current = null;
+            }
+            if (onDrawingCompleteRef.current) {
+              onDrawingCompleteRef.current(overlay);
+            }
+          }
+        );
+        listeners.push(mouseUpListener);
       } else if (isCircle) {
         const circle = overlayInstance as google.maps.Circle;
 
@@ -1217,6 +1248,23 @@ export function MapComponent({
           }
         );
         listeners.push(radiusChangedListener);
+
+        // Listener para quando o círculo é arrastado (usa ref para pegar callback atualizado)
+        const dragendListener = google.maps.event.addListener(
+          circle,
+          "dragend",
+          () => {
+            // Cancelar debounce pendente para evitar duplicação
+            if (overlayUpdateTimeoutRef.current) {
+              clearTimeout(overlayUpdateTimeoutRef.current);
+              overlayUpdateTimeoutRef.current = null;
+            }
+            if (onDrawingCompleteRef.current) {
+              onDrawingCompleteRef.current(overlay);
+            }
+          }
+        );
+        listeners.push(dragendListener);
       }
 
       // Armazenar listeners para cleanup posterior
@@ -1233,12 +1281,13 @@ export function MapComponent({
       // Adicionar listeners de arrasto/edição
       addOverlayListeners(overlay);
 
-      if (onDrawingComplete) {
-        onDrawingComplete(overlay);
+      // Usar ref para garantir callback mais recente
+      if (onDrawingCompleteRef.current) {
+        onDrawingCompleteRef.current(overlay);
       }
       setDrawingMode(null);
     },
-    [onDrawingComplete, addOverlayListeners]
+    [addOverlayListeners]
   );
 
   // -------- Freehand drawing (desenho à mão livre) ---------
@@ -1437,7 +1486,7 @@ export function MapComponent({
       // Adicionar listeners de arrasto/edição
       addOverlayListeners(fakeEvent);
 
-      if (onDrawingComplete) onDrawingComplete(fakeEvent);
+      if (onDrawingCompleteRef.current) onDrawingCompleteRef.current(fakeEvent);
       setDrawingMode(null);
 
       // Desselecionar o polígono após um pequeno delay
@@ -1469,7 +1518,6 @@ export function MapComponent({
   }, [
     map,
     drawingManager,
-    onDrawingComplete,
     teardownFreehandListeners,
     addOverlayListeners,
     simplifyPolygonPath,
@@ -1991,6 +2039,200 @@ export function MapComponent({
     }
   }, [filters?.addressCoordinates, map, addOverlayListeners, isEditMode]);
 
+  const fitMapToDrawingGeometries = useCallback(
+    (
+      geometries: Array<
+        | { type: "Polygon"; coordinates: number[][][] }
+        | { type: "circle"; coordinates: [[number, number]]; radius: string }
+      >
+    ) => {
+      if (!map || geometries.length === 0) return;
+
+      const bounds = new google.maps.LatLngBounds();
+      let hasPoint = false;
+
+      geometries.forEach((geom) => {
+        if (geom.type === "Polygon") {
+          const coords = geom.coordinates[0] || [];
+          coords.forEach(([lng, lat]) => {
+            bounds.extend({ lat, lng });
+            hasPoint = true;
+          });
+        } else if (geom.type === "circle") {
+          const coord = geom.coordinates[0];
+          if (!coord) return;
+          const [lng, lat] = coord;
+          const radius = Number(geom.radius);
+          if (isNaN(radius)) return;
+          const circleBounds = new google.maps.Circle({
+            center: { lat, lng },
+            radius,
+          }).getBounds();
+          if (circleBounds) {
+            bounds.extend(circleBounds.getNorthEast());
+            bounds.extend(circleBounds.getSouthWest());
+            hasPoint = true;
+          }
+        }
+      });
+
+      if (hasPoint) {
+        map.fitBounds(bounds, 80);
+      }
+    },
+    [map]
+  );
+
+  // Reidratar desenhos do filtro para overlays editáveis
+  useEffect(() => {
+    if (!map) return;
+
+    const drawingGeometries = filters?.drawingGeometries || [];
+    const geometriesKey = JSON.stringify(drawingGeometries);
+    const nonAddressOverlays = drawnOverlays.filter(
+      (overlay) => overlay.overlay !== addressCircleOverlayRef.current
+    );
+
+    if (drawingGeometries.length === 0) {
+      drawingGeometriesKeyRef.current = geometriesKey;
+      return;
+    }
+
+    // Verificar se os overlays existentes precisam ter draggable atualizado
+    if (nonAddressOverlays.length === drawingGeometries.length) {
+      // Atualizar draggable dos overlays existentes e garantir que listeners estão configurados
+      let needsRecreation = false;
+      nonAddressOverlays.forEach((overlay) => {
+        const overlayInstance = overlay.overlay as
+          | (google.maps.Polygon & { __rehydrated?: boolean })
+          | (google.maps.Circle & { __rehydrated?: boolean })
+          | null;
+        if (overlayInstance) {
+          const currentDraggable = overlayInstance.getDraggable?.() ?? false;
+          if (currentDraggable !== isEditMode) {
+            overlayInstance.setOptions({ draggable: isEditMode });
+          }
+          // Verificar se listeners existem, se não, readicionar
+          if (!overlayListenersRef.current.has(overlayInstance)) {
+            needsRecreation = true;
+          }
+        }
+      });
+      if (!needsRecreation) {
+        drawingGeometriesKeyRef.current = geometriesKey;
+        fitMapToDrawingGeometries(drawingGeometries);
+        return;
+      }
+    }
+
+    if (drawingGeometriesKeyRef.current === geometriesKey) {
+      return;
+    }
+
+    // Limpar overlays existentes (exceto círculo de endereço)
+    nonAddressOverlays.forEach((overlay) => {
+      const overlayInstance = overlay.overlay as
+        | google.maps.Polygon
+        | google.maps.Circle
+        | null;
+      if (!overlayInstance) return;
+      const listeners = overlayListenersRef.current.get(overlayInstance);
+      if (listeners) {
+        listeners.forEach((listener) => {
+          google.maps.event.removeListener(listener);
+        });
+        overlayListenersRef.current.delete(overlayInstance);
+      }
+      if (typeof overlayInstance.setMap === "function") {
+        overlayInstance.setMap(null);
+      }
+    });
+
+    const newOverlays: google.maps.drawing.OverlayCompleteEvent[] = [];
+
+    drawingGeometries.forEach((geom, index) => {
+      if (geom.type === "Polygon") {
+        const paths = (geom.coordinates[0] || []).map(([lng, lat]) => ({
+          lat,
+          lng,
+        }));
+        if (paths.length === 0) return;
+        const polygon = new google.maps.Polygon({
+          map,
+          paths,
+          fillColor: "#4285F4",
+          fillOpacity: 0.2,
+          strokeColor: "#4285F4",
+          strokeOpacity: 0.8,
+          strokeWeight: 2,
+          clickable: true,
+          editable: true,
+          draggable: isEditMode,
+        });
+        (polygon as unknown as {
+          __drawingIndex?: number;
+          __rehydrated?: boolean;
+        }).__drawingIndex = index;
+        (polygon as unknown as { __rehydrated?: boolean }).__rehydrated = true;
+        const fakeEvent = {
+          type: google.maps.drawing.OverlayType.POLYGON,
+          overlay: polygon,
+        } as unknown as google.maps.drawing.OverlayCompleteEvent;
+        addOverlayListeners(fakeEvent);
+        newOverlays.push(fakeEvent);
+      } else if (geom.type === "circle") {
+        const coord = geom.coordinates[0];
+        if (!coord) return;
+        const [lng, lat] = coord;
+        const radius = Number(geom.radius);
+        if (isNaN(radius)) return;
+        const circle = new google.maps.Circle({
+          map,
+          center: new google.maps.LatLng(lat, lng),
+          radius,
+          fillColor: "#4285F4",
+          fillOpacity: 0.2,
+          strokeColor: "#4285F4",
+          strokeOpacity: 0.8,
+          strokeWeight: 2,
+          clickable: true,
+          editable: true,
+          draggable: isEditMode,
+        });
+        (circle as unknown as {
+          __drawingIndex?: number;
+          __rehydrated?: boolean;
+        }).__drawingIndex = index;
+        (circle as unknown as { __rehydrated?: boolean }).__rehydrated = true;
+        const fakeEvent = {
+          type: google.maps.drawing.OverlayType.CIRCLE,
+          overlay: circle,
+        } as unknown as google.maps.drawing.OverlayCompleteEvent;
+        addOverlayListeners(fakeEvent);
+        newOverlays.push(fakeEvent);
+      }
+    });
+
+    if (newOverlays.length > 0) {
+      setDrawnOverlays((prev) => {
+        const kept = prev.filter(
+          (overlay) => overlay.overlay === addressCircleOverlayRef.current
+        );
+        return [...kept, ...newOverlays];
+      });
+      fitMapToDrawingGeometries(drawingGeometries);
+    }
+
+    drawingGeometriesKeyRef.current = geometriesKey;
+  }, [
+    map,
+    filters?.drawingGeometries,
+    drawnOverlays,
+    addOverlayListeners,
+    isEditMode,
+    fitMapToDrawingGeometries,
+  ]);
+
   // Atualizar refs sempre que mudarem
   useEffect(() => {
     drawnOverlaysRef.current = drawnOverlays;
@@ -2003,10 +2245,31 @@ export function MapComponent({
         | google.maps.Circle
         | null;
       if (overlayInstance && typeof overlayInstance.setOptions === "function") {
-        overlayInstance.setOptions({ draggable: isEditMode });
+        const currentDraggable = overlayInstance.getDraggable?.() ?? false;
+        if (currentDraggable !== isEditMode) {
+          overlayInstance.setOptions({ draggable: isEditMode });
+        }
+        // Garantir que os listeners existem
+        if (!overlayListenersRef.current.has(overlayInstance)) {
+          addOverlayListeners(overlay);
+        }
       }
     });
-  }, [drawnOverlays, isEditMode]);
+  }, [drawnOverlays, isEditMode, addOverlayListeners]);
+
+  useEffect(() => {
+    if (!drawnOverlays.length) return;
+    drawnOverlays.forEach((overlay) => {
+      const overlayInstance = overlay.overlay as
+        | google.maps.Polygon
+        | google.maps.Circle
+        | null;
+      if (!overlayInstance) return;
+      if (!overlayListenersRef.current.has(overlayInstance)) {
+        addOverlayListeners(overlay);
+      }
+    });
+  }, [drawnOverlays, addOverlayListeners]);
 
   useEffect(() => {
     if (drawnOverlays.length === 0 && isEditMode) {

@@ -29,6 +29,7 @@ import {
 } from "@mui/icons-material";
 import { useNavigate, useLocation } from "react-router";
 import { useAuth } from "../../modules/access-manager/auth.hook";
+import { useFilterSelection } from "../../modules/filter-selection/filter-selection.hook";
 import {
   useGetAuthMe,
   type IGetAuthMeResponseSuccess,
@@ -44,6 +45,7 @@ export function FloatingTopMenu() {
   const navigate = useNavigate();
   const location = useLocation();
   const { logout, store } = useAuth();
+  const { clearFilters: clearPersistedFilters } = useFilterSelection();
   const isSmallScreen = useMediaQuery("(max-width: 1200px)");
   const isVerySmallScreen = useMediaQuery("(max-width: 1084px)");
   const isExtraSmallScreen = useMediaQuery("(max-width: 920px)");
@@ -110,6 +112,7 @@ export function FloatingTopMenu() {
 
   const handleLogout = () => {
     setProfileMenuAnchor(null);
+    clearPersistedFilters();
     logout();
   };
 

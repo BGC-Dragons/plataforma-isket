@@ -20,6 +20,7 @@ import { getAuthMe } from "../../../services/get-auth-me.service";
 import { CustomTextField } from "../../library/components/custom-text-field";
 import { useAuth } from "../../modules/access-manager/auth.hook";
 import { SubscriptionBlockedModal } from "../../library/components/subscription-blocked-modal";
+import { useFilterSelection } from "../../modules/filter-selection/filter-selection.hook";
 
 export function Login() {
   const [email, setEmail] = useState("");
@@ -32,6 +33,7 @@ export function Login() {
   const location = useLocation();
   const theme = useTheme();
   const { login } = useAuth();
+  const { clearFilters: clearPersistedFilters } = useFilterSelection();
 
   // Carregar erro do localStorage quando o componente monta
   useEffect(() => {
@@ -41,6 +43,10 @@ export function Login() {
       setShowError(true);
     }
   }, []);
+
+  useEffect(() => {
+    clearPersistedFilters();
+  }, [clearPersistedFilters]);
 
   const redirectTo = (() => {
     if (!location.search.includes("redirect=")) return "/pesquisar-anuncios";

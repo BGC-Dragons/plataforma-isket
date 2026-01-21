@@ -906,6 +906,19 @@ export function EvaluationComponent() {
       }
 
       const existingGeometries = currentFilters?.drawingGeometries || [];
+      const overlayIndex = (overlay.overlay as unknown as {
+        __drawingIndex?: number;
+      })?.__drawingIndex;
+      const nextGeometries = [...existingGeometries];
+      if (typeof overlayIndex === "number" && overlayIndex >= 0) {
+        nextGeometries[overlayIndex] = geometry;
+      } else {
+        const newIndex = nextGeometries.length;
+        (overlay.overlay as unknown as { __drawingIndex?: number }).__drawingIndex =
+          newIndex;
+        nextGeometries.push(geometry);
+      }
+
       const newFilters: FilterState = {
         ...(currentFilters || {
           search: "",
@@ -964,7 +977,7 @@ export function EvaluationComponent() {
           lancamento: false,
           palavras_chave: "",
         }),
-        drawingGeometries: [...existingGeometries, geometry],
+        drawingGeometries: nextGeometries,
       };
 
       await applyFilters(newFilters);

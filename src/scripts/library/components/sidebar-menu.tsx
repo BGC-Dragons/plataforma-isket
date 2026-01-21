@@ -28,6 +28,7 @@ import {
 } from "@mui/icons-material";
 import { useNavigate, useLocation } from "react-router";
 import { useAuth } from "../../modules/access-manager/auth.hook";
+import { useFilterSelection } from "../../modules/filter-selection/filter-selection.hook";
 import {
   useGetAuthMe,
   type IGetAuthMeResponseSuccess,
@@ -41,6 +42,7 @@ export function SidebarMenu() {
   const navigate = useNavigate();
   const location = useLocation();
   const { logout, store } = useAuth();
+  const { clearFilters: clearPersistedFilters } = useFilterSelection();
   const [profilePopperOpen, setProfilePopperOpen] = useState(false);
   const [profileAnchorEl, setProfileAnchorEl] = useState<HTMLElement | null>(
     null
@@ -93,6 +95,7 @@ export function SidebarMenu() {
 
   const handleLogout = () => {
     setProfilePopperOpen(false);
+    clearPersistedFilters();
     logout();
   };
 

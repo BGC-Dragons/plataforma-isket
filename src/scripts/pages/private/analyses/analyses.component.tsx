@@ -507,6 +507,15 @@ export function AnalysesComponent() {
   // Aplicar filtros (definido após fetchCitiesData e fetchNeighborhoodsData)
   const applyFilters = useCallback(
     async (filters: FilterState) => {
+      const shouldUseDefaultCity =
+        filters.cities.length === 0 &&
+        !filters.addressCoordinates &&
+        (!filters.drawingGeometries || filters.drawingGeometries.length === 0) &&
+        defaultCity;
+      const effectiveFilters = shouldUseDefaultCity
+        ? { ...filters, cities: [defaultCity] }
+        : filters;
+
       setCurrentFilters(filters);
       setPersistedFilters(filters);
       // Sincronizar cidades com contexto quando filtros mudarem
@@ -520,14 +529,14 @@ export function AnalysesComponent() {
       let fetchedCities: ICityFull[] = [];
       let fetchedNeighborhoods: INeighborhoodFull[] = [];
 
-      if (!filters.addressCoordinates) {
-        fetchedCities = await fetchCitiesData(filters);
-        await fetchNeighborhoodsData(filters);
+      if (!effectiveFilters.addressCoordinates) {
+        fetchedCities = await fetchCitiesData(effectiveFilters);
+        await fetchNeighborhoodsData(effectiveFilters);
 
         // Se há bairros selecionados, buscar os dados dos bairros selecionados
-        if (filters.neighborhoods.length > 0) {
+        if (effectiveFilters.neighborhoods.length > 0) {
           // Buscar todos os bairros das cidades
-          const cityStateCodes = filters.cities
+          const cityStateCodes = effectiveFilters.cities
             .map((city) => cityToCodeMap[city])
             .filter((code): code is string => Boolean(code));
 
@@ -539,7 +548,7 @@ export function AnalysesComponent() {
               );
               // Filtrar apenas os bairros selecionados
               fetchedNeighborhoods = response.data.filter((neighborhood) =>
-                filters.neighborhoods.includes(neighborhood.name)
+                effectiveFilters.neighborhoods.includes(neighborhood.name)
               );
             } catch (error) {
               console.error("Erro ao buscar bairros selecionados:", error);
@@ -550,7 +559,7 @@ export function AnalysesComponent() {
 
       // Buscar dados de análises com bounds corretos
       await loadAnalyticsData(
-        filters,
+        effectiveFilters,
         fetchedCities.length > 0 ? fetchedCities : undefined,
         fetchedNeighborhoods.length > 0 ? fetchedNeighborhoods : undefined
       );
@@ -563,6 +572,7 @@ export function AnalysesComponent() {
       auth.store.token,
       setContextCities,
       setPersistedFilters,
+      defaultCity,
     ]
   );
 
@@ -901,7 +911,7 @@ export function AnalysesComponent() {
       // Carregar com cidades do contexto se disponíveis, senão usar cidade padrão
       const citiesToUse = contextCities.length > 0
         ? contextCities.filter((city) => availableCities.includes(city))
-        : [defaultCity];
+        : [];
       const initialFilters: FilterState = {
         search: "",
         cities: citiesToUse,
@@ -976,7 +986,7 @@ export function AnalysesComponent() {
     (overlay: google.maps.drawing.OverlayCompleteEvent) => {
       if (!currentFilters) return;
 
-      const newGeometries = currentFilters.drawingGeometries || [];
+      const existingGeometries = currentFilters.drawingGeometries || [];
 
       let geometry:
         | { type: "Polygon"; coordinates: number[][][] }
@@ -994,11 +1004,22 @@ export function AnalysesComponent() {
         return;
       }
 
-      newGeometries.push(geometry);
+      const overlayIndex = (overlay.overlay as unknown as {
+        __drawingIndex?: number;
+      })?.__drawingIndex;
+      const nextGeometries = [...existingGeometries];
+      if (typeof overlayIndex === "number" && overlayIndex >= 0) {
+        nextGeometries[overlayIndex] = geometry;
+      } else {
+        const newIndex = nextGeometries.length;
+        (overlay.overlay as unknown as { __drawingIndex?: number }).__drawingIndex =
+          newIndex;
+        nextGeometries.push(geometry);
+      }
 
       applyFilters({
         ...currentFilters,
-        drawingGeometries: newGeometries,
+        drawingGeometries: nextGeometries,
       });
     },
     [currentFilters, applyFilters]
