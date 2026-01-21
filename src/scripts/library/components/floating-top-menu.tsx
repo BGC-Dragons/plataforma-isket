@@ -121,8 +121,11 @@ export function FloatingTopMenu() {
     navigate("/configuracoes");
   };
 
-  // O botão "Assinar Plano" aparece quando não há plano ou quando o plano é TRIAL_PLAN
+  // O botão "Assinar Plano" aparece quando não há plano
+  // ou quando o plano atual é TRIAL_PLAN.
+  // Ele some apenas quando há um plano não trial.
   const hasActivePlan =
+    purchases.length > 0 &&
     purchases[0].product.productType !== "TRIAL_PLAN";
 
   // Função para obter unidades restantes
