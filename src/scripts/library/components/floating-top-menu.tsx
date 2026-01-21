@@ -121,6 +121,10 @@ export function FloatingTopMenu() {
     navigate("/configuracoes");
   };
 
+  // O botão "Assinar Plano" aparece quando não há plano ou quando o plano é TRIAL_PLAN
+  const hasActivePlan =
+    purchases[0].product.productType !== "TRIAL_PLAN";
+
   // Função para obter unidades restantes
   const getRemainingUnits = () => {
     if (purchases.length === 0)
@@ -478,7 +482,7 @@ export function FloatingTopMenu() {
               )}
 
               {/* Divider - Apenas se o botão Assinar Plano estiver visível */}
-              {!isVerySmallScreen && (
+              {!isVerySmallScreen && !hasActivePlan && (
                 <Divider
                   orientation="vertical"
                   flexItem
@@ -492,7 +496,7 @@ export function FloatingTopMenu() {
               )}
 
               {/* Botão Assinar Plano - Apenas em telas maiores que 1084px */}
-              {!isVerySmallScreen && (
+              {!isVerySmallScreen && !hasActivePlan && (
                 <Button
                   variant="contained"
                   onClick={() => navigate("/configuracoes?section=upgrade")}
