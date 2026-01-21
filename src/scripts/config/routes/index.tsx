@@ -10,6 +10,7 @@ import { Error404 } from "../../pages/public/Error404";
 import { AccessManager } from "../../modules/access-manager/access-manager.component";
 import { AuthProvider } from "../../modules/access-manager/auth.context";
 import { CitySelectionProvider } from "../../modules/city-selection/city-selection.context";
+import { FilterSelectionProvider } from "../../modules/filter-selection/filter-selection.context";
 import { PrivateLayout } from "../../library/components/private-layout";
 import { ManagementComponent } from "../../pages/private/management/management.component";
 import { SearchComponent } from "../../pages/private/search/search.component";
@@ -63,65 +64,70 @@ export function AppRouter() {
     <BrowserRouter>
       <AuthProvider>
         <CitySelectionProvider>
-          <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/esqueceu-senha" element={<ForgotPassword />} />
-          <Route path="/cadastro" element={<SignUp />} />
-          <Route path="/complete-profile" element={<CompleteProfile />} />
-          <Route path="/email-verification" element={<EmailVerification />} />
-          <Route path="/complete-signup" element={<CompleteSignUp />} />
-          <Route path="/reset-password/:token" element={<ResetPassword />} />
+          <FilterSelectionProvider>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/esqueceu-senha" element={<ForgotPassword />} />
+              <Route path="/cadastro" element={<SignUp />} />
+              <Route path="/complete-profile" element={<CompleteProfile />} />
+              <Route path="/email-verification" element={<EmailVerification />} />
+              <Route path="/complete-signup" element={<CompleteSignUp />} />
+              <Route path="/reset-password/:token" element={<ResetPassword />} />
 
-          {/* Rotas Privadas */}
-          <Route
-            path="/"
-            element={<Navigate to="/pesquisar-anuncios" replace />}
-          />
-          <Route
-            path="/analises"
-            element={
-              <AccessManager component={AnalisesPage} requireAuth={true} />
-            }
-          />
-          <Route
-            path="/pesquisar-anuncios"
-            element={
-              <AccessManager
-                component={PesquisarAnunciosPage}
-                requireAuth={true}
+              {/* Rotas Privadas */}
+              <Route
+                path="/"
+                element={<Navigate to="/pesquisar-anuncios" replace />}
               />
-            }
-          />
-          <Route
-            path="/pesquisar-anuncios/:propertyId"
-            element={
-              <AccessManager
-                component={PesquisarAnunciosPage}
-                requireAuth={true}
+              <Route
+                path="/analises"
+                element={
+                  <AccessManager component={AnalisesPage} requireAuth={true} />
+                }
               />
-            }
-          />
-          <Route
-            path="/captacao"
-            element={
-              <AccessManager component={CaptacaoPage} requireAuth={true} />
-            }
-          />
-          <Route
-            path="/avaliacao"
-            element={
-              <AccessManager component={AvaliacaoPage} requireAuth={true} />
-            }
-          />
-          <Route
-            path="/configuracoes"
-            element={
-              <AccessManager component={ConfiguracoesPage} requireAuth={true} />
-            }
-          />
+              <Route
+                path="/pesquisar-anuncios"
+                element={
+                  <AccessManager
+                    component={PesquisarAnunciosPage}
+                    requireAuth={true}
+                  />
+                }
+              />
+              <Route
+                path="/pesquisar-anuncios/:propertyId"
+                element={
+                  <AccessManager
+                    component={PesquisarAnunciosPage}
+                    requireAuth={true}
+                  />
+                }
+              />
+              <Route
+                path="/captacao"
+                element={
+                  <AccessManager component={CaptacaoPage} requireAuth={true} />
+                }
+              />
+              <Route
+                path="/avaliacao"
+                element={
+                  <AccessManager component={AvaliacaoPage} requireAuth={true} />
+                }
+              />
+              <Route
+                path="/configuracoes"
+                element={
+                  <AccessManager
+                    component={ConfiguracoesPage}
+                    requireAuth={true}
+                  />
+                }
+              />
 
-          <Route path="*" element={<Error404 />} />
-        </Routes>
+              <Route path="*" element={<Error404 />} />
+            </Routes>
+          </FilterSelectionProvider>
         </CitySelectionProvider>
       </AuthProvider>
     </BrowserRouter>

@@ -65,6 +65,8 @@ import {
   mapCalculationCriterionToAreaType,
 } from "../../../modules/evaluation/evaluation-helpers";
 import { downloadXLSX } from "../../../modules/evaluation/excel-export";
+import type { FilterState } from "../../../modules/search/filter/filter.types";
+import { useFilterSelection } from "../../../modules/filter-selection/filter-selection.hook";
 
 // Interface para os dados das propriedades
 interface PropertyData {
@@ -82,71 +84,6 @@ interface PropertyData {
   parking?: number;
   area: number;
   images: string[];
-}
-
-// Interface para o estado dos filtros (mesma do search)
-interface FilterState {
-  search: string;
-  cities: string[];
-  neighborhoods: string[];
-  addressCoordinates?: { lat: number; lng: number };
-  addressZoom?: number;
-  drawingGeometries?: Array<
-    | { type: "Polygon"; coordinates: number[][][] }
-    | { type: "circle"; coordinates: [[number, number]]; radius: string }
-  >;
-  venda: boolean;
-  aluguel: boolean;
-  residencial: boolean;
-  comercial: boolean;
-  industrial: boolean;
-  agricultura: boolean;
-  apartamento_padrao: boolean;
-  apartamento_flat: boolean;
-  apartamento_loft: boolean;
-  apartamento_studio: boolean;
-  apartamento_duplex: boolean;
-  apartamento_triplex: boolean;
-  apartamento_cobertura: boolean;
-  comercial_sala: boolean;
-  comercial_casa: boolean;
-  comercial_ponto: boolean;
-  comercial_galpao: boolean;
-  comercial_loja: boolean;
-  comercial_predio: boolean;
-  comercial_clinica: boolean;
-  comercial_coworking: boolean;
-  comercial_sobreloja: boolean;
-  casa_casa: boolean;
-  casa_sobrado: boolean;
-  casa_sitio: boolean;
-  casa_chale: boolean;
-  casa_chacara: boolean;
-  casa_edicula: boolean;
-  terreno_terreno: boolean;
-  terreno_fazenda: boolean;
-  outros_garagem: boolean;
-  outros_quarto: boolean;
-  outros_resort: boolean;
-  outros_republica: boolean;
-  outros_box: boolean;
-  outros_tombado: boolean;
-  outros_granja: boolean;
-  outros_haras: boolean;
-  outros_outros: boolean;
-  quartos: number | null;
-  banheiros: number | null;
-  suites: number | null;
-  garagem: number | null;
-  area_min: number;
-  area_max: number;
-  preco_min: number;
-  preco_max: number;
-  proprietario_direto: boolean;
-  imobiliaria: boolean;
-  portal: boolean;
-  lancamento: boolean;
-  palavras_chave: string;
 }
 
 type SortOption =
@@ -193,6 +130,8 @@ export function EvaluationComponent() {
   const auth = useAuth();
   const { cities: contextCities, setCities: setContextCities } =
     useCitySelection();
+  const { filters: persistedFilters, setFilters: setPersistedFilters } =
+    useFilterSelection();
   const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm")); // < 600px
 
   const { data: purchasesData } = useGetPurchases();
@@ -860,6 +799,7 @@ export function EvaluationComponent() {
   const applyFilters = useCallback(
     async (filters: FilterState) => {
       setCurrentFilters(filters);
+      setPersistedFilters(filters);
       // Sincronizar cidades com contexto quando filtros mudarem
       if (filters.cities.length > 0) {
         setContextCities(filters.cities);
@@ -937,6 +877,7 @@ export function EvaluationComponent() {
       fetchCitiesData,
       defaultCity,
       setContextCities,
+      setPersistedFilters,
     ]
   );
 
@@ -1106,8 +1047,17 @@ export function EvaluationComponent() {
     [sortBy, cityToCodeMap, itemsPerPage, auth.store.token, defaultCity]
   );
 
+  useEffect(() => {
+    if (!currentFilters && persistedFilters) {
+      applyFilters(persistedFilters);
+    }
+  }, [currentFilters, persistedFilters, applyFilters]);
+
   // Buscar propriedades iniciais quando houver cidades disponíveis
   useEffect(() => {
+    if (persistedFilters) {
+      return;
+    }
     const fetchInitial = async () => {
       if (
         availableCities.length > 0 &&
@@ -1198,6 +1148,7 @@ export function EvaluationComponent() {
     applyFilters,
     contextCities,
     availableCities,
+    persistedFilters,
   ]);
 
   // Buscar propriedades quando a página muda

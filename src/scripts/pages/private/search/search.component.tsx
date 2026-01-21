@@ -63,6 +63,8 @@ import type { INeighborhoodFull } from "../../../../services/get-locations-neigh
 import { getCityByCode } from "../../../../services/get-locations-city-by-code.service";
 import type { ICityFull } from "../../../../services/get-locations-cities.service";
 import { postCitiesFindMany } from "../../../../services/post-locations-cities-find-many.service";
+import type { FilterState } from "../../../modules/search/filter/filter.types";
+import { useFilterSelection } from "../../../modules/filter-selection/filter-selection.hook";
 
 // Interface para os dados das propriedades
 interface PropertyData {
@@ -83,84 +85,6 @@ interface PropertyData {
   isFavorite?: boolean;
 }
 
-// Interface para o estado dos filtros
-interface FilterState {
-  search: string;
-  cities: string[];
-  neighborhoods: string[];
-  // Coordenadas do endereço selecionado (quando há busca por endereço)
-  addressCoordinates?: { lat: number; lng: number };
-  addressZoom?: number;
-  // Geometrias dos desenhos no mapa (quando há desenhos)
-  drawingGeometries?: Array<
-    | { type: "Polygon"; coordinates: number[][][] }
-    | { type: "circle"; coordinates: [[number, number]]; radius: string }
-  >;
-  // Negócio
-  venda: boolean;
-  aluguel: boolean;
-  // Finalidade
-  residencial: boolean;
-  comercial: boolean;
-  industrial: boolean;
-  agricultura: boolean;
-  // Apartamentos
-  apartamento_padrao: boolean;
-  apartamento_flat: boolean;
-  apartamento_loft: boolean;
-  apartamento_studio: boolean;
-  apartamento_duplex: boolean;
-  apartamento_triplex: boolean;
-  apartamento_cobertura: boolean;
-  // Comerciais
-  comercial_sala: boolean;
-  comercial_casa: boolean;
-  comercial_ponto: boolean;
-  comercial_galpao: boolean;
-  comercial_loja: boolean;
-  comercial_predio: boolean;
-  comercial_clinica: boolean;
-  comercial_coworking: boolean;
-  comercial_sobreloja: boolean;
-  // Casas e Sítios
-  casa_casa: boolean;
-  casa_sobrado: boolean;
-  casa_sitio: boolean;
-  casa_chale: boolean;
-  casa_chacara: boolean;
-  casa_edicula: boolean;
-  // Terrenos
-  terreno_terreno: boolean;
-  terreno_fazenda: boolean;
-  // Outros
-  outros_garagem: boolean;
-  outros_quarto: boolean;
-  outros_resort: boolean;
-  outros_republica: boolean;
-  outros_box: boolean;
-  outros_tombado: boolean;
-  outros_granja: boolean;
-  outros_haras: boolean;
-  outros_outros: boolean;
-  // Cômodos
-  quartos: number | null;
-  banheiros: number | null;
-  suites: number | null;
-  garagem: number | null;
-  // Sliders
-  area_min: number;
-  area_max: number;
-  preco_min: number;
-  preco_max: number;
-  // Tipo de Anunciante
-  proprietario_direto: boolean;
-  imobiliaria: boolean;
-  portal: boolean;
-  // Opcionais
-  lancamento: boolean;
-  palavras_chave: string;
-}
-
 type SortOption =
   | "relevance"
   | "price-per-m2-asc"
@@ -177,6 +101,10 @@ export function SearchComponent() {
   const auth = useAuth();
   const { cities: contextCities, setCities: setContextCities } =
     useCitySelection();
+  const {
+    filters: persistedFilters,
+    setFilters: setPersistedFilters,
+  } = useFilterSelection();
 
   const [filteredProperties, setFilteredProperties] = useState<PropertyData[]>(
     []
@@ -768,6 +696,7 @@ export function SearchComponent() {
   const applyFilters = useCallback(
     async (filters: FilterState) => {
       setCurrentFilters(filters);
+      setPersistedFilters(filters);
       // Sincronizar cidades com contexto quando filtros mudarem
       if (filters.cities.length > 0) {
         setContextCities(filters.cities);
@@ -840,6 +769,7 @@ export function SearchComponent() {
       fetchNeighborhoodsData,
       fetchCitiesData,
       defaultCity,
+      setPersistedFilters,
     ]
   );
 
@@ -1069,8 +999,17 @@ export function SearchComponent() {
     }
   }, [applyFilters, contextCities, availableCities]);
 
+  useEffect(() => {
+    if (!currentFilters && persistedFilters) {
+      applyFilters(persistedFilters);
+    }
+  }, [currentFilters, persistedFilters, applyFilters]);
+
   // Buscar propriedades iniciais quando o componente monta (sem filtros)
   useEffect(() => {
+    if (persistedFilters) {
+      return;
+    }
     if (
       availableCities.length > 0 &&
       Object.keys(cityToCodeMap).length > 0 &&

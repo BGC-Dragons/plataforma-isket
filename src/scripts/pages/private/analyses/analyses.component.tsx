@@ -21,7 +21,6 @@ import { postAnalyticsSupplyByPropertyType } from "../../../../services/post-ana
 import { postAnalyticsSearchDemandHeatMap } from "../../../../services/post-analytics-search-demand-heatmap.service";
 // import { postAnalyticsAgencyRanking } from "../../../../services/post-analytics-agency-ranking.service";
 import { mapFiltersToApi } from "../../../../services/helpers/map-filters-to-api.helper";
-import type { ILocalFilterState } from "../../../../services/helpers/map-filters-to-api.helper";
 import { useAuth } from "../../../modules/access-manager/auth.hook";
 import { useCitySelection } from "../../../modules/city-selection/city-selection.hook";
 import { getNeighborhoods } from "../../../../services/get-locations-neighborhoods.service";
@@ -37,6 +36,8 @@ import {
   convertOverlayToGeoJSONPolygon,
   convertOverlayToGeoJSONCircle,
 } from "../../../modules/search/map/map-utils";
+import type { FilterState } from "../../../modules/search/filter/filter.types";
+import { useFilterSelection } from "../../../modules/filter-selection/filter-selection.hook";
 
 // Calcular período dos últimos 3 meses
 const getLastThreeMonthsPeriod = () => {
@@ -150,10 +151,13 @@ export function AnalysesComponent() {
   const theme = useTheme();
   const location = useLocation();
   const auth = useAuth();
-  const { cities: contextCities, setCities: setContextCities } = useCitySelection();
+  const { cities: contextCities, setCities: setContextCities } =
+    useCitySelection();
+  const { filters: persistedFilters, setFilters: setPersistedFilters } =
+    useFilterSelection();
 
   const [currentFilters, setCurrentFilters] = useState<
-    ILocalFilterState | undefined
+    FilterState | undefined
   >(undefined);
   const [neighborhoodRanking, setNeighborhoodRanking] = useState<
     Array<{ neighborhood: string; count: number }>
@@ -292,7 +296,7 @@ export function AnalysesComponent() {
   // Buscar dados de análises
   const loadAnalyticsData = useCallback(
     async (
-      filters: ILocalFilterState,
+      filters: FilterState,
       citiesForBounds?: ICityFull[],
       neighborhoodsForBounds?: INeighborhoodFull[]
     ) => {
@@ -403,7 +407,7 @@ export function AnalysesComponent() {
   // Buscar dados de cidades
   // Quando apenas cidades são selecionadas (sem bairros), usa o endpoint individual que retorna geo completo
   const fetchCitiesData = useCallback(
-    async (filters: ILocalFilterState): Promise<ICityFull[]> => {
+    async (filters: FilterState): Promise<ICityFull[]> => {
       if (filters.cities.length === 0) {
         setCitiesData([]);
         return [];
@@ -452,7 +456,7 @@ export function AnalysesComponent() {
   // Buscar dados de bairros
   // Quando apenas cidade é selecionada (sem bairros específicos), busca todos os bairros para mostrar delimitação
   const fetchNeighborhoodsData = useCallback(
-    async (filters: ILocalFilterState) => {
+    async (filters: FilterState) => {
       if (filters.cities.length === 0) {
         setNeighborhoodsData([]);
         setAllNeighborhoodsForBounds([]);
@@ -502,8 +506,9 @@ export function AnalysesComponent() {
 
   // Aplicar filtros (definido após fetchCitiesData e fetchNeighborhoodsData)
   const applyFilters = useCallback(
-    async (filters: ILocalFilterState) => {
+    async (filters: FilterState) => {
       setCurrentFilters(filters);
+      setPersistedFilters(filters);
       // Sincronizar cidades com contexto quando filtros mudarem
       if (filters.cities.length > 0) {
         setContextCities(filters.cities);
@@ -557,6 +562,7 @@ export function AnalysesComponent() {
       cityToCodeMap,
       auth.store.token,
       setContextCities,
+      setPersistedFilters,
     ]
   );
 
@@ -816,15 +822,24 @@ export function AnalysesComponent() {
     currentFilters?.drawingGeometries,
   ]);
 
+  useEffect(() => {
+    if (!currentFilters && persistedFilters) {
+      applyFilters(persistedFilters);
+    }
+  }, [currentFilters, persistedFilters, applyFilters]);
+
   // Carregar dados iniciais
   useEffect(() => {
+    if (persistedFilters) {
+      return;
+    }
     if (location.state?.neighborhoodFilter && !currentFilters) {
       // Se veio de redirecionamento com filtro de bairro
       // Usar cidades do contexto se disponíveis, senão usar defaultCity
       const citiesToUse = contextCities.length > 0
         ? contextCities.filter((city) => availableCities.includes(city))
         : (defaultCity ? [defaultCity] : []);
-      const initialFilters: ILocalFilterState = {
+      const initialFilters: FilterState = {
         search: "",
         cities: citiesToUse,
         neighborhoods: [location.state.neighborhoodFilter],
@@ -887,7 +902,7 @@ export function AnalysesComponent() {
       const citiesToUse = contextCities.length > 0
         ? contextCities.filter((city) => availableCities.includes(city))
         : [defaultCity];
-      const initialFilters: ILocalFilterState = {
+      const initialFilters: FilterState = {
         search: "",
         cities: citiesToUse,
         neighborhoods: [],
@@ -946,7 +961,15 @@ export function AnalysesComponent() {
       };
       applyFilters(initialFilters);
     }
-  }, [defaultCity, location.state, currentFilters, applyFilters, contextCities, availableCities]);
+  }, [
+    defaultCity,
+    location.state,
+    currentFilters,
+    applyFilters,
+    contextCities,
+    availableCities,
+    persistedFilters,
+  ]);
 
   // Handlers do mapa
   const handleDrawingComplete = useCallback(
@@ -983,7 +1006,7 @@ export function AnalysesComponent() {
 
   const handleClearFilters = useCallback(() => {
     if (!defaultCity) return;
-    const clearedFilters: ILocalFilterState = {
+    const clearedFilters: FilterState = {
       search: "",
       cities: [defaultCity],
       neighborhoods: [],
