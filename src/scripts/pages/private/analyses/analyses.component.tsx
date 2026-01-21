@@ -302,9 +302,19 @@ export function AnalysesComponent() {
     ) => {
       if (!auth.store.token) return;
 
+      // Usar cidade padrão se não houver cidade selecionada
+      const shouldUseDefaultCity =
+        filters.cities.length === 0 &&
+        !filters.addressCoordinates &&
+        (!filters.drawingGeometries || filters.drawingGeometries.length === 0) &&
+        defaultCity;
+      const effectiveFilters = shouldUseDefaultCity
+        ? { ...filters, cities: [defaultCity] }
+        : filters;
+
       const period = getLastThreeMonthsPeriod();
       const apiFilters = mapFiltersToApi(
-        filters,
+        effectiveFilters,
         cityToCodeMap,
         1,
         1,
@@ -399,9 +409,9 @@ export function AnalysesComponent() {
       //   setAgencyRanking([]);
       // } finally {
       //   setLoadingAgencyRanking(false);
-      // }
+      //       }
     },
-    [auth.store.token, cityToCodeMap, neighborhoodsData, citiesData]
+    [auth.store.token, cityToCodeMap, neighborhoodsData, citiesData, defaultCity]
   );
 
   // Buscar dados de cidades
@@ -838,7 +848,7 @@ export function AnalysesComponent() {
     }
   }, [currentFilters, persistedFilters, applyFilters]);
 
-  // Carregar dados iniciais
+  // Carregar dados iniciais apenas em caso de redirecionamento com filtro de bairro
   useEffect(() => {
     if (persistedFilters) {
       return;
@@ -907,78 +917,18 @@ export function AnalysesComponent() {
         palavras_chave: "",
       };
       applyFilters(initialFilters);
-    } else if (!currentFilters && defaultCity) {
-      // Carregar com cidades do contexto se disponíveis, senão usar cidade padrão
-      const citiesToUse = contextCities.length > 0
-        ? contextCities.filter((city) => availableCities.includes(city))
-        : [];
-      const initialFilters: FilterState = {
-        search: "",
-        cities: citiesToUse,
-        neighborhoods: [],
-        venda: true,
-        aluguel: true,
-        residencial: true,
-        comercial: false,
-        industrial: false,
-        agricultura: false,
-        apartamento_padrao: false,
-        apartamento_flat: false,
-        apartamento_loft: false,
-        apartamento_studio: false,
-        apartamento_duplex: false,
-        apartamento_triplex: false,
-        apartamento_cobertura: false,
-        comercial_sala: false,
-        comercial_casa: false,
-        comercial_ponto: false,
-        comercial_galpao: false,
-        comercial_loja: false,
-        comercial_predio: false,
-        comercial_clinica: false,
-        comercial_coworking: false,
-        comercial_sobreloja: false,
-        casa_casa: false,
-        casa_sobrado: false,
-        casa_sitio: false,
-        casa_chale: false,
-        casa_chacara: false,
-        casa_edicula: false,
-        terreno_terreno: false,
-        terreno_fazenda: false,
-        outros_garagem: false,
-        outros_quarto: false,
-        outros_resort: false,
-        outros_republica: false,
-        outros_box: false,
-        outros_tombado: false,
-        outros_granja: false,
-        outros_haras: false,
-        outros_outros: false,
-        quartos: null,
-        banheiros: null,
-        suites: null,
-        garagem: null,
-        area_min: 0,
-        area_max: 1000000,
-        preco_min: 0,
-        preco_max: 100000000,
-        proprietario_direto: false,
-        imobiliaria: false,
-        portal: false,
-        lancamento: false,
-        palavras_chave: "",
-      };
-      applyFilters(initialFilters);
     }
+    // Removido: não inicializar filtros automaticamente
+    // O usuário deve selecionar a cidade manualmente
+    // Quando não houver cidade selecionada, a cidade padrão será usada nas buscas
   }, [
-    defaultCity,
     location.state,
     currentFilters,
     applyFilters,
     contextCities,
     availableCities,
     persistedFilters,
+    defaultCity,
   ]);
 
   // Handlers do mapa
