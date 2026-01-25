@@ -2723,8 +2723,14 @@ export function MapComponent({
     );
   }
 
-  // Se o mapa ainda não foi carregado
-  if (!isLoaded) {
+  // Se o mapa ainda não foi carregado ou se a biblioteca de drawing não está disponível
+  if (
+    !isLoaded ||
+    typeof window === "undefined" ||
+    !window.google ||
+    !window.google.maps ||
+    !window.google.maps.drawing
+  ) {
     return (
       <Box
         sx={{
@@ -2743,6 +2749,9 @@ export function MapComponent({
       </Box>
     );
   }
+
+  // Constante segura para acessar OverlayType (já verificamos que está disponível acima)
+  const OverlayType = window.google.maps.drawing.OverlayType;
 
   return (
     <Box
@@ -3411,16 +3420,16 @@ export function MapComponent({
             {/* Botão Polígono */}
             <Button
               variant={
-                drawingMode === google.maps.drawing.OverlayType.POLYGON
+                drawingMode === OverlayType.POLYGON
                   ? "contained"
                   : "outlined"
               }
               size="small"
               onClick={() =>
                 setDrawingModeHandler(
-                  drawingMode === google.maps.drawing.OverlayType.POLYGON
+                  drawingMode === OverlayType.POLYGON
                     ? null
-                    : google.maps.drawing.OverlayType.POLYGON
+                    : OverlayType.POLYGON
                 )
               }
               sx={{
@@ -3428,17 +3437,17 @@ export function MapComponent({
                 height: 18,
                 borderRadius: 0.25,
                 backgroundColor:
-                  drawingMode === google.maps.drawing.OverlayType.POLYGON
+                  drawingMode === OverlayType.POLYGON
                     ? theme.palette.primary.main
                     : "transparent",
                 color:
-                  drawingMode === google.maps.drawing.OverlayType.POLYGON
+                  drawingMode === OverlayType.POLYGON
                     ? theme.palette.primary.contrastText
                     : theme.palette.text.primary,
                 borderColor: theme.palette.divider,
                 "&:hover": {
                   backgroundColor:
-                    drawingMode === google.maps.drawing.OverlayType.POLYGON
+                    drawingMode === OverlayType.POLYGON
                       ? theme.palette.primary.dark
                       : theme.palette.action.hover,
                 },
@@ -3450,16 +3459,16 @@ export function MapComponent({
             {/* Botão Círculo */}
             <Button
               variant={
-                drawingMode === google.maps.drawing.OverlayType.CIRCLE
+                drawingMode === OverlayType.CIRCLE
                   ? "contained"
                   : "outlined"
               }
               size="small"
               onClick={() =>
                 setDrawingModeHandler(
-                  drawingMode === google.maps.drawing.OverlayType.CIRCLE
+                  drawingMode === OverlayType.CIRCLE
                     ? null
-                    : google.maps.drawing.OverlayType.CIRCLE
+                    : OverlayType.CIRCLE
                 )
               }
               sx={{
@@ -3467,17 +3476,17 @@ export function MapComponent({
                 height: 18,
                 borderRadius: 0.25,
                 backgroundColor:
-                  drawingMode === google.maps.drawing.OverlayType.CIRCLE
+                  drawingMode === OverlayType.CIRCLE
                     ? theme.palette.primary.main
                     : "transparent",
                 color:
-                  drawingMode === google.maps.drawing.OverlayType.CIRCLE
+                  drawingMode === OverlayType.CIRCLE
                     ? theme.palette.primary.contrastText
                     : theme.palette.text.primary,
                 borderColor: theme.palette.divider,
                 "&:hover": {
                   backgroundColor:
-                    drawingMode === google.maps.drawing.OverlayType.CIRCLE
+                    drawingMode === OverlayType.CIRCLE
                       ? theme.palette.primary.dark
                       : theme.palette.action.hover,
                 },
