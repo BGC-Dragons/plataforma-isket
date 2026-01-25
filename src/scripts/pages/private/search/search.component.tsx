@@ -697,7 +697,7 @@ export function SearchComponent() {
 
   // Função para aplicar filtros e buscar da API
   const applyFilters = useCallback(
-    async (filters: FilterState) => {
+    async (filters: FilterState, sortOption?: SortOption) => {
       setCurrentFilters(filters);
       setPersistedFilters(filters);
       // Sincronizar cidades com contexto quando filtros mudarem
@@ -711,7 +711,7 @@ export function SearchComponent() {
       setError(null); // Limpar erro anterior
 
       try {
-        const sortConfig = mapSortOptionToApi(sortBy);
+        const sortConfig = mapSortOptionToApi(sortOption ?? sortBy);
 
         // Se não há cidades selecionadas e não há busca por endereço/desenho,
         // usar a cidade padrão internamente na busca
@@ -1030,7 +1030,7 @@ export function SearchComponent() {
   const handleSortChange = (newSortBy: SortOption) => {
     setSortBy(newSortBy);
     if (currentFilters) {
-      applyFilters(currentFilters);
+      applyFilters(currentFilters, newSortBy);
     }
   };
 

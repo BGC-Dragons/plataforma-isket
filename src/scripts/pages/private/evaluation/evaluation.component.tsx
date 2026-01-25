@@ -797,7 +797,7 @@ export function EvaluationComponent() {
 
   // Função para aplicar filtros e buscar da API
   const applyFilters = useCallback(
-    async (filters: FilterState) => {
+    async (filters: FilterState, sortOption?: SortOption) => {
       setCurrentFilters(filters);
       setPersistedFilters(filters);
       // Sincronizar cidades com contexto quando filtros mudarem
@@ -811,7 +811,7 @@ export function EvaluationComponent() {
       setError(null);
 
       try {
-        const sortConfig = mapSortOptionToApi(sortBy);
+        const sortConfig = mapSortOptionToApi(sortOption ?? sortBy);
 
         const filtersForApi = { ...filters };
         if (
@@ -1258,15 +1258,12 @@ export function EvaluationComponent() {
   );
 
   // Função para lidar com mudança de ordenação
-  const handleSortChange = useCallback(
-    (newSortBy: SortOption) => {
-      setSortBy(newSortBy);
-      if (currentFilters) {
-        applyFilters(currentFilters);
-      }
-    },
-    [currentFilters, applyFilters]
-  );
+  const handleSortChange = useCallback((newSortBy: SortOption) => {
+    setSortBy(newSortBy);
+    if (currentFilters) {
+      applyFilters(currentFilters, newSortBy);
+    }
+  }, [currentFilters, applyFilters]);
 
   const handlePropertySelect = useCallback((id: string, selected: boolean) => {
     setSelectedProperties((prev) => {

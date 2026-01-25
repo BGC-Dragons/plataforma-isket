@@ -151,8 +151,8 @@ export const mapFiltersToApi = (
   if (sortType) {
     request.sortType = sortType;
   } else if (sortBy === "area" || sortBy === "pricePerSquareMeter") {
-    // Fallback: usar "TOTAL" como padrão se sortType não foi fornecido
-    request.sortType = "TOTAL" as AreaType;
+    // Fallback: usar "BUILT" como padrão se sortType não foi fornecido (conforme documentação)
+    request.sortType = "BUILT" as AreaType;
   }
 
   // Busca textual - quando há coordenadas, usar formato completo com geometria
