@@ -49,6 +49,7 @@ import {
 } from "../../../../../services/put-purchases-update-city.service";
 import { AddCitiesModal } from "../../../../library/components/add-cities-modal";
 import { EditCityModal } from "../../../../library/components/edit-city-modal";
+import { convertCityDescriptionToCode } from "../../../../library/helpers/convert-city-description-to-code.helper";
 import { mutate } from "swr";
 import { getPurchasesPATH } from "../../../../../services/get-purchases.service";
 
@@ -327,22 +328,6 @@ export function SubscriptionSection() {
     return `${formattedCity} - ${stateAcronym}`;
   };
 
-  const convertCityDescriptionToCode = (cityDescription: string): string => {
-    // Converte "Flores da Cunha, RS, Brasil" para "flores_da_cunha_rs"
-    const parts = cityDescription.split(", ");
-    if (parts.length < 2) return cityDescription;
-
-    const cityName = parts[0]
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "") // Remove acentos
-      .replace(/[^a-z0-9\s]/g, "") // Remove caracteres especiais
-      .replace(/\s+/g, "_"); // Substitui espaços por underscore
-
-    const stateCode = parts[1].toLowerCase();
-
-    return `${cityName}_${stateCode}`;
-  };
 
   const getRemainingUnits = (purchase: IGetPurchasesResponseSuccess) => {
     const units: Record<ProductUnitType, { remaining: number; total: number }> =

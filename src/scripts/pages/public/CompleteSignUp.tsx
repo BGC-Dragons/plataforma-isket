@@ -18,6 +18,7 @@ import { postAuthLogin } from "../../../services/post-auth-login.service";
 import { getAuthMe } from "../../../services/get-auth-me.service";
 import { useAuth } from "../../modules/access-manager/auth.hook";
 import { validatePassword } from "../../library/helpers/validate-password.helper";
+import { convertCityDescriptionToCode } from "../../library/helpers/convert-city-description-to-code.helper";
 
 export function CompleteSignUp() {
   const [name, setName] = useState("");
@@ -67,13 +68,16 @@ export function CompleteSignUp() {
     setError("");
 
     try {
+      // Converter cidade do formato "Curitiba, PR, Brasil" para "curitiba_pr"
+      const cityCode = convertCityDescriptionToCode(city.trim());
+
       // Chamar API de registro
       await postAuthRegister({
         name: name.trim(),
         email: email.trim(),
         password,
         verificationCode: verificationCode || "1234", // Código da verificação ou fallback
-        defaultCityStateCode: city,
+        defaultCityStateCode: cityCode,
         // Campos opcionais podem ser adicionados aqui
       });
 
