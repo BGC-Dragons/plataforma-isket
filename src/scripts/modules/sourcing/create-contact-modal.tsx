@@ -22,12 +22,14 @@ import {
   postPropertyListingAcquisitionContact,
   type ContactRelationship,
 } from "../../../services/post-property-listing-acquisition-contact.service";
+import type { IPropertyOwner } from "../../../services/get-property-owner-finder-by-address.service";
 
 interface CreateContactModalProps {
   open: boolean;
   onClose: () => void;
   acquisitionProcessId: string;
   onContactCreated?: () => void;
+  ownerData?: IPropertyOwner | null; // Dados opcionais da API
 }
 
 const formatCPF = (value: string) => {
@@ -77,6 +79,7 @@ export function CreateContactModal({
   onClose,
   acquisitionProcessId,
   onContactCreated,
+  ownerData,
 }: CreateContactModalProps) {
   const theme = useTheme();
   const auth = useAuth();
@@ -192,12 +195,41 @@ export function CreateContactModal({
     onClose();
   };
 
-  // Limpar formulário quando o modal abrir
+  // Preencher formulário com dados da API quando disponíveis
   useEffect(() => {
     if (open) {
-      handleClear();
+      if (ownerData) {
+        // Preencher com dados da API
+        const firstName = ownerData.firstName || "";
+        const lastName = ownerData.lastName || "";
+        const fullName = `${firstName} ${lastName}`.trim();
+        
+        // Pegar primeiro email se disponível
+        const firstEmail = ownerData.emails && Array.isArray(ownerData.emails) && ownerData.emails.length > 0
+          ? ownerData.emails[0].email || ""
+          : "";
+        
+        // Pegar primeiro telefone se disponível
+        let firstPhone = "";
+        if (ownerData.phones && Array.isArray(ownerData.phones) && ownerData.phones.length > 0) {
+          const phone = ownerData.phones[0];
+          // Usar formattedNumber se disponível, senão tentar extrair do número
+          firstPhone = phone.formattedNumber || "";
+        }
+        
+        setFormData({
+          name: fullName,
+          cpf: formatCPF(ownerData.nationalId || ""),
+          email: firstEmail,
+          phone: firstPhone,
+          relationship: "other",
+        });
+      } else {
+        // Limpar formulário se não houver dados
+        handleClear();
+      }
     }
-  }, [open]);
+  }, [open, ownerData]);
 
   return (
     <Dialog

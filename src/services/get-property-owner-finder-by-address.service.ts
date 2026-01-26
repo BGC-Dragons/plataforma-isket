@@ -52,6 +52,9 @@ export interface IPropertyOwner {
   propertyAsResident?: IPropertyOwnerProperty | null;
   addressHistory?: unknown[];
   personHistory?: IPersonHistoryItem[]; // Histórico de endereços da pessoa
+  age?: number;
+  birthDate?: string;
+  deathSuspect?: boolean;
   createdAt: string;
   updatedAt: string;
 }

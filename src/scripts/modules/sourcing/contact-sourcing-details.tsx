@@ -35,6 +35,7 @@ import {
 import type { ContactSourcingData } from "./contact-sourcing-modal";
 import { useAuth } from "../access-manager/auth.hook";
 import { getPropertyOwnerFinderByNationalId } from "../../../services/get-property-owner-finder-by-national-id.service";
+import type { IPropertyOwner } from "../../../services/get-property-owner-finder-by-address.service";
 import {
   postRevealedPropertiesMultiple,
   putRevealedProperty,
@@ -102,6 +103,7 @@ export function ContactSourcingDetails({
   ] = useState(false);
   const [selectedPropertyForCapture, setSelectedPropertyForCapture] =
     useState<IRevealedProperty | null>(null);
+  const [ownerData, setOwnerData] = useState<IPropertyOwner | null>(null);
 
   useEffect(() => {
     setEditedTitle(data.title);
@@ -192,6 +194,28 @@ export function ContactSourcingDetails({
     }
   }, [open, data.cpf]);
 
+  // Buscar dados completos do contato quando o modal abrir
+  useEffect(() => {
+    if (open && data.cpf && auth.store.token) {
+      const fetchOwnerData = async () => {
+        try {
+          const ownerResponse = await getPropertyOwnerFinderByNationalId(
+            data.cpf,
+            auth.store.token || ""
+          );
+          if (ownerResponse.data) {
+            setOwnerData(ownerResponse.data);
+          }
+        } catch (error) {
+          console.error("Erro ao buscar dados completos do contato:", error);
+        }
+      };
+      fetchOwnerData();
+    } else if (!open) {
+      setOwnerData(null);
+    }
+  }, [open, data.cpf, auth.store.token]);
+
   // Carregar histórico de contatos e contatos quando o modal abrir
   useEffect(() => {
     if (open && acquisitionProcessId && auth.store.token) {
@@ -267,6 +291,9 @@ export function ContactSourcingDetails({
         setIsRevealingProperties(false);
         return;
       }
+
+      // Armazenar dados completos do contato para exibir informações adicionais
+      setOwnerData(owner);
 
       // 2. Extrair propriedades do resultado
       const properties: Array<{
@@ -658,8 +685,13 @@ export function ContactSourcingDetails({
 
   // Pegar o primeiro contato (contato principal)
   const mainContact = contactHistory.length > 0 ? contactHistory[0] : null;
-  const mainPhones = mainContact?.phones || [];
-  const mainEmails = mainContact?.emails || [];
+  
+  // Usar telefones e emails do ownerData se disponível, senão usar do contactHistory
+  const ownerPhones = ownerData?.phones?.map(phone => phone.formattedNumber || "") || [];
+  const ownerEmails = ownerData?.emails?.map(email => email.email || "") || [];
+  
+  const mainPhones = ownerPhones.length > 0 ? ownerPhones : (mainContact?.phones || []);
+  const mainEmails = ownerEmails.length > 0 ? ownerEmails : (mainContact?.emails || []);
 
   const handleAddPhone = () => {
     setIsAddingPhone(true);
@@ -724,14 +756,16 @@ export function ContactSourcingDetails({
   };
 
   const handleOpenPhonesDialog = () => {
-    if (mainContact) {
+    // Sempre permitir abrir o modal, mesmo sem mainContact, se tiver dados do ownerData
+    if (mainContact || mainPhones.length > 0) {
       setSelectedContact(mainContact);
       setPhonesDialogOpen(true);
     }
   };
 
   const handleOpenEmailsDialog = () => {
-    if (mainContact) {
+    // Sempre permitir abrir o modal, mesmo sem mainContact, se tiver dados do ownerData
+    if (mainContact || mainEmails.length > 0) {
       setSelectedContact(mainContact);
       setEmailsDialogOpen(true);
     }
@@ -1095,6 +1129,36 @@ export function ContactSourcingDetails({
                 >
                   CPF: {formatCPF(data.cpf)}
                 </Typography>
+                {/* Idade e Óbito */}
+                {ownerData && (ownerData.age !== undefined && ownerData.age !== null || ownerData.deathSuspect !== undefined && ownerData.deathSuspect !== null) && (
+                  <Box sx={{ display: "flex", gap: 2, mt: 0.5 }}>
+                    {ownerData.age !== undefined && ownerData.age !== null && (
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontSize: "0.75rem",
+                          color: theme.palette.text.secondary,
+                        }}
+                      >
+                        Idade: {ownerData.age} anos
+                      </Typography>
+                    )}
+                    {ownerData.deathSuspect !== undefined && ownerData.deathSuspect !== null && (
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontSize: "0.75rem",
+                          color: ownerData.deathSuspect
+                            ? theme.palette.error.main
+                            : theme.palette.text.secondary,
+                          fontWeight: ownerData.deathSuspect ? 600 : 400,
+                        }}
+                      >
+                        {ownerData.deathSuspect ? "Óbito: Suspeito" : "Óbito: Não"}
+                      </Typography>
+                    )}
+                  </Box>
+                )}
               </Box>
 
               {/* Phone and Email buttons - centered vertically */}
@@ -1123,7 +1187,7 @@ export function ContactSourcingDetails({
                     startIcon={<Phone />}
                     endIcon={<ArrowDropDown />}
                     onClick={handleOpenPhonesDialog}
-                    disabled={!mainContact}
+                    disabled={!mainContact && mainPhones.length === 0}
                     sx={{
                       borderColor:
                         mainPhones.length > 0
@@ -1228,7 +1292,7 @@ export function ContactSourcingDetails({
                     startIcon={<Email />}
                     endIcon={<ArrowDropDown />}
                     onClick={handleOpenEmailsDialog}
-                    disabled={!mainContact}
+                    disabled={!mainContact && mainEmails.length === 0}
                     sx={{
                       borderColor: theme.palette.divider,
                       color: theme.palette.text.secondary,
@@ -2025,11 +2089,11 @@ export function ContactSourcingDetails({
               <Close />
             </IconButton>
           </Box>
-          {selectedContact?.phones && selectedContact.phones.length > 0 ? (
+          {mainPhones && mainPhones.length > 0 ? (
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-              {selectedContact.phones.map((phone, index) => {
+              {mainPhones.map((phone, index) => {
                 // Extrair phone se for objeto ou usar diretamente se for string
-                const phoneValue = extractStringValue(phone);
+                const phoneValue = typeof phone === 'string' ? phone : extractStringValue(phone);
                 return (
                   <Paper
                     key={index}
@@ -2113,11 +2177,11 @@ export function ContactSourcingDetails({
               <Close />
             </IconButton>
           </Box>
-          {selectedContact?.emails && selectedContact.emails.length > 0 ? (
+          {mainEmails && mainEmails.length > 0 ? (
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-              {selectedContact.emails.map((email, index) => {
+              {mainEmails.map((email, index) => {
                 // Extrair email se for objeto ou usar diretamente se for string
-                const emailValue = extractStringValue(email);
+                const emailValue = typeof email === 'string' ? email : extractStringValue(email);
                 return (
                   <Paper
                     key={index}
@@ -2171,6 +2235,7 @@ export function ContactSourcingDetails({
           onClose={() => setIsCreateContactModalOpen(false)}
           acquisitionProcessId={acquisitionProcessId}
           onContactCreated={handleContactCreated}
+          ownerData={ownerData}
         />
       )}
 

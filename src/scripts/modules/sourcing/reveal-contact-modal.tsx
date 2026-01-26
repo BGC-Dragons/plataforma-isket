@@ -13,6 +13,7 @@ import { Close } from "@mui/icons-material";
 import { useAuth } from "../access-manager/auth.hook";
 import { useGetPurchases } from "../../../services/get-purchases.service";
 import { postPropertyListingAcquisitionContactHistory } from "../../../services/post-property-listing-acquisition-contact-history.service";
+import { getPropertyOwnerFinderByNationalId } from "../../../services/get-property-owner-finder-by-national-id.service";
 import type { IPropertyOwner } from "../../../services/get-property-owner-finder-by-address.service";
 
 interface RevealContactModalProps {
@@ -35,6 +36,7 @@ export function RevealContactModal({
   const { data: purchases } = useGetPurchases();
   const [isRevealing, setIsRevealing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fullOwnerData, setFullOwnerData] = useState<IPropertyOwner | null>(owner);
 
   // Calcular créditos restantes de RESIDENT_SEARCH
   const getRemainingCredits = (): number => {
@@ -141,14 +143,42 @@ export function RevealContactModal({
     }
   };
 
-  // Limpar erro quando o modal abrir/fechar
+  // Buscar dados completos quando o modal abrir
   useEffect(() => {
-    if (open) {
+    if (open && owner && owner.nationalId && auth.store.token) {
+      // Se o owner não tiver age ou deathSuspect, buscar dados completos
+      if (owner.age === undefined || owner.deathSuspect === undefined) {
+        const fetchFullData = async () => {
+          try {
+            const ownerResponse = await getPropertyOwnerFinderByNationalId(
+              owner.nationalId,
+              auth.store.token || ""
+            );
+            if (ownerResponse.data) {
+              setFullOwnerData(ownerResponse.data);
+            }
+          } catch (error) {
+            console.error("Erro ao buscar dados completos do contato:", error);
+            // Se falhar, usar os dados que já temos
+            setFullOwnerData(owner);
+          }
+        };
+        fetchFullData();
+      } else {
+        setFullOwnerData(owner);
+      }
+    } else if (open && owner) {
+      setFullOwnerData(owner);
+    } else if (!open) {
+      setFullOwnerData(null);
       setError(null);
     }
-  }, [open]);
+  }, [open, owner, auth.store.token]);
 
   if (!owner) return null;
+
+  // Usar dados completos se disponíveis, senão usar owner original
+  const displayOwner = fullOwnerData || owner;
 
   return (
     <Dialog
@@ -223,7 +253,7 @@ export function RevealContactModal({
                 mb: 0.5,
               }}
             >
-              {formatName(owner)}
+              {formatName(displayOwner)}
             </Typography>
             <Typography
               variant="body2"
@@ -232,8 +262,38 @@ export function RevealContactModal({
                 color: theme.palette.text.secondary,
               }}
             >
-              {formatCPF(owner.nationalId || "")}
+              {formatCPF(displayOwner.nationalId || "")}
             </Typography>
+            {/* Idade e Óbito */}
+            {((displayOwner.age !== undefined && displayOwner.age !== null) || (displayOwner.deathSuspect !== undefined && displayOwner.deathSuspect !== null)) && (
+              <Box sx={{ display: "flex", gap: 2, mt: 0.5 }}>
+                {displayOwner.age !== undefined && displayOwner.age !== null && (
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontSize: "0.875rem",
+                      color: theme.palette.text.secondary,
+                    }}
+                  >
+                    Idade: {displayOwner.age} anos
+                  </Typography>
+                )}
+                {displayOwner.deathSuspect !== undefined && displayOwner.deathSuspect !== null && (
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontSize: "0.875rem",
+                      color: displayOwner.deathSuspect
+                        ? theme.palette.error.main
+                        : theme.palette.text.secondary,
+                      fontWeight: displayOwner.deathSuspect ? 600 : 400,
+                    }}
+                  >
+                    {displayOwner.deathSuspect ? "Óbito: Suspeito" : "Óbito: Não"}
+                  </Typography>
+                )}
+              </Box>
+            )}
           </Box>
 
           {/* Texto de confirmação */}
