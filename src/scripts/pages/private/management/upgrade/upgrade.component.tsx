@@ -29,13 +29,17 @@ export function UpgradeSection() {
       title: "Básico",
       description:
         "Se diferencie do mercado, seja um(a) corretor(a) inteligente e comece a impulsionar seu negócio.",
-      monthlyPrice: 67.9,
+      monthlyPrice: 77.9,
       annualPrice: 746.5,
       monthlyfeatures: [
-        "150 consultas de proprietários",
-        "15 laudos de avaliação",
-        "10 radar de oportunidades",
-        "2 cidades",
+        "01 usuário",
+        "01 cidade",
+        "Busca ilimitada de imóveis",
+        "CRM",
+        "10 imóveis salvos",
+        "3 radares",
+        "10 laudos de avaliação",
+        "100 consultas de proprietários",
       ],
       annualfeatures: [
         "1800 consultas de proprietários",
@@ -44,17 +48,21 @@ export function UpgradeSection() {
         "2 cidades",
       ],
     },
-    medium: {
-      title: "Médio",
+    pro: {
+      title: "Pró",
       description:
         "Dê um upgrade na sua conta e adquira recursos mais avançados do mercado para suprir suas demandas.",
-      monthlyPrice: 127.9,
+      monthlyPrice: 197.9,
       annualPrice: 1366.0,
       monthlyfeatures: [
-        "300 consultas de proprietários",
-        "30 laudos de avaliação",
-        "30 radar de oportunidades",
-        "4 cidades",
+        "01 usuário",
+        "03 cidade",
+        "Busca ilimitada de imóveis",
+        "CRM",
+        "50 imóveis salvos",
+        "Radares ilimitados",
+        "20 laudos de avaliação",
+        "200 consultas de proprietários",
       ],
       annualfeatures: [
         "3600 consultas de proprietários",
@@ -64,36 +72,21 @@ export function UpgradeSection() {
       ],
       recommended: true,
     },
-    pro: {
-      title: "Pró",
-      description:
-        "A solução completa para corretores experientes que querem dominar o mercado e vender em larga escala.",
-      monthlyPrice: 207.9,
-      annualPrice: 2220.0,
-      monthlyfeatures: [
-        "500 consultas de proprietários",
-        "45 laudos de avaliação",
-        "45 radar de oportunidades",
-        "10 cidades",
-      ],
-      annualfeatures: [
-        "6000 consultas de proprietários",
-        "540 laudos de avaliação",
-        "540 radar de oportunidades",
-        "10 cidades",
-      ],
-    },
-    bussinessbasic: {
+    businessbasic: {
       title: "Básico",
       description:
-        "Se diferencie do mercado, seja uma imobiliária inteligente e comece a impulsionar seu negócio.",
-      monthlyPrice: 117.9,
-      annualPrice: 1259.0,
+        "A solução completa para corretores experientes que querem dominar o mercado e vender em larga escala.",
+      monthlyPrice: 247.9,
+      annualPrice: 2220.0,
       monthlyfeatures: [
-        "200 consultas de proprietários",
+        "03 usuários",
+        "05 cidades",
+        "Painel Gestor",
+        "Busca ilimitada de imóveis",
+        "100 imóveis salvos",
+        "15 radares",
         "30 laudos de avaliação",
-        "30 radar de oportunidades",
-        "5 cidades",
+        "300 consultas de proprietários",
       ],
       annualfeatures: [
         "2400 consultas de proprietários",
@@ -102,36 +95,21 @@ export function UpgradeSection() {
         "5 cidades",
       ],
     },
-    bussinessmedium: {
-      title: "Médio",
-      description:
-        "O essencial para sua empresa, gerencie seu time de corretores e desfrute do que há de mais tecnológico no mercado.",
-      monthlyPrice: 127.9,
-      annualPrice: 2433.0,
-      monthlyfeatures: [
-        "400 consultas de proprietários",
-        "60 laudos de avaliação",
-        "60 radar de oportunidades",
-        "10 cidades",
-      ],
-      annualfeatures: [
-        "4800 consultas de proprietários",
-        "720 laudos de avaliação",
-        "720 radar de oportunidades",
-        "10 cidades",
-      ],
-    },
     bussinesspro: {
       title: "Pró",
       description:
         "A solução completa para corretores experientes que querem dominar o mercado e vender em larga escala.",
-      monthlyPrice: 447.9,
+      monthlyPrice: 397.9,
       annualPrice: 4783.0,
       monthlyfeatures: [
-        "800 consultas de proprietários",
-        "120 laudos de avaliação",
-        "120 radar de oportunidades",
+        "05 usuários",
         "10 cidades",
+        "Painel Gestor",
+        "Busca ilimitada de imóveis",
+        "150 imóveis salvos",
+        "25 radares",
+        "50 laudos de avaliação",
+        "500 consultas de proprietários",
       ],
       annualfeatures: [
         "9600 consultas de proprietários",
@@ -161,7 +139,7 @@ export function UpgradeSection() {
   };
 
   const getAccountTypeText = () => {
-    return accountType === "business" ? "Imobiliária" : "Autônomo";
+    return accountType === "business" ? "Imobiliária" : "Corretor";
   };
 
   type PlanType = {
@@ -180,9 +158,9 @@ export function UpgradeSection() {
 
   const getCurrentPlans = (): PlanType[] => {
     if (accountType === "business") {
-      return [plans.bussinessbasic, plans.bussinessmedium, plans.bussinesspro];
+      return [plans.businessbasic, plans.bussinesspro];
     }
-    return [plans.basic, plans.medium, plans.pro];
+    return [plans.basic, plans.pro];
   };
 
   return (
@@ -341,7 +319,7 @@ export function UpgradeSection() {
         >
           {getCurrentPlans().map((plan: PlanType, index: number) => {
             const isRecommended = plan.recommended;
-            const isPro = index === 2;
+            const isPro = plan.title.toLowerCase().includes("pró");
 
             return (
               <Box key={plan.title} sx={{ position: "relative" }}>
