@@ -149,16 +149,14 @@ export function SearchResidentResultModal({
           sx={{
             flex: 1,
             overflowY: "auto",
+            overflowX: "hidden",
             p: 3,
           }}
         >
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: {
-                xs: "1fr",
-                sm: "repeat(2, 1fr)",
-              },
+              gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)" },
               gap: 2,
             }}
           >
@@ -171,8 +169,10 @@ export function SearchResidentResultModal({
                   backgroundColor: theme.palette.grey[100],
                   borderRadius: 2,
                   display: "flex",
+                  flexWrap: "wrap",
                   alignItems: "center",
                   gap: 2,
+                  minWidth: 0,
                 }}
               >
                 {/* Ícone */}
@@ -219,8 +219,11 @@ export function SearchResidentResultModal({
                 <Box
                   sx={{
                     display: "flex",
+                    flexDirection: { xs: "column", sm: "row" },
+                    flexWrap: "wrap",
                     gap: 1,
                     flexShrink: 0,
+                    width: { xs: "100%", sm: "auto" },
                   }}
                 >
                   <Button
@@ -229,9 +232,10 @@ export function SearchResidentResultModal({
                     sx={{
                       textTransform: "none",
                       borderRadius: 1.5,
-                      px: 2,
-                      py: 0.75,
-                      fontSize: "0.75rem",
+                      px: { xs: 1.5, sm: 2 },
+                      py: { xs: 0.5, sm: 0.75 },
+                      fontSize: { xs: "0.7rem", sm: "0.75rem" },
+                      minWidth: { xs: "100%", sm: "auto" },
                       borderColor: theme.palette.primary.main,
                       color: theme.palette.common.white,
                       backgroundColor: theme.palette.primary.light,
@@ -249,9 +253,10 @@ export function SearchResidentResultModal({
                     sx={{
                       textTransform: "none",
                       borderRadius: 1.5,
-                      px: 2,
-                      py: 0.75,
-                      fontSize: "0.75rem",
+                      px: { xs: 1.5, sm: 2 },
+                      py: { xs: 0.5, sm: 0.75 },
+                      fontSize: { xs: "0.7rem", sm: "0.75rem" },
+                      minWidth: { xs: "100%", sm: "auto" },
                       backgroundColor: theme.palette.primary.light,
                       "&:hover": {
                         backgroundColor: theme.palette.primary.main,
