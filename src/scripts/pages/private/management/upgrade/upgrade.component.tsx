@@ -19,9 +19,11 @@ import { Check, Star, TrendingUp, Business, Person } from "@mui/icons-material";
 export function UpgradeSection() {
   const theme = useTheme();
 
-  const [period, setPeriod] = useState<"monthly" | "annual">("monthly");
+  const [period, setPeriod] = useState<"monthly" | "quarterly" | "annual">(
+    "monthly",
+  );
   const [accountType, setAccountType] = useState<"autonomous" | "business">(
-    "autonomous"
+    "autonomous",
   );
 
   const plans = {
@@ -30,7 +32,8 @@ export function UpgradeSection() {
       description:
         "Se diferencie do mercado, seja um(a) corretor(a) inteligente e comece a impulsionar seu negócio.",
       monthlyPrice: 77.9,
-      annualPrice: 746.5,
+      quarterlyPrice: 210.33,
+      annualPrice: 747.84,
       monthlyfeatures: [
         "01 usuário",
         "01 cidade",
@@ -53,7 +56,8 @@ export function UpgradeSection() {
       description:
         "Dê um upgrade na sua conta e adquira recursos mais avançados do mercado para suprir suas demandas.",
       monthlyPrice: 197.9,
-      annualPrice: 1366.0,
+      quarterlyPrice: 534.33,
+      annualPrice: 1899.84,
       monthlyfeatures: [
         "01 usuário",
         "03 cidade",
@@ -77,7 +81,8 @@ export function UpgradeSection() {
       description:
         "A solução completa para corretores experientes que querem dominar o mercado e vender em larga escala.",
       monthlyPrice: 247.9,
-      annualPrice: 2220.0,
+      quarterlyPrice: 669.33,
+      annualPrice: 2380.8,
       monthlyfeatures: [
         "03 usuários",
         "05 cidades",
@@ -100,7 +105,8 @@ export function UpgradeSection() {
       description:
         "A solução completa para corretores experientes que querem dominar o mercado e vender em larga escala.",
       monthlyPrice: 397.9,
-      annualPrice: 4783.0,
+      quarterlyPrice: 1074.33,
+      annualPrice: 3820.8,
       monthlyfeatures: [
         "05 usuários",
         "10 cidades",
@@ -129,12 +135,19 @@ export function UpgradeSection() {
   };
 
   const getCurrentPrice = (plan: typeof plans.basic) => {
-    return period === "annual" ? plan.annualPrice : plan.monthlyPrice;
+    if (period === "annual") return plan.annualPrice;
+    if (period === "quarterly") return plan.quarterlyPrice;
+    return plan.monthlyPrice;
   };
 
   const getPriceText = (plan: typeof plans.basic) => {
     const price = getCurrentPrice(plan);
-    const periodText = period === "annual" ? "ano" : "mês";
+    const periodText =
+      period === "annual"
+        ? "ano"
+        : period === "quarterly"
+          ? "trimestre"
+          : "mês";
     return `${formatPrice(price)} / ${periodText}`;
   };
 
@@ -146,14 +159,35 @@ export function UpgradeSection() {
     title: string;
     description: string;
     monthlyPrice: number;
+    quarterlyPrice: number;
     annualPrice: number;
     monthlyfeatures: string[];
     annualfeatures: string[];
     recommended?: boolean;
   };
 
-  const getCurrentFeatures = (plan: PlanType) => {
-    return period === "annual" ? plan.annualfeatures : plan.monthlyfeatures;
+  const FEATURES_PER_MONTH_KEYS = [
+    "imóveis salvos",
+    "radares",
+    "radar de oportunidades",
+    "laudos de avaliação",
+    "consultas de proprietários",
+  ];
+
+  const formatFeatureWithPerMonth = (feature: string): string => {
+    const lower = feature.toLowerCase();
+    const hasPerMonthKey = FEATURES_PER_MONTH_KEYS.some((key) =>
+      lower.includes(key),
+    );
+    if (!hasPerMonthKey) return feature;
+    if (feature.includes("/mês")) return feature;
+    return `${feature}/mês`;
+  };
+
+  const getCurrentFeatures = (plan: PlanType): string[] => {
+    const isQuarterlyOrAnnual = period === "quarterly" || period === "annual";
+    if (!isQuarterlyOrAnnual) return plan.monthlyfeatures;
+    return plan.monthlyfeatures.map(formatFeatureWithPerMonth);
   };
 
   const getCurrentPlans = (): PlanType[] => {
@@ -241,15 +275,25 @@ export function UpgradeSection() {
                     fullWidth
                   >
                     <ToggleButton value="monthly">Mensal</ToggleButton>
+                    <ToggleButton value="quarterly">Trimestral</ToggleButton>
                     <ToggleButton value="annual">Anual</ToggleButton>
                   </ToggleButtonGroup>
+                  {period === "quarterly" && (
+                    <Typography
+                      variant="caption"
+                      color="success.main"
+                      sx={{ mt: 0.5, display: "block" }}
+                    >
+                      💰 Economize 10%
+                    </Typography>
+                  )}
                   {period === "annual" && (
                     <Typography
                       variant="caption"
                       color="success.main"
                       sx={{ mt: 0.5, display: "block" }}
                     >
-                      💰 Economize até 20%
+                      💰 Economize 20%
                     </Typography>
                   )}
                 </Box>
@@ -350,13 +394,13 @@ export function UpgradeSection() {
                       border: isRecommended
                         ? `2px solid ${theme.palette.primary.main}`
                         : isPro
-                        ? `2px solid ${theme.palette.secondary.main}`
-                        : `2px solid ${theme.palette.divider}`,
+                          ? `2px solid ${theme.palette.secondary.main}`
+                          : `2px solid ${theme.palette.divider}`,
                       background: isPro
                         ? `linear-gradient(135deg, ${theme.palette.primary.main}15, ${theme.palette.secondary.main}15)`
                         : isRecommended
-                        ? `${theme.palette.primary.main}05`
-                        : undefined,
+                          ? `${theme.palette.primary.main}05`
+                          : undefined,
                       pt: isRecommended ? 2 : 0,
                       transition: "all 0.3s ease",
                       "&:hover": {
@@ -365,8 +409,8 @@ export function UpgradeSection() {
                         borderColor: isRecommended
                           ? theme.palette.primary.main
                           : isPro
-                          ? theme.palette.secondary.main
-                          : theme.palette.primary.main,
+                            ? theme.palette.secondary.main
+                            : theme.palette.primary.main,
                       },
                     }}
                   >
@@ -400,11 +444,19 @@ export function UpgradeSection() {
                         >
                           {getPriceText(plan)}
                         </Typography>
+                        {period === "quarterly" && (
+                          <Typography variant="caption" color="success.main">
+                            Economia de{" "}
+                            {formatPrice(
+                              plan.monthlyPrice * 3 - plan.quarterlyPrice,
+                            )}
+                          </Typography>
+                        )}
                         {period === "annual" && (
                           <Typography variant="caption" color="success.main">
                             Economia de{" "}
                             {formatPrice(
-                              plan.monthlyPrice * 12 - plan.annualPrice
+                              plan.monthlyPrice * 12 - plan.annualPrice,
                             )}
                           </Typography>
                         )}
@@ -435,7 +487,7 @@ export function UpgradeSection() {
                                   {feature}
                                 </Typography>
                               </Box>
-                            )
+                            ),
                           )}
                         </Stack>
                       </Box>
