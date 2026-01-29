@@ -91,8 +91,11 @@ export function PropertySourcingDetails({
   const [ownersError, setOwnersError] = useState<string | null>(null);
   const [isResidentSearchModalOpen, setIsResidentSearchModalOpen] =
     useState(false);
-  const [isRevealContactModalOpen, setIsRevealContactModalOpen] = useState(false);
-  const [selectedOwner, setSelectedOwner] = useState<IPropertyOwner | null>(null);
+  const [isRevealContactModalOpen, setIsRevealContactModalOpen] =
+    useState(false);
+  const [selectedOwner, setSelectedOwner] = useState<IPropertyOwner | null>(
+    null,
+  );
   const [contactHistory, setContactHistory] = useState<
     IPropertyListingAcquisitionContactHistory[]
   >([]);
@@ -138,7 +141,7 @@ export function PropertySourcingDetails({
     try {
       const response = await getPropertyListingAcquisitionsContactHistory(
         acquisitionProcessId,
-        auth.store.token
+        auth.store.token,
       );
       setContactHistory(response.data);
     } catch (error) {
@@ -179,7 +182,7 @@ export function PropertySourcingDetails({
   const handleRevealOwners = async () => {
     if (!data.address || !data.number) {
       setOwnersError(
-        "Endereço e número são obrigatórios para buscar proprietários."
+        "Endereço e número são obrigatórios para buscar proprietários.",
       );
       return;
     }
@@ -195,8 +198,11 @@ export function PropertySourcingDetails({
       }
 
       // Usar formattedAddress completo se disponível, senão construir do address + number
-      const formattedAddressForApi = data.formattedAddress || 
-        (data.address && data.number ? `${data.address}, ${data.number}` : data.address);
+      const formattedAddressForApi =
+        data.formattedAddress ||
+        (data.address && data.number
+          ? `${data.address}, ${data.number}`
+          : data.address);
 
       const params = {
         formattedAddress: formattedAddressForApi,
@@ -211,7 +217,7 @@ export function PropertySourcingDetails({
 
       const response = await getPropertyOwnerFinderByAddress(
         params,
-        auth.store.token || ""
+        auth.store.token || "",
       );
 
       if (response.data.data && response.data.data.length > 0) {
@@ -231,7 +237,7 @@ export function PropertySourcingDetails({
 
         if (axiosError.response?.status === 402) {
           setOwnersError(
-            "Você não possui créditos suficientes. Por favor, adquira créditos para continuar usando o serviço."
+            "Você não possui créditos suficientes. Por favor, adquira créditos para continuar usando o serviço.",
           );
         } else {
           const errorMessage =
@@ -244,7 +250,7 @@ export function PropertySourcingDetails({
         setOwnersError(error.message);
       } else {
         setOwnersError(
-          "Erro inesperado ao buscar proprietários. Tente novamente."
+          "Erro inesperado ao buscar proprietários. Tente novamente.",
         );
       }
     } finally {
@@ -271,7 +277,7 @@ export function PropertySourcingDetails({
     // Pegar a primeira compra ativa
     const purchase = purchases[0];
     const residentSearchUnit = purchase.remainingUnits.find(
-      (unit) => unit.type === "RESIDENT_SEARCH"
+      (unit) => unit.type === "RESIDENT_SEARCH",
     );
 
     return residentSearchUnit?.unitsRemaining || 0;
@@ -331,7 +337,7 @@ export function PropertySourcingDetails({
       await patchPropertyListingAcquisitionContactHistory(
         contactHistoryId,
         { phones: updatedPhones },
-        auth.store.token
+        auth.store.token,
       );
 
       await loadContactHistory();
@@ -359,7 +365,7 @@ export function PropertySourcingDetails({
       await patchPropertyListingAcquisitionContactHistory(
         contactHistoryId,
         { emails: updatedEmails },
-        auth.store.token
+        auth.store.token,
       );
 
       await loadContactHistory();
@@ -382,7 +388,7 @@ export function PropertySourcingDetails({
       await postPropertyListingAcquisitionContactHistoryNote(
         contactHistoryId,
         { content: newNote.trim() },
-        auth.store.token
+        auth.store.token,
       );
 
       await loadContactHistory();
@@ -395,7 +401,7 @@ export function PropertySourcingDetails({
 
   const handleStatusChange = async (
     contactHistoryId: string,
-    newStatus: ContactStatus
+    newStatus: ContactStatus,
   ) => {
     if (!auth.store.token) return;
 
@@ -403,7 +409,7 @@ export function PropertySourcingDetails({
       await patchPropertyListingAcquisitionContactHistory(
         contactHistoryId,
         { status: newStatus },
-        auth.store.token
+        auth.store.token,
       );
 
       await loadContactHistory();
@@ -422,7 +428,7 @@ export function PropertySourcingDetails({
     try {
       await deletePropertyListingAcquisitionContactHistory(
         contactHistoryId,
-        auth.store.token
+        auth.store.token,
       );
 
       await loadContactHistory();
@@ -442,14 +448,14 @@ export function PropertySourcingDetails({
   };
 
   const handleOpenPhonesDialog = (
-    contact: IPropertyListingAcquisitionContactHistory
+    contact: IPropertyListingAcquisitionContactHistory,
   ) => {
     setSelectedContact(contact);
     setPhonesDialogOpen(true);
   };
 
   const handleOpenEmailsDialog = (
-    contact: IPropertyListingAcquisitionContactHistory
+    contact: IPropertyListingAcquisitionContactHistory,
   ) => {
     setSelectedContact(contact);
     setEmailsDialogOpen(true);
@@ -477,7 +483,7 @@ export function PropertySourcingDetails({
             contactDate: new Date().toISOString(),
             status: "UNDEFINED",
           },
-          auth.store.token
+          auth.store.token,
         );
       }
 
@@ -501,7 +507,7 @@ export function PropertySourcingDetails({
         auth.store.token,
         {
           status: "ACQUIRED",
-        }
+        },
       );
 
       // Limpar cache e atualizar o Kanban
@@ -532,7 +538,7 @@ export function PropertySourcingDetails({
         auth.store.token,
         {
           status: "DECLINED",
-        }
+        },
       );
 
       // Atualizar status local
@@ -566,8 +572,9 @@ export function PropertySourcingDetails({
           overflow: "hidden",
           boxShadow: theme.shadows[24],
           m: { xs: 0, sm: 2 },
-          maxHeight: { xs: "100vh", sm: "90vh" },
-          height: { xs: "100vh", sm: "90vh" },
+          maxHeight: { xs: "85vh", sm: "90vh" },
+          height: { xs: "85vh", sm: "90vh" },
+          maxWidth: "100vw",
           display: "flex",
           flexDirection: "column",
         },
@@ -579,7 +586,7 @@ export function PropertySourcingDetails({
       }}
       sx={{
         "& .MuiDialog-container": {
-          alignItems: { xs: "flex-end", sm: "center" },
+          alignItems: "center",
         },
       }}
     >
@@ -587,6 +594,7 @@ export function PropertySourcingDetails({
         sx={{
           p: 0,
           overflow: "hidden",
+          overflowX: "hidden",
           display: "flex",
           flexDirection: "column",
           flex: 1,
@@ -643,16 +651,16 @@ export function PropertySourcingDetails({
                 currentStatus === "ACQUIRED"
                   ? "Captado"
                   : currentStatus === "DECLINED"
-                  ? "Recusado"
-                  : "Em processo"
+                    ? "Recusado"
+                    : "Em processo"
               }
               sx={{
                 backgroundColor:
                   currentStatus === "ACQUIRED"
                     ? "#4caf50"
                     : currentStatus === "DECLINED"
-                    ? "#f44336"
-                    : "#ff9800",
+                      ? "#f44336"
+                      : "#ff9800",
                 color: "#fff",
                 fontWeight: 500,
                 fontSize: { xs: "0.75rem", sm: "0.875rem" },
@@ -738,12 +746,15 @@ export function PropertySourcingDetails({
           </Box>
         </Box>
 
-        {/* Content */}
+        {/* Content - único scroll do modal */}
         <Box
           sx={{
-            p: 3,
+            p: { xs: 2, md: 3 },
             flex: 1,
-            overflow: "hidden",
+            minHeight: 0,
+            minWidth: 0,
+            overflowY: "auto",
+            overflowX: "hidden",
             display: "flex",
             flexDirection: "column",
           }}
@@ -861,30 +872,32 @@ export function PropertySourcingDetails({
             </Typography>
           </Box>
 
-          {/* Two boxes section */}
+          {/* Two boxes section - sem scroll interno, conteúdo empurra para baixo */}
           <Box
             sx={{
               display: "grid",
               gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
               gap: 3,
               mt: 3,
-              flex: 1,
-              minHeight: 0,
-              overflow: "hidden",
+              overflow: "visible",
+              minWidth: 0,
             }}
           >
-            {/* Left Box: Possíveis moradores */}
+            {/* Left Box: Possíveis moradores - resultados aparecem logo abaixo e empurram Contatos */}
             <Paper
               elevation={0}
               sx={{
-                border: `2px solid ${theme.palette.divider}`,
-                borderRadius: 3,
-                p: 3,
-                pr: 1,
+                border: {
+                  xs: "none",
+                  md: `2px solid ${theme.palette.divider}`,
+                },
+                borderRadius: { xs: 0, md: 3 },
+                p: { xs: 2, md: 3 },
                 display: "flex",
                 flexDirection: "column",
-                overflowY: "auto",
-                height: "100%",
+                overflow: "visible",
+                boxShadow: { xs: "none", md: "none" },
+                minWidth: 0,
               }}
             >
               <Typography
@@ -1082,16 +1095,26 @@ export function PropertySourcingDetails({
                         p: 1.5,
                         borderRadius: 2,
                         border: `1px solid ${theme.palette.divider}`,
+                        minWidth: 0,
                       }}
                     >
-                      <Person sx={{ color: "#4caf50", fontSize: "1.5rem" }} />
-                      <Box sx={{ flex: 1 }}>
+                      <Person
+                        sx={{
+                          color: "#4caf50",
+                          fontSize: "1.5rem",
+                          flexShrink: 0,
+                        }}
+                      />
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
                         <Typography
                           variant="body2"
                           sx={{
                             fontWeight: 500,
                             fontSize: "0.875rem",
                             mb: 0.25,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
                           }}
                         >
                           {`${owner.firstName}`.toUpperCase()}
@@ -1158,23 +1181,28 @@ export function PropertySourcingDetails({
             <Paper
               elevation={0}
               sx={{
-                border: `2px solid ${theme.palette.divider}`,
-                borderRadius: 3,
-                p: 3,
-                pr: 1,
+                border: {
+                  xs: "none",
+                  md: `2px solid ${theme.palette.divider}`,
+                },
+                borderRadius: { xs: 0, md: 3 },
+                p: { xs: 2, md: 3 },
                 display: "flex",
                 flexDirection: "column",
-                overflowY: "auto",
-                height: "100%",
+                overflow: "visible",
+                boxShadow: { xs: "none", md: "none" },
+                minWidth: 0,
               }}
             >
               <Box
                 sx={{
                   display: "flex",
-                  alignItems: "center",
+                  flexDirection: { xs: "column", md: "row" },
+                  alignItems: { xs: "stretch", md: "center" },
                   justifyContent: "space-between",
                   mb: 2,
                   gap: 2,
+                  minWidth: 0,
                 }}
               >
                 <Typography
@@ -1201,7 +1229,8 @@ export function PropertySourcingDetails({
                     ),
                   }}
                   sx={{
-                    flex: "0 0 250px",
+                    flex: { xs: "1 1 auto", md: "0 0 250px" },
+                    minWidth: 0,
                     "& .MuiOutlinedInput-root": {
                       borderRadius: 2,
                     },
@@ -1347,7 +1376,7 @@ export function PropertySourcingDetails({
                             onChange={(e) =>
                               handleStatusChange(
                                 contact.id,
-                                e.target.value as ContactStatus
+                                e.target.value as ContactStatus,
                               )
                             }
                             sx={{

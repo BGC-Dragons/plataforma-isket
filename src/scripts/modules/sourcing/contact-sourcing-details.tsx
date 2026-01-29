@@ -125,7 +125,7 @@ export function ContactSourcingDetails({
     try {
       const response = await getPropertyListingAcquisitionsContactHistory(
         acquisitionProcessId,
-        auth.store.token
+        auth.store.token,
       );
       setContactHistory(response.data);
     } catch (error) {
@@ -140,7 +140,7 @@ export function ContactSourcingDetails({
     try {
       const response = await getPropertyListingAcquisitionContacts(
         acquisitionProcessId,
-        auth.store.token
+        auth.store.token,
       );
       // A resposta vem no formato { contacts: [...] }
       const contactsData = Array.isArray(response.data.contacts)
@@ -159,7 +159,7 @@ export function ContactSourcingDetails({
 
   const handleUpdateSelectedRelation = async (
     propertyId: string,
-    newRelation: string
+    newRelation: string,
   ) => {
     if (!acquisitionProcessId || !auth.store.token) {
       return;
@@ -170,15 +170,15 @@ export function ContactSourcingDetails({
         acquisitionProcessId,
         propertyId,
         { selectedRelation: newRelation },
-        auth.store.token
+        auth.store.token,
       );
       // Atualizar o estado local
       setRevealedProperties((prev) =>
         prev.map((prop) =>
           prop.id === propertyId
             ? { ...prop, selectedRelation: newRelation }
-            : prop
-        )
+            : prop,
+        ),
       );
     } catch (error) {
       console.error("Erro ao atualizar relação da propriedade:", error);
@@ -201,7 +201,7 @@ export function ContactSourcingDetails({
         try {
           const ownerResponse = await getPropertyOwnerFinderByNationalId(
             data.cpf,
-            auth.store.token || ""
+            auth.store.token || "",
           );
           if (ownerResponse.data) {
             setOwnerData(ownerResponse.data);
@@ -247,7 +247,7 @@ export function ContactSourcingDetails({
     // Pegar a primeira compra ativa
     const purchase = purchases[0];
     const residentSearchUnit = purchase.remainingUnits.find(
-      (unit) => unit.type === "RESIDENT_SEARCH"
+      (unit) => unit.type === "RESIDENT_SEARCH",
     );
 
     return residentSearchUnit?.unitsRemaining || 0;
@@ -258,7 +258,7 @@ export function ContactSourcingDetails({
   const handleRevealProperties = async () => {
     if (!auth.store.token || !data.cpf) {
       setRevealError(
-        "CPF não encontrado. Não é possível revelar propriedades."
+        "CPF não encontrado. Não é possível revelar propriedades.",
       );
       return;
     }
@@ -274,7 +274,7 @@ export function ContactSourcingDetails({
       // 1. Buscar propriedades pelo CPF
       const ownerResponse = await getPropertyOwnerFinderByNationalId(
         data.cpf,
-        auth.store.token
+        auth.store.token,
       );
       const owner = ownerResponse.data;
 
@@ -319,12 +319,12 @@ export function ContactSourcingDetails({
         console.log(
           "Processando personHistory com",
           owner.personHistory.length,
-          "itens"
+          "itens",
         );
         owner.personHistory.forEach((historyItem, index) => {
           console.log(
             `Processando item ${index} do personHistory:`,
-            historyItem
+            historyItem,
           );
 
           if (
@@ -359,7 +359,7 @@ export function ContactSourcingDetails({
             });
 
             console.log(
-              `Propriedade ${index} do personHistory adicionada com sucesso`
+              `Propriedade ${index} do personHistory adicionada com sucesso`,
             );
           }
         });
@@ -435,7 +435,7 @@ export function ContactSourcingDetails({
             console.log("Propriedade como owner adicionada com sucesso");
           } else {
             console.warn(
-              "Endereço está vazio após processamento, não adicionando propriedade"
+              "Endereço está vazio após processamento, não adicionando propriedade",
             );
           }
         } else {
@@ -515,7 +515,7 @@ export function ContactSourcingDetails({
             console.log("Propriedade como resident adicionada com sucesso");
           } else {
             console.warn(
-              "Endereço está vazio após processamento, não adicionando propriedade"
+              "Endereço está vazio após processamento, não adicionando propriedade",
             );
           }
         } else {
@@ -533,14 +533,14 @@ export function ContactSourcingDetails({
       // Se não conseguimos extrair propriedades mas temos dados, tentar usar formattedAddress diretamente
       if (properties.length === 0) {
         console.warn(
-          "Nenhuma propriedade extraída! Tentando usar formattedAddress diretamente..."
+          "Nenhuma propriedade extraída! Tentando usar formattedAddress diretamente...",
         );
 
         // Tentar usar propertyAsOwner
         if (owner.propertyAsOwner?.formattedAddress) {
           console.log(
             "Usando propertyAsOwner.formattedAddress diretamente:",
-            owner.propertyAsOwner.formattedAddress
+            owner.propertyAsOwner.formattedAddress,
           );
           properties.push({
             address: owner.propertyAsOwner.formattedAddress,
@@ -553,7 +553,7 @@ export function ContactSourcingDetails({
         if (owner.propertyAsResident?.formattedAddress) {
           console.log(
             "Usando propertyAsResident.formattedAddress diretamente:",
-            owner.propertyAsResident.formattedAddress
+            owner.propertyAsResident.formattedAddress,
           );
           properties.push({
             address: owner.propertyAsResident.formattedAddress,
@@ -565,7 +565,7 @@ export function ContactSourcingDetails({
 
         console.log(
           "Propriedades após tentativa de usar formattedAddress diretamente:",
-          properties
+          properties,
         );
       }
 
@@ -574,7 +574,7 @@ export function ContactSourcingDetails({
         // SEMPRE fazer a chamada POST, mesmo se não houver propriedades extraídas
         // A API pode precisar atualizar os dados mesmo sem novas propriedades
         console.log(
-          "Fazendo POST para criar/atualizar propriedades reveladas..."
+          "Fazendo POST para criar/atualizar propriedades reveladas...",
         );
         console.log("acquisitionProcessId:", acquisitionProcessId);
         console.log(
@@ -585,8 +585,8 @@ export function ContactSourcingDetails({
               properties: properties,
             },
             null,
-            2
-          )
+            2,
+          ),
         );
 
         const response = await postRevealedPropertiesMultiple(
@@ -595,7 +595,7 @@ export function ContactSourcingDetails({
             cpf: data.cpf.replace(/\D/g, ""), // Apenas números
             properties: properties,
           },
-          auth.store.token
+          auth.store.token,
         );
 
         console.log("Resposta do POST:", response);
@@ -614,7 +614,7 @@ export function ContactSourcingDetails({
 
         if (properties.length === 0) {
           console.log(
-            "Nenhuma propriedade nova foi extraída, mas a chamada POST foi feita"
+            "Nenhuma propriedade nova foi extraída, mas a chamada POST foi feita",
           );
         }
       } else {
@@ -637,12 +637,12 @@ export function ContactSourcingDetails({
             revealedAt: now,
             createdAt: now,
             updatedAt: now,
-          })
+          }),
         );
         setRevealedProperties(formattedProperties);
         console.log(
           "Propriedades encontradas (sem salvar, pois não há captação):",
-          formattedProperties
+          formattedProperties,
         );
       }
 
@@ -658,7 +658,7 @@ export function ContactSourcingDetails({
         console.error("Erro Axios - Data:", axiosError.response?.data);
         if (axiosError.response?.status === 402) {
           setRevealError(
-            "Créditos insuficientes. Por favor, adquira créditos adicionais para continuar."
+            "Créditos insuficientes. Por favor, adquira créditos adicionais para continuar.",
           );
         } else if (axiosError.response?.status === 404) {
           setRevealError("Nenhuma propriedade encontrada para este CPF.");
@@ -675,7 +675,7 @@ export function ContactSourcingDetails({
       } else {
         console.error("Erro desconhecido:", error);
         setRevealError(
-          "Erro inesperado ao revelar propriedades. Tente novamente."
+          "Erro inesperado ao revelar propriedades. Tente novamente.",
         );
       }
     } finally {
@@ -685,13 +685,17 @@ export function ContactSourcingDetails({
 
   // Pegar o primeiro contato (contato principal)
   const mainContact = contactHistory.length > 0 ? contactHistory[0] : null;
-  
+
   // Usar telefones e emails do ownerData se disponível, senão usar do contactHistory
-  const ownerPhones = ownerData?.phones?.map(phone => phone.formattedNumber || "") || [];
-  const ownerEmails = ownerData?.emails?.map(email => email.email || "") || [];
-  
-  const mainPhones = ownerPhones.length > 0 ? ownerPhones : (mainContact?.phones || []);
-  const mainEmails = ownerEmails.length > 0 ? ownerEmails : (mainContact?.emails || []);
+  const ownerPhones =
+    ownerData?.phones?.map((phone) => phone.formattedNumber || "") || [];
+  const ownerEmails =
+    ownerData?.emails?.map((email) => email.email || "") || [];
+
+  const mainPhones =
+    ownerPhones.length > 0 ? ownerPhones : mainContact?.phones || [];
+  const mainEmails =
+    ownerEmails.length > 0 ? ownerEmails : mainContact?.emails || [];
 
   const handleAddPhone = () => {
     setIsAddingPhone(true);
@@ -713,7 +717,7 @@ export function ContactSourcingDetails({
       await patchPropertyListingAcquisitionContactHistory(
         mainContact.id,
         { phones: updatedPhones },
-        auth.store.token
+        auth.store.token,
       );
 
       await loadContactHistory();
@@ -744,7 +748,7 @@ export function ContactSourcingDetails({
       await patchPropertyListingAcquisitionContactHistory(
         mainContact.id,
         { emails: updatedEmails },
-        auth.store.token
+        auth.store.token,
       );
 
       await loadContactHistory();
@@ -789,8 +793,8 @@ export function ContactSourcingDetails({
         prev.map((prop) =>
           prop.id === selectedPropertyForCapture.id
             ? { ...prop, captureCreated: true, captureId }
-            : prop
-        )
+            : prop,
+        ),
       );
     }
     setSelectedPropertyForCapture(null);
@@ -802,7 +806,7 @@ export function ContactSourcingDetails({
     if (numbers.length === 11) {
       return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(
         6,
-        9
+        9,
       )}-${numbers.slice(9, 11)}`;
     }
     return cpf;
@@ -830,7 +834,7 @@ export function ContactSourcingDetails({
           value?: string;
           [key: string]: unknown;
         }
-      | unknown
+      | unknown,
   ): string => {
     if (typeof value === "string") {
       return value;
@@ -854,8 +858,9 @@ export function ContactSourcingDetails({
           overflow: "hidden",
           boxShadow: theme.shadows[24],
           m: { xs: 0, sm: 2 },
-          maxHeight: { xs: "100vh", sm: "90vh" },
-          height: { xs: "100vh", sm: "90vh" },
+          maxHeight: { xs: "85vh", sm: "90vh" },
+          height: { xs: "85vh", sm: "90vh" },
+          maxWidth: "100vw",
           display: "flex",
           flexDirection: "column",
         },
@@ -867,7 +872,7 @@ export function ContactSourcingDetails({
       }}
       sx={{
         "& .MuiDialog-container": {
-          alignItems: { xs: "flex-end", sm: "center" },
+          alignItems: "center",
         },
       }}
     >
@@ -875,6 +880,7 @@ export function ContactSourcingDetails({
         sx={{
           p: 0,
           overflow: "hidden",
+          overflowX: "hidden",
           display: "flex",
           flexDirection: "column",
           flex: 1,
@@ -1001,12 +1007,15 @@ export function ContactSourcingDetails({
           </Box>
         </Box>
 
-        {/* Content */}
+        {/* Content - único scroll do modal */}
         <Box
           sx={{
-            p: 3,
+            p: { xs: 2, md: 3 },
             flex: 1,
-            overflow: "hidden",
+            minHeight: 0,
+            minWidth: 0,
+            overflowY: "auto",
+            overflowX: "hidden",
             display: "flex",
             flexDirection: "column",
           }}
@@ -1130,35 +1139,42 @@ export function ContactSourcingDetails({
                   CPF: {formatCPF(data.cpf)}
                 </Typography>
                 {/* Idade e Óbito */}
-                {ownerData && (ownerData.age !== undefined && ownerData.age !== null || ownerData.deathSuspect !== undefined && ownerData.deathSuspect !== null) && (
-                  <Box sx={{ display: "flex", gap: 2, mt: 0.5 }}>
-                    {ownerData.age !== undefined && ownerData.age !== null && (
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          fontSize: "0.75rem",
-                          color: theme.palette.text.secondary,
-                        }}
-                      >
-                        Idade: {ownerData.age} anos
-                      </Typography>
-                    )}
-                    {ownerData.deathSuspect !== undefined && ownerData.deathSuspect !== null && (
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          fontSize: "0.75rem",
-                          color: ownerData.deathSuspect
-                            ? theme.palette.error.main
-                            : theme.palette.text.secondary,
-                          fontWeight: ownerData.deathSuspect ? 600 : 400,
-                        }}
-                      >
-                        {ownerData.deathSuspect ? "Óbito: Suspeito" : "Óbito: Não"}
-                      </Typography>
-                    )}
-                  </Box>
-                )}
+                {ownerData &&
+                  ((ownerData.age !== undefined && ownerData.age !== null) ||
+                    (ownerData.deathSuspect !== undefined &&
+                      ownerData.deathSuspect !== null)) && (
+                    <Box sx={{ display: "flex", gap: 2, mt: 0.5 }}>
+                      {ownerData.age !== undefined &&
+                        ownerData.age !== null && (
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              fontSize: "0.75rem",
+                              color: theme.palette.text.secondary,
+                            }}
+                          >
+                            Idade: {ownerData.age} anos
+                          </Typography>
+                        )}
+                      {ownerData.deathSuspect !== undefined &&
+                        ownerData.deathSuspect !== null && (
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              fontSize: "0.75rem",
+                              color: ownerData.deathSuspect
+                                ? theme.palette.error.main
+                                : theme.palette.text.secondary,
+                              fontWeight: ownerData.deathSuspect ? 600 : 400,
+                            }}
+                          >
+                            {ownerData.deathSuspect
+                              ? "Óbito: Suspeito"
+                              : "Óbito: Não"}
+                          </Typography>
+                        )}
+                    </Box>
+                  )}
               </Box>
 
               {/* Phone and Email buttons - centered vertically */}
@@ -1375,30 +1391,32 @@ export function ContactSourcingDetails({
             </Box>
           </Box>
 
-          {/* Two boxes section */}
+          {/* Two boxes section - sem scroll interno, conteúdo empurra para baixo */}
           <Box
             sx={{
               display: "grid",
               gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
               gap: 3,
               mt: 3,
-              flex: 1,
-              minHeight: 0,
-              overflow: "hidden",
+              overflow: "visible",
+              minWidth: 0,
             }}
           >
-            {/* Left Box: Possíveis imóveis */}
+            {/* Left Box: Possíveis imóveis - resultados aparecem logo abaixo e empurram Contatos */}
             <Paper
               elevation={0}
               sx={{
-                border: `2px solid ${theme.palette.divider}`,
-                borderRadius: 3,
-                p: 3,
-                pr: 1,
+                border: {
+                  xs: "none",
+                  md: `2px solid ${theme.palette.divider}`,
+                },
+                borderRadius: { xs: 0, md: 3 },
+                p: { xs: 2, md: 3 },
                 display: "flex",
                 flexDirection: "column",
-                overflowY: "auto",
-                height: "100%",
+                overflow: "visible",
+                boxShadow: { xs: "none", md: "none" },
+                minWidth: 0,
               }}
             >
               <Typography
@@ -1594,6 +1612,7 @@ export function ContactSourcingDetails({
                         p: 1.5,
                         borderRadius: 2,
                         border: `1px solid ${theme.palette.divider}`,
+                        minWidth: 0,
                       }}
                     >
                       {/* Icon and Address Section */}
@@ -1604,6 +1623,7 @@ export function ContactSourcingDetails({
                           gap: 1.5,
                           flex: 1,
                           width: { xs: "100%", md: "auto" },
+                          minWidth: 0,
                         }}
                       >
                         <Home
@@ -1614,13 +1634,16 @@ export function ContactSourcingDetails({
                             flexShrink: 0,
                           }}
                         />
-                        <Box sx={{ flex: 1 }}>
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
                           <Typography
                             variant="body2"
                             sx={{
                               fontWeight: 500,
                               fontSize: "0.875rem",
                               mb: 0.25,
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
                             }}
                           >
                             {property.address}
@@ -1682,14 +1705,15 @@ export function ContactSourcingDetails({
                               property.selectedRelation === "owner"
                                 ? "Proprietário"
                                 : property.selectedRelation === "tenant"
-                                ? "Inquilino"
-                                : property.selectedRelation === "administrator"
-                                ? "Administrador"
-                                : property.selectedRelation === "other"
-                                ? "Outro"
-                                : property.selectedRelation === "resident"
-                                ? "Residente"
-                                : property.selectedRelation
+                                  ? "Inquilino"
+                                  : property.selectedRelation ===
+                                      "administrator"
+                                    ? "Administrador"
+                                    : property.selectedRelation === "other"
+                                      ? "Outro"
+                                      : property.selectedRelation === "resident"
+                                        ? "Residente"
+                                        : property.selectedRelation
                             }
                             size="small"
                             sx={{
@@ -1700,24 +1724,24 @@ export function ContactSourcingDetails({
                                 property.selectedRelation === "owner"
                                   ? theme.palette.success.light
                                   : property.selectedRelation === "tenant"
-                                  ? theme.palette.warning.light
-                                  : property.selectedRelation ===
-                                    "administrator"
-                                  ? theme.palette.info.light
-                                  : property.selectedRelation === "other"
-                                  ? theme.palette.grey[300]
-                                  : theme.palette.info.light,
+                                    ? theme.palette.warning.light
+                                    : property.selectedRelation ===
+                                        "administrator"
+                                      ? theme.palette.info.light
+                                      : property.selectedRelation === "other"
+                                        ? theme.palette.grey[300]
+                                        : theme.palette.info.light,
                               color:
                                 property.selectedRelation === "owner"
                                   ? theme.palette.success.dark
                                   : property.selectedRelation === "tenant"
-                                  ? theme.palette.warning.dark
-                                  : property.selectedRelation ===
-                                    "administrator"
-                                  ? theme.palette.info.dark
-                                  : property.selectedRelation === "other"
-                                  ? theme.palette.grey[700]
-                                  : theme.palette.info.dark,
+                                    ? theme.palette.warning.dark
+                                    : property.selectedRelation ===
+                                        "administrator"
+                                      ? theme.palette.info.dark
+                                      : property.selectedRelation === "other"
+                                        ? theme.palette.grey[700]
+                                        : theme.palette.info.dark,
                             }}
                           />
                         </Box>
@@ -1745,7 +1769,7 @@ export function ContactSourcingDetails({
                             onChange={(e) =>
                               handleUpdateSelectedRelation(
                                 property.id,
-                                e.target.value
+                                e.target.value,
                               )
                             }
                             sx={{
@@ -1807,23 +1831,28 @@ export function ContactSourcingDetails({
             <Paper
               elevation={0}
               sx={{
-                border: `2px solid ${theme.palette.divider}`,
-                borderRadius: 3,
-                p: 3,
-                pr: 1,
+                border: {
+                  xs: "none",
+                  md: `2px solid ${theme.palette.divider}`,
+                },
+                borderRadius: { xs: 0, md: 3 },
+                p: { xs: 2, md: 3 },
                 display: "flex",
                 flexDirection: "column",
-                overflowY: "auto",
-                height: "100%",
+                overflow: "visible",
+                boxShadow: { xs: "none", md: "none" },
+                minWidth: 0,
               }}
             >
               <Box
                 sx={{
                   display: "flex",
-                  alignItems: "center",
+                  flexDirection: { xs: "column", md: "row" },
+                  alignItems: { xs: "stretch", md: "center" },
                   justifyContent: "space-between",
                   mb: 2,
                   gap: 2,
+                  minWidth: 0,
                 }}
               >
                 <Typography
@@ -1848,7 +1877,8 @@ export function ContactSourcingDetails({
                     ),
                   }}
                   sx={{
-                    flex: "0 0 250px",
+                    flex: { xs: "1 1 auto", md: "0 0 250px" },
+                    minWidth: 0,
                     "& .MuiOutlinedInput-root": {
                       borderRadius: 2,
                     },
@@ -2093,7 +2123,8 @@ export function ContactSourcingDetails({
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
               {mainPhones.map((phone, index) => {
                 // Extrair phone se for objeto ou usar diretamente se for string
-                const phoneValue = typeof phone === 'string' ? phone : extractStringValue(phone);
+                const phoneValue =
+                  typeof phone === "string" ? phone : extractStringValue(phone);
                 return (
                   <Paper
                     key={index}
@@ -2181,7 +2212,8 @@ export function ContactSourcingDetails({
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
               {mainEmails.map((email, index) => {
                 // Extrair email se for objeto ou usar diretamente se for string
-                const emailValue = typeof email === 'string' ? email : extractStringValue(email);
+                const emailValue =
+                  typeof email === "string" ? email : extractStringValue(email);
                 return (
                   <Paper
                     key={index}
