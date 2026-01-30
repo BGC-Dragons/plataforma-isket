@@ -4,6 +4,7 @@ import axios from "axios";
 
 export interface IPostAuthGoogleParams {
   code: string;
+  redirectUri: string;
 }
 
 export interface GoogleAuthResponse {

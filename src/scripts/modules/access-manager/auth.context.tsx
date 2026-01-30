@@ -115,8 +115,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         // Extrair o code da resposta do Google
         const code = googleResponse.code;
 
-        // Chamar o backend com o code
-        const authResponse = await postAuthGoogle({ code });
+        // Chamar o backend com o code e redirectUri
+        const redirectUri = window.location.origin;
+        const authResponse = await postAuthGoogle({ code, redirectUri });
 
         if (authResponse.accessToken && authResponse.refreshToken) {
           const user: IAuthUser = {
