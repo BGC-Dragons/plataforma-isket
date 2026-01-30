@@ -94,7 +94,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     ) => {
       // Limpar cache do SWR antes de fazer login para evitar mostrar dados de usuário anterior
       clearAllUserDataCache();
-      
+
       // Marcar que estamos fazendo login para evitar interferências
       setIsLoggingIn(true);
       setIsValidating(false);
@@ -154,7 +154,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const logout = useCallback(() => {
     // Limpar cache do SWR antes de limpar o store
     clearAllUserDataCache();
-    
+
     setStore({
       token: null,
       refreshToken: null,
