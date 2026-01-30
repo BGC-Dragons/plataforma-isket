@@ -1639,6 +1639,7 @@ export function SearchComponent() {
               allNeighborhoodsForCityBounds={allNeighborhoodsForBounds}
               filters={currentFilters}
               cityToCodeMap={cityToCodeMap}
+              defaultCity={defaultCity}
               refreshKey={mapRefreshKey}
               token={
                 auth.store.token ||
@@ -2675,6 +2676,7 @@ export function SearchComponent() {
                 allNeighborhoodsForCityBounds={allNeighborhoodsForBounds}
                 filters={currentFilters}
                 cityToCodeMap={cityToCodeMap}
+                defaultCity={defaultCity}
                 refreshKey={mapRefreshKey}
                 token={
                   auth.store.token ||
@@ -2832,6 +2834,7 @@ export function SearchComponent() {
                 allNeighborhoodsForCityBounds={allNeighborhoodsForBounds}
                 filters={currentFilters}
                 cityToCodeMap={cityToCodeMap}
+                defaultCity={defaultCity}
                 refreshKey={mapRefreshKey}
                 token={
                   auth.store.token ||
