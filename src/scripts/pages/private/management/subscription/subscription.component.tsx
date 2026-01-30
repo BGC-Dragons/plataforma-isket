@@ -47,6 +47,10 @@ import {
   putPurchasesUpdateCity,
   type IUpdateCityRequest,
 } from "../../../../../services/put-purchases-update-city.service";
+import {
+  putPurchasesUpdateDefaultCity,
+  type IUpdateDefaultCityRequest,
+} from "../../../../../services/put-purchases-update-default-city.service";
 import { AddCitiesModal } from "../../../../library/components/add-cities-modal";
 import { EditCityModal } from "../../../../library/components/edit-city-modal";
 import { convertCityDescriptionToCode } from "../../../../library/helpers/convert-city-description-to-code.helper";
@@ -164,29 +168,64 @@ export function SubscriptionSection() {
       // Converter o formato da cidade selecionada para o formato de código
       const newCityCode = convertCityDescriptionToCode(newCity);
 
-      const updateData: IUpdateCityRequest = {
-        oldCityCode: editingCity,
-        newCityCode: newCityCode,
-      };
+      // Verificar se está editando a cidade padrão
+      const isDefaultCity = editingCity === purchase.defaultCityStateCode;
 
-      console.log("🔄 Atualizando cidade:", editingCity, "para:", newCity);
-      console.log("📊 Cidade original:", newCity);
-      console.log("📊 Cidade convertida:", newCityCode);
-      console.log("📊 Dados da requisição:", updateData);
-
-      const response = await putPurchasesUpdateCity(
-        purchase.id,
-        updateData,
-        store.token
-      );
-
-      // Verificar se a resposta contém erro mesmo com status 200
-      // A API pode retornar status 200 com payload contendo status: 403
-      const responseData = response.data as {
+      let response;
+      let responseData: {
         status?: string | number;
         message?: string;
         data?: unknown;
       };
+
+      if (isDefaultCity) {
+        // Usar o novo endpoint para editar cidade padrão
+        const updateDefaultCityData: IUpdateDefaultCityRequest = {
+          defaultCityStateCode: newCityCode,
+        };
+
+        console.log("🔄 Atualizando cidade padrão:", editingCity, "para:", newCity);
+        console.log("📊 Cidade original:", newCity);
+        console.log("📊 Cidade convertida:", newCityCode);
+        console.log("📊 Dados da requisição:", updateDefaultCityData);
+
+        response = await putPurchasesUpdateDefaultCity(
+          purchase.id,
+          updateDefaultCityData,
+          store.token
+        );
+
+        responseData = response.data as {
+          status?: string | number;
+          message?: string;
+          data?: unknown;
+        };
+      } else {
+        // Usar o endpoint existente para outras cidades
+        const updateData: IUpdateCityRequest = {
+          oldCityCode: editingCity,
+          newCityCode: newCityCode,
+        };
+
+        console.log("🔄 Atualizando cidade:", editingCity, "para:", newCity);
+        console.log("📊 Cidade original:", newCity);
+        console.log("📊 Cidade convertida:", newCityCode);
+        console.log("📊 Dados da requisição:", updateData);
+
+        response = await putPurchasesUpdateCity(
+          purchase.id,
+          updateData,
+          store.token
+        );
+
+        // Verificar se a resposta contém erro mesmo com status 200
+        // A API pode retornar status 200 com payload contendo status: 403
+        responseData = response.data as {
+          status?: string | number;
+          message?: string;
+          data?: unknown;
+        };
+      }
 
       if (responseData.status !== "SUCCESS") {
         // Se status é um número, é um erro (ex: 403)
