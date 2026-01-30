@@ -197,6 +197,19 @@ export function UpgradeSection() {
     return [plans.basic, plans.pro];
   };
 
+  const getPeriodLabel = () => {
+    if (period === "monthly") return "Mensal";
+    if (period === "quarterly") return "Trimestral";
+    return "Anual";
+  };
+
+  const getWhatsAppUrl = (plan: PlanType) => {
+    const nomePlano = `${getAccountTypeText()} ${plan.title}`;
+    const periodo = getPeriodLabel();
+    const mensagem = `Olá! Gostaria de contratar o plano *${nomePlano}* (${periodo}).`;
+    return `https://wa.me/554188628686?text=${encodeURIComponent(mensagem)}`;
+  };
+
   return (
     <Box
       sx={{
@@ -497,6 +510,9 @@ export function UpgradeSection() {
                         color="primary"
                         fullWidth
                         size="small"
+                        href={getWhatsAppUrl(plan)}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         sx={{
                           mt: "auto",
                           textTransform: "none",
