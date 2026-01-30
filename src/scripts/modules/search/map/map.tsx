@@ -217,6 +217,7 @@ export function MapComponent({
     null
   );
   const mouseUpListenerRef = useRef<google.maps.MapsEventListener | null>(null);
+  const touchListenersRef = useRef<{ remove: () => void } | null>(null);
 
   // Estados para busca do mapa
   const [mapClusters, setMapClusters] = useState<IMapCluster[]>([]);
@@ -1381,6 +1382,28 @@ export function MapComponent({
   );
 
   // -------- Freehand drawing (desenho à mão livre) ---------
+  // Converte coordenadas de toque/tela (clientX, clientY) em LatLng no mapa
+  const getLatLngFromClientCoords = useCallback(
+    (
+      mapInstance: google.maps.Map,
+      clientX: number,
+      clientY: number
+    ): google.maps.LatLng | null => {
+      const bounds = mapInstance.getBounds();
+      if (!bounds) return null;
+      const rect = mapInstance.getDiv().getBoundingClientRect();
+      const x = (clientX - rect.left) / rect.width;
+      const y = (clientY - rect.top) / rect.height;
+      if (x < 0 || x > 1 || y < 0 || y > 1) return null;
+      const ne = bounds.getNorthEast();
+      const sw = bounds.getSouthWest();
+      const lat = sw.lat() + (1 - y) * (ne.lat() - sw.lat());
+      const lng = sw.lng() + x * (ne.lng() - sw.lng());
+      return new google.maps.LatLng(lat, lng);
+    },
+    []
+  );
+
   const teardownFreehandListeners = useCallback(() => {
     mouseMoveListenerRef.current?.remove();
     mouseDownListenerRef.current?.remove();
@@ -1388,6 +1411,8 @@ export function MapComponent({
     mouseMoveListenerRef.current = null;
     mouseDownListenerRef.current = null;
     mouseUpListenerRef.current = null;
+    touchListenersRef.current?.remove();
+    touchListenersRef.current = null;
   }, []);
 
   const stopFreehand = useCallback(() => {
@@ -1505,51 +1530,30 @@ export function MapComponent({
     // Distância mínima em metros para adicionar um novo ponto durante o desenho
     const MIN_DISTANCE_DURING_DRAWING = 200; // metros
 
-    mouseMoveListenerRef.current = map.addListener(
-      "mousemove",
-      (e: google.maps.MapMouseEvent) => {
-        if (
-          !isMouseDownRef.current ||
-          !freehandPolylineRef.current ||
-          !e.latLng
-        )
-          return;
-
-        // Verificar distância mínima antes de adicionar o ponto
-        if (lastPointRef.current) {
-          const distance =
-            google.maps.geometry.spherical.computeDistanceBetween(
-              lastPointRef.current,
-              e.latLng
-            );
-
-          // Só adicionar ponto se estiver a pelo menos MIN_DISTANCE_DURING_DRAWING metros
-          if (distance < MIN_DISTANCE_DURING_DRAWING) {
-            return;
-          }
-        }
-
-        const path = freehandPolylineRef.current.getPath();
-        path.push(e.latLng);
-        lastPointRef.current = e.latLng;
+    const addPointToFreehand = (latLng: google.maps.LatLng) => {
+      if (!freehandPolylineRef.current) return;
+      if (lastPointRef.current) {
+        const distance =
+          google.maps.geometry.spherical.computeDistanceBetween(
+            lastPointRef.current,
+            latLng
+          );
+        if (distance < MIN_DISTANCE_DURING_DRAWING) return;
       }
-    );
+      const path = freehandPolylineRef.current.getPath();
+      path.push(latLng);
+      lastPointRef.current = latLng;
+    };
 
-    mouseUpListenerRef.current = map.addListener("mouseup", () => {
+    const finishFreehandStroke = () => {
       if (!freehandPolylineRef.current) return;
       isMouseDownRef.current = false;
-      // Converte o polyline para polygon
       const path = freehandPolylineRef.current.getPath();
-
-      // Simplificar o path antes de criar o polígono
       const simplifiedPath = simplifyPolygonPath(path);
-
-      // Criar um novo MVCArray com os pontos simplificados
       const simplifiedMVCArray = new google.maps.MVCArray<google.maps.LatLng>();
       simplifiedPath.forEach((point) => {
         simplifiedMVCArray.push(point);
       });
-
       const polygon = new google.maps.Polygon({
         map,
         paths: simplifiedMVCArray,
@@ -1564,47 +1568,95 @@ export function MapComponent({
       });
       freehandPolylineRef.current.setMap(null);
       freehandPolylineRef.current = null;
-
-      // Emula OverlayCompleteEvent para manter fluxo existente
       const fakeEvent = {
         type: google.maps.drawing.OverlayType.POLYGON,
         overlay: polygon,
       } as unknown as google.maps.drawing.OverlayCompleteEvent;
-
       setDrawnOverlays((prev) => [...prev, fakeEvent]);
-
-      // Adicionar listeners de arrasto/edição
       addOverlayListeners(fakeEvent);
-
       if (onDrawingCompleteRef.current) onDrawingCompleteRef.current(fakeEvent);
       setDrawingMode(null);
-
-      // Desselecionar o polígono após um pequeno delay
-      // Usar a API do Google Maps para disparar um evento de clique no mapa
       setTimeout(() => {
         if (map) {
-          // Obter o centro do mapa para simular o clique
           const center = map.getCenter();
           if (center) {
-            // Criar um evento de clique no mapa usando a API do Google Maps
-            google.maps.event.trigger(map, "click", {
-              latLng: center,
-            });
+            google.maps.event.trigger(map, "click", { latLng: center });
           }
         }
       }, 100);
-
-      // Desativar o modo freehand automaticamente após completar o desenho
-      // Isso permite que o usuário mexa no mapa sem criar um novo desenho
       setFreehandActive(false);
-      isMouseDownRef.current = false;
       lastPointRef.current = null;
       teardownFreehandListeners();
       if (map) {
         map.setOptions({ draggable: true });
         map.setOptions({ draggableCursor: undefined });
       }
-    });
+    };
+
+    mouseMoveListenerRef.current = map.addListener(
+      "mousemove",
+      (e: google.maps.MapMouseEvent) => {
+        if (
+          !isMouseDownRef.current ||
+          !freehandPolylineRef.current ||
+          !e.latLng
+        )
+          return;
+        addPointToFreehand(e.latLng);
+      }
+    );
+
+    mouseUpListenerRef.current = map.addListener("mouseup", finishFreehandStroke);
+
+    // Suporte a toque (tablet/celular): desenho com dedo
+    const mapDiv = map.getDiv();
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 0) return;
+      const touch = e.touches[0];
+      const latLng = getLatLngFromClientCoords(map, touch.clientX, touch.clientY);
+      if (!latLng) return;
+      isMouseDownRef.current = true;
+      if (freehandPolylineRef.current) {
+        freehandPolylineRef.current.setMap(null);
+        freehandPolylineRef.current = null;
+      }
+      freehandPolylineRef.current = new google.maps.Polyline({
+        map,
+        clickable: false,
+        strokeColor: "#4285F4",
+        strokeOpacity: 0.8,
+        strokeWeight: 2,
+      });
+      const path = freehandPolylineRef.current.getPath();
+      path.push(latLng);
+      lastPointRef.current = latLng;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (!isMouseDownRef.current || e.touches.length === 0) return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      const latLng = getLatLngFromClientCoords(map, touch.clientX, touch.clientY);
+      if (latLng) addPointToFreehand(latLng);
+    };
+    const onTouchEnd = () => {
+      if (isMouseDownRef.current && freehandPolylineRef.current) {
+        finishFreehandStroke();
+      }
+    };
+    const touchOptions = { passive: false };
+    mapDiv.addEventListener("touchstart", onTouchStart, touchOptions);
+    mapDiv.addEventListener("touchmove", onTouchMove, touchOptions);
+    mapDiv.addEventListener("touchend", onTouchEnd, touchOptions);
+    mapDiv.addEventListener("touchcancel", onTouchEnd, touchOptions);
+    touchListenersRef.current = {
+      remove: () => {
+        mapDiv.removeEventListener("touchstart", onTouchStart);
+        mapDiv.removeEventListener("touchmove", onTouchMove);
+        mapDiv.removeEventListener("touchend", onTouchEnd);
+        mapDiv.removeEventListener("touchcancel", onTouchEnd);
+        touchListenersRef.current = null;
+      },
+    };
   }, [
     map,
     drawingManager,
@@ -1612,6 +1664,7 @@ export function MapComponent({
     addOverlayListeners,
     simplifyPolygonPath,
     isEditMode,
+    getLatLngFromClientCoords,
   ]);
 
   const toggleFreehand = useCallback(() => {
@@ -2691,7 +2744,7 @@ export function MapComponent({
           }
         }
 
-        // Limpar listeners do freehand
+        // Limpar listeners do freehand (mouse e touch)
         try {
           if (mouseMoveListenerRef.current) {
             mouseMoveListenerRef.current.remove();
@@ -2705,6 +2758,8 @@ export function MapComponent({
             mouseUpListenerRef.current.remove();
             mouseUpListenerRef.current = null;
           }
+          touchListenersRef.current?.remove();
+          touchListenersRef.current = null;
         } catch {
           // Ignorar erros silenciosamente durante cleanup
         }
