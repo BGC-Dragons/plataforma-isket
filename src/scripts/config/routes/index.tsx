@@ -13,7 +13,7 @@ import { CitySelectionProvider } from "../../modules/city-selection/city-selecti
 import { FilterSelectionProvider } from "../../modules/filter-selection/filter-selection.context";
 import { PrivateLayout } from "../../library/components/private-layout";
 import { ManagementComponent } from "../../pages/private/management/management.component";
-import { SearchComponent } from "../../pages/private/search/search.component";
+import SearchComponent from "../../pages/private/search/search.component";
 import { SourcingComponent } from "../../pages/private/sourcing/sourcing.component";
 import { EvaluationComponent } from "../../pages/private/evaluation/evaluation.component";
 import { AnalysesComponent } from "../../pages/private/analyses/analyses.component";

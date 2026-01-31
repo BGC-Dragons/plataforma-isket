@@ -2856,3 +2856,5 @@ export function SearchComponent() {
     </Box>
   );
 }
+
+export default SearchComponent;
