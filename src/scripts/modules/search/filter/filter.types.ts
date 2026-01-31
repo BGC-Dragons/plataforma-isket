@@ -26,6 +26,7 @@ export interface FilterState {
   apartamento_duplex: boolean;
   apartamento_triplex: boolean;
   apartamento_cobertura: boolean;
+  apartamento_garden: boolean;
   // Comerciais
   comercial_sala: boolean;
   comercial_casa: boolean;

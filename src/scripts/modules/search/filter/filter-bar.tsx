@@ -64,6 +64,7 @@ export function FilterBar({
     apartamento_duplex: false,
     apartamento_triplex: false,
     apartamento_cobertura: false,
+    apartamento_garden: false,
     // Comerciais
     comercial_sala: false,
     comercial_casa: false,
@@ -928,6 +929,7 @@ export function FilterBar({
       apartamento_duplex: false,
       apartamento_triplex: false,
       apartamento_cobertura: false,
+      apartamento_garden: false,
       // Comerciais
       comercial_sala: false,
       comercial_casa: false,
@@ -1018,6 +1020,7 @@ export function FilterBar({
       appliedFilters.apartamento_duplex,
       appliedFilters.apartamento_triplex,
       appliedFilters.apartamento_cobertura,
+      appliedFilters.apartamento_garden,
       appliedFilters.comercial_sala,
       appliedFilters.comercial_casa,
       appliedFilters.comercial_ponto,

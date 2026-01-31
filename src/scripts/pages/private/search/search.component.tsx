@@ -934,6 +934,7 @@ export function SearchComponent() {
       apartamento_duplex: false,
       apartamento_triplex: false,
       apartamento_cobertura: false,
+      apartamento_garden: false,
       comercial_sala: false,
       comercial_casa: false,
       comercial_ponto: false,
@@ -1310,6 +1311,7 @@ export function SearchComponent() {
           apartamento_duplex: false,
           apartamento_triplex: false,
           apartamento_cobertura: false,
+          apartamento_garden: false,
           comercial_sala: false,
           comercial_casa: false,
           comercial_ponto: false,
@@ -1405,6 +1407,7 @@ export function SearchComponent() {
       apartamento_duplex: false,
       apartamento_triplex: false,
       apartamento_cobertura: false,
+      apartamento_garden: false,
       // Comerciais
       comercial_sala: false,
       comercial_casa: false,
