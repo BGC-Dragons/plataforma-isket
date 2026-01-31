@@ -1648,6 +1648,7 @@ export function SearchComponent() {
                 undefined
               }
               useMapSearch={true}
+              onNeighborhoodClick={handleNeighborhoodClick}
             />
           </Box>
 
@@ -2843,6 +2844,7 @@ export function SearchComponent() {
                   undefined
                 }
                 useMapSearch={true}
+                onNeighborhoodClick={handleNeighborhoodClick}
               />
             </Box>
           </Box>
