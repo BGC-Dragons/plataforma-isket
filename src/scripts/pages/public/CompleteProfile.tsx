@@ -23,11 +23,13 @@ import { convertCityDescriptionToCode } from "../../library/helpers/convert-city
 function formatCPF(value: string): string {
   const numbers = value.replace(/\D/g, "");
   if (numbers.length <= 3) return numbers;
-  if (numbers.length <= 6)
-    return `${numbers.slice(0, 3)}.${numbers.slice(3)}`;
+  if (numbers.length <= 6) return `${numbers.slice(0, 3)}.${numbers.slice(3)}`;
   if (numbers.length <= 9)
     return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6)}`;
-  return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6, 9)}-${numbers.slice(9, 11)}`;
+  return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(
+    6,
+    9
+  )}-${numbers.slice(9, 11)}`;
 }
 
 function formatPhone(value: string): string {
@@ -35,7 +37,10 @@ function formatPhone(value: string): string {
   if (numbers.length <= 2) return numbers;
   if (numbers.length <= 7)
     return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
-  return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
+  return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(
+    7,
+    11
+  )}`;
 }
 
 function isCPFComplete(value: string): boolean {
@@ -146,7 +151,9 @@ export function CompleteProfile() {
       login({ accessToken, refreshToken }, user);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Erro ao completar perfil. Tente novamente."
+        err instanceof Error
+          ? err.message
+          : "Erro ao completar perfil. Tente novamente."
       );
     } finally {
       setIsSubmitting(false);
@@ -275,8 +282,6 @@ export function CompleteProfile() {
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               placeholder="Rua, número, bairro, cidade..."
-              multiline
-              minRows={2}
               sx={{ mb: 3 }}
             />
 
@@ -297,8 +302,16 @@ export function CompleteProfile() {
               value={city}
               onChange={setCity}
               required
-              sx={{ mb: 4 }}
+              sx={{ mb: 1 }}
             />
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: "block", mb: 3 }}
+            >
+              Selecione uma cidade da lista. O botão só habilita após escolher
+              uma opção no dropdown.
+            </Typography>
 
             <Button
               type="submit"
