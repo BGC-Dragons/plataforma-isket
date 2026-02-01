@@ -271,6 +271,10 @@ export function MapComponent({
   const neighborhoodPolygonsRef = useRef<Map<string, google.maps.Polygon>>(
     new Map()
   );
+  const lastAllNeighborhoodsRef = useRef<{
+    key: string;
+    items: INeighborhoodFull[];
+  }>({ key: "", items: [] });
 
   // Mantém a ref de onDrawingComplete atualizada
   useEffect(() => {
@@ -1474,11 +1478,10 @@ export function MapComponent({
     const addPointToFreehand = (latLng: google.maps.LatLng) => {
       if (!freehandPolylineRef.current) return;
       if (lastPointRef.current) {
-        const distance =
-          google.maps.geometry.spherical.computeDistanceBetween(
-            lastPointRef.current,
-            latLng
-          );
+        const distance = google.maps.geometry.spherical.computeDistanceBetween(
+          lastPointRef.current,
+          latLng
+        );
         if (distance < MIN_DISTANCE_DURING_DRAWING) return;
       }
       const path = freehandPolylineRef.current.getPath();
@@ -1547,14 +1550,21 @@ export function MapComponent({
       }
     );
 
-    mouseUpListenerRef.current = map.addListener("mouseup", finishFreehandStroke);
+    mouseUpListenerRef.current = map.addListener(
+      "mouseup",
+      finishFreehandStroke
+    );
 
     // Suporte a toque (tablet/celular): desenho com dedo
     const mapDiv = map.getDiv();
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 0) return;
       const touch = e.touches[0];
-      const latLng = getLatLngFromClientCoords(map, touch.clientX, touch.clientY);
+      const latLng = getLatLngFromClientCoords(
+        map,
+        touch.clientX,
+        touch.clientY
+      );
       if (!latLng) return;
       isMouseDownRef.current = true;
       if (freehandPolylineRef.current) {
@@ -1576,7 +1586,11 @@ export function MapComponent({
       if (!isMouseDownRef.current || e.touches.length === 0) return;
       e.preventDefault();
       const touch = e.touches[0];
-      const latLng = getLatLngFromClientCoords(map, touch.clientX, touch.clientY);
+      const latLng = getLatLngFromClientCoords(
+        map,
+        touch.clientX,
+        touch.clientY
+      );
       if (latLng) addPointToFreehand(latLng);
     };
     const onTouchEnd = () => {
@@ -1816,6 +1830,37 @@ export function MapComponent({
       currency: "BRL",
     }).format(price);
   };
+
+  const selectedCityCodesKey = useMemo(() => {
+    return [...selectedCityCodes].sort().join(",");
+  }, [selectedCityCodes]);
+
+  // Preservar lista completa de bairros para evitar flicker durante refetch
+  useEffect(() => {
+    if (selectedCityCodesKey.length === 0) {
+      lastAllNeighborhoodsRef.current = { key: "", items: [] };
+      return;
+    }
+    if (allNeighborhoodsForCityBounds.length > 0) {
+      lastAllNeighborhoodsRef.current = {
+        key: selectedCityCodesKey,
+        items: allNeighborhoodsForCityBounds,
+      };
+    }
+  }, [allNeighborhoodsForCityBounds, selectedCityCodesKey]);
+
+  const neighborhoodsForCityBounds = useMemo(() => {
+    if (allNeighborhoodsForCityBounds.length > 0) {
+      return allNeighborhoodsForCityBounds;
+    }
+    if (
+      selectedCityCodesKey.length > 0 &&
+      lastAllNeighborhoodsRef.current.key === selectedCityCodesKey
+    ) {
+      return lastAllNeighborhoodsRef.current.items;
+    }
+    return neighborhoods;
+  }, [allNeighborhoodsForCityBounds, neighborhoods, selectedCityCodesKey]);
 
   // Calcular center e zoom a serem usados
   // Prioridade: 1) addressCenter/addressZoom da resposta da API (searchMap), 2) center/zoom das props (search normal)
@@ -2253,10 +2298,12 @@ export function MapComponent({
           editable: true,
           draggable: isEditMode,
         });
-        (polygon as unknown as {
-          __drawingIndex?: number;
-          __rehydrated?: boolean;
-        }).__drawingIndex = index;
+        (
+          polygon as unknown as {
+            __drawingIndex?: number;
+            __rehydrated?: boolean;
+          }
+        ).__drawingIndex = index;
         (polygon as unknown as { __rehydrated?: boolean }).__rehydrated = true;
         const fakeEvent = {
           type: google.maps.drawing.OverlayType.POLYGON,
@@ -2283,10 +2330,12 @@ export function MapComponent({
           editable: true,
           draggable: isEditMode,
         });
-        (circle as unknown as {
-          __drawingIndex?: number;
-          __rehydrated?: boolean;
-        }).__drawingIndex = index;
+        (
+          circle as unknown as {
+            __drawingIndex?: number;
+            __rehydrated?: boolean;
+          }
+        ).__drawingIndex = index;
         (circle as unknown as { __rehydrated?: boolean }).__rehydrated = true;
         const fakeEvent = {
           type: google.maps.drawing.OverlayType.CIRCLE,
@@ -2376,10 +2425,7 @@ export function MapComponent({
   useEffect(() => {
     // Limpar polígonos antigos que não estão mais na lista atual
     const currentNeighborhoodIds = new Set(
-      (allNeighborhoodsForCityBounds.length > 0
-        ? allNeighborhoodsForCityBounds
-        : neighborhoods
-      ).map((n) => n.id)
+      neighborhoodsForCityBounds.map((n) => n.id)
     );
 
     neighborhoodPolygonsRef.current.forEach((polygon, id) => {
@@ -2399,7 +2445,12 @@ export function MapComponent({
         neighborhoodPolygonsRef.current.delete(id);
       }
     });
-  }, [neighborhoods, allNeighborhoodsForCityBounds, selectedNeighborhoodNames]);
+  }, [
+    neighborhoods,
+    allNeighborhoodsForCityBounds,
+    selectedNeighborhoodNames,
+    selectedCityCodesKey,
+  ]);
 
   useLayoutEffect(() => {
     const neighborhoodPolygons = neighborhoodPolygonsRef.current;
@@ -2917,10 +2968,7 @@ export function MapComponent({
           (() => {
             // Priorizar allNeighborhoodsForCityBounds (sempre tem todos os bairros)
             // Se não houver, usar neighborhoods como fallback
-            const neighborhoodsToShow =
-              allNeighborhoodsForCityBounds.length > 0
-                ? allNeighborhoodsForCityBounds
-                : neighborhoods;
+            const neighborhoodsToShow = neighborhoodsForCityBounds;
 
             const allNeighborhoods = neighborhoodsToShow;
 
@@ -3547,9 +3595,7 @@ export function MapComponent({
             {/* Botão Polígono */}
             <Button
               variant={
-                drawingMode === OverlayType.POLYGON
-                  ? "contained"
-                  : "outlined"
+                drawingMode === OverlayType.POLYGON ? "contained" : "outlined"
               }
               size="small"
               onClick={() =>
@@ -3586,16 +3632,12 @@ export function MapComponent({
             {/* Botão Círculo */}
             <Button
               variant={
-                drawingMode === OverlayType.CIRCLE
-                  ? "contained"
-                  : "outlined"
+                drawingMode === OverlayType.CIRCLE ? "contained" : "outlined"
               }
               size="small"
               onClick={() =>
                 setDrawingModeHandler(
-                  drawingMode === OverlayType.CIRCLE
-                    ? null
-                    : OverlayType.CIRCLE
+                  drawingMode === OverlayType.CIRCLE ? null : OverlayType.CIRCLE
                 )
               }
               sx={{

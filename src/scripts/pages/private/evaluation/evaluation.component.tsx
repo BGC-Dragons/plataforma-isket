@@ -556,8 +556,8 @@ export function EvaluationComponent() {
     [cityToCodeMap, auth.store.token]
   );
 
-  // Função para buscar dados geoespaciais dos bairros (igual à tela de busca)
-  // Quando apenas cidade é selecionada (sem bairros específicos), busca todos os bairros para mostrar delimitação
+  // Função para buscar dados geoespaciais dos bairros
+  // Carrega lista completa apenas quando as cidades mudarem
   const fetchNeighborhoodsData = useCallback(
     async (filters: FilterState) => {
       if (filters.cities.length === 0) {
@@ -586,18 +586,6 @@ export function EvaluationComponent() {
 
         // SEMPRE armazenar TODOS os bairros para mostrar delimitação completa
         setAllNeighborhoodsForBounds(response.data);
-
-        // Se há bairros específicos selecionados, também armazenar esses para destacar
-        if (filters.neighborhoods.length > 0) {
-          const selectedNeighborhoods = response.data.filter((neighborhood) =>
-            filters.neighborhoods.includes(neighborhood.name)
-          );
-          // Armazenar os bairros selecionados (para destacar visualmente)
-          setNeighborhoodsData(selectedNeighborhoods);
-        } else {
-          // Se não há bairros específicos selecionados, limpar neighborhoodsData
-          setNeighborhoodsData([]);
-        }
       } catch (error) {
         console.error("Erro ao buscar dados dos bairros:", error);
         setNeighborhoodsData([]);
@@ -636,33 +624,43 @@ export function EvaluationComponent() {
     }
   }, [currentFilters, fetchCitiesData]);
 
-  // Ref para rastrear bairros anteriores e evitar buscas duplicadas
-  const previousNeighborhoodsRef = useRef<string>("");
+  // Ref para rastrear cidades anteriores e evitar buscas duplicadas de bairros
+  const previousNeighborhoodCitiesRef = useRef<string>("");
 
-  // Efeito para buscar dados dos bairros imediatamente quando os bairros mudarem
-  // Isso permite centralizar o mapa sem precisar fazer a busca completa de propriedades
+  // Efeito para buscar lista completa de bairros quando as cidades mudarem
   useEffect(() => {
     // Não buscar dados de bairros quando há busca por endereço (para não sobrescrever centralização)
     if (!currentFilters || currentFilters.addressCoordinates) {
-      previousNeighborhoodsRef.current = "";
+      previousNeighborhoodCitiesRef.current = "";
       return;
     }
 
-    // Criar uma chave única baseada nos bairros selecionados (mesmo se vazio)
-    const neighborhoodsKey =
-      currentFilters.neighborhoods.length > 0
-        ? [...currentFilters.neighborhoods].sort().join(",")
+    const citiesKey =
+      currentFilters.cities.length > 0
+        ? [...currentFilters.cities].sort().join(",")
         : "";
 
-    // Só buscar se os bairros realmente mudaram
-    if (previousNeighborhoodsRef.current !== neighborhoodsKey) {
-      previousNeighborhoodsRef.current = neighborhoodsKey;
-      // Buscar dados dos bairros imediatamente quando mudarem
-      // Não fazer busca de propriedades aqui, apenas buscar dados geoespaciais
-      // fetchNeighborhoodsData já trata o caso de array vazio
+    if (previousNeighborhoodCitiesRef.current !== citiesKey) {
+      previousNeighborhoodCitiesRef.current = citiesKey;
+      // Buscar lista completa de bairros apenas quando as cidades mudarem
       fetchNeighborhoodsData(currentFilters);
     }
   }, [currentFilters, fetchNeighborhoodsData]);
+
+  // Efeito para derivar bairros selecionados sem refetch (evita piscar)
+  useEffect(() => {
+    if (!currentFilters) return;
+
+    if (currentFilters.neighborhoods.length === 0) {
+      setNeighborhoodsData([]);
+      return;
+    }
+
+    const selectedNeighborhoods = allNeighborhoodsForBounds.filter(
+      (neighborhood) => currentFilters.neighborhoods.includes(neighborhood.name)
+    );
+    setNeighborhoodsData(selectedNeighborhoods);
+  }, [currentFilters, allNeighborhoodsForBounds]);
 
   // Efeito para centralizar o mapa quando há busca por endereço (prioridade máxima)
   useEffect(() => {
@@ -906,16 +904,19 @@ export function EvaluationComponent() {
       }
 
       const existingGeometries = currentFilters?.drawingGeometries || [];
-      const overlayIndex = (overlay.overlay as unknown as {
-        __drawingIndex?: number;
-      })?.__drawingIndex;
+      const overlayIndex = (
+        overlay.overlay as unknown as {
+          __drawingIndex?: number;
+        }
+      )?.__drawingIndex;
       const nextGeometries = [...existingGeometries];
       if (typeof overlayIndex === "number" && overlayIndex >= 0) {
         nextGeometries[overlayIndex] = geometry;
       } else {
         const newIndex = nextGeometries.length;
-        (overlay.overlay as unknown as { __drawingIndex?: number }).__drawingIndex =
-          newIndex;
+        (
+          overlay.overlay as unknown as { __drawingIndex?: number }
+        ).__drawingIndex = newIndex;
         nextGeometries.push(geometry);
       }
 
@@ -1260,12 +1261,15 @@ export function EvaluationComponent() {
   );
 
   // Função para lidar com mudança de ordenação
-  const handleSortChange = useCallback((newSortBy: SortOption) => {
-    setSortBy(newSortBy);
-    if (currentFilters) {
-      applyFilters(currentFilters, newSortBy);
-    }
-  }, [currentFilters, applyFilters]);
+  const handleSortChange = useCallback(
+    (newSortBy: SortOption) => {
+      setSortBy(newSortBy);
+      if (currentFilters) {
+        applyFilters(currentFilters, newSortBy);
+      }
+    },
+    [currentFilters, applyFilters]
+  );
 
   const handlePropertySelect = useCallback((id: string, selected: boolean) => {
     setSelectedProperties((prev) => {
@@ -1625,9 +1629,10 @@ export function EvaluationComponent() {
           sm: "100%",
         },
         pb: {
-          xs: selectedProperties.size > 0
-            ? `calc(${theme.spacing(12)} + env(safe-area-inset-bottom))`
-            : "env(safe-area-inset-bottom)",
+          xs:
+            selectedProperties.size > 0
+              ? `calc(${theme.spacing(12)} + env(safe-area-inset-bottom))`
+              : "env(safe-area-inset-bottom)",
           sm: selectedProperties.size > 0 ? 12 : 0,
         }, // Espaço para o action bar flutuante
       }}
@@ -1638,7 +1643,10 @@ export function EvaluationComponent() {
           sx={{
             display: "flex",
             gap: 3,
-            height: { xs: "auto", sm: "calc(var(--app-height, 100vh) - 130px)" },
+            height: {
+              xs: "auto",
+              sm: "calc(var(--app-height, 100vh) - 130px)",
+            },
             minHeight: { xs: "auto", sm: 600 },
             minWidth: 0,
             maxWidth: "100%",
@@ -2090,70 +2098,72 @@ export function EvaluationComponent() {
                               }}
                             >
                               {property.propertyType === "TERRENO" ? (
-                              <Box
-                                sx={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 0.5,
-                                }}
-                              >
-                                <SquareFoot
+                                <Box
                                   sx={{
-                                    fontSize: 16,
-                                    color: getIconColor(property.propertyType),
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 0.5,
                                   }}
-                                />
-                                <Typography variant="body2">
-                                  {property.area} m²
-                                </Typography>
-                              </Box>
-                            ) : (
-                              <>
-                                {property.bedrooms && property.bedrooms > 0 && (
-                                  <Box
+                                >
+                                  <SquareFoot
                                     sx={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: 0.5,
+                                      fontSize: 16,
+                                      color: getIconColor(
+                                        property.propertyType
+                                      ),
                                     }}
-                                  >
-                                    <Bed
-                                      sx={{
-                                        fontSize: 16,
-                                        color: getIconColor(
-                                          property.propertyType
-                                        ),
-                                      }}
-                                    />
-                                    <Typography variant="body2">
-                                      {property.bedrooms}
-                                    </Typography>
-                                  </Box>
-                                )}
-                                {property.bathrooms &&
-                                  property.bathrooms > 0 && (
-                                    <Box
-                                      sx={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: 0.5,
-                                      }}
-                                    >
-                                      <Bathtub
+                                  />
+                                  <Typography variant="body2">
+                                    {property.area} m²
+                                  </Typography>
+                                </Box>
+                              ) : (
+                                <>
+                                  {property.bedrooms &&
+                                    property.bedrooms > 0 && (
+                                      <Box
                                         sx={{
-                                          fontSize: 16,
-                                          color: getIconColor(
-                                            property.propertyType
-                                          ),
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: 0.5,
                                         }}
-                                      />
-                                      <Typography variant="body2">
-                                        {property.bathrooms}
-                                      </Typography>
-                                    </Box>
-                                  )}
-                                {property.parking &&
-                                  property.parking > 0 && (
+                                      >
+                                        <Bed
+                                          sx={{
+                                            fontSize: 16,
+                                            color: getIconColor(
+                                              property.propertyType
+                                            ),
+                                          }}
+                                        />
+                                        <Typography variant="body2">
+                                          {property.bedrooms}
+                                        </Typography>
+                                      </Box>
+                                    )}
+                                  {property.bathrooms &&
+                                    property.bathrooms > 0 && (
+                                      <Box
+                                        sx={{
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: 0.5,
+                                        }}
+                                      >
+                                        <Bathtub
+                                          sx={{
+                                            fontSize: 16,
+                                            color: getIconColor(
+                                              property.propertyType
+                                            ),
+                                          }}
+                                        />
+                                        <Typography variant="body2">
+                                          {property.bathrooms}
+                                        </Typography>
+                                      </Box>
+                                    )}
+                                  {property.parking && property.parking > 0 && (
                                     <Box
                                       sx={{
                                         display: "flex",
@@ -2174,29 +2184,29 @@ export function EvaluationComponent() {
                                       </Typography>
                                     </Box>
                                   )}
-                                {property.area > 0 && (
-                                  <Box
-                                    sx={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: 0.5,
-                                    }}
-                                  >
-                                    <SquareFoot
+                                  {property.area > 0 && (
+                                    <Box
                                       sx={{
-                                        fontSize: 16,
-                                        color: getIconColor(
-                                          property.propertyType
-                                        ),
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 0.5,
                                       }}
-                                    />
-                                    <Typography variant="body2">
-                                      {property.area} m²
-                                    </Typography>
-                                  </Box>
-                                )}
-                              </>
-                            )}
+                                    >
+                                      <SquareFoot
+                                        sx={{
+                                          fontSize: 16,
+                                          color: getIconColor(
+                                            property.propertyType
+                                          ),
+                                        }}
+                                      />
+                                      <Typography variant="body2">
+                                        {property.area} m²
+                                      </Typography>
+                                    </Box>
+                                  )}
+                                </>
+                              )}
                             </Box>
                           </Box>
 
