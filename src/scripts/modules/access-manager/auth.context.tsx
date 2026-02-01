@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
+import smartlookClient from "smartlook-client";
+import { ENV_VAR } from "../../../config/env-var";
 import { postAuthGoogle } from "../../../services/post-auth-google.service";
 import { postAuthRefreshToken } from "../../../services/post-auth-refresh-token.service";
 import { getAuthMe } from "../../../services/get-auth-me.service";
@@ -86,6 +88,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     initializeAuth();
   }, [validateToken, handleUpdateStore]);
+
+  // Identificar usuário no Smartlook (userId, name, email) para sessões e gravações
+  useEffect(() => {
+    if (!ENV_VAR.smartlookApiKey || !store.user) return;
+    try {
+      smartlookClient.identify(store.user.id, {
+        name: store.user.name,
+        email: store.user.email,
+      });
+    } catch (e) {
+      console.warn("Smartlook identify:", e);
+    }
+  }, [store.user]);
 
   const login = useCallback(
     (
