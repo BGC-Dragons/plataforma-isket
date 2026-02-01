@@ -125,10 +125,6 @@ export function SearchComponent() {
     null
   );
   const [mapModalOpen, setMapModalOpen] = useState(false);
-  const [bottomSheetPosition, setBottomSheetPosition] = useState(0); // posição Y do bottom sheet
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStartY, setDragStartY] = useState(0);
-  const [dragStartPosition, setDragStartPosition] = useState(0);
   const [mapRefreshKey, setMapRefreshKey] = useState(0);
   const previousPropertyIdRef = useRef<string | undefined>(propertyId);
   const [neighborhoodsData, setNeighborhoodsData] = useState<
@@ -143,16 +139,8 @@ export function SearchComponent() {
   >(undefined);
   const [mapZoom, setMapZoom] = useState<number | undefined>(undefined);
 
-  // Detectar quando a tela está entre 600px e 900px (inclusivo)
-  const isMediumScreen = useMediaQuery(
-    "(min-width: 600px) and (max-width: 900px)",
-    {
-      noSsr: true,
-    }
-  );
-
-  // Detectar quando é mobile (menor que 600px)
-  const isMobile = useMediaQuery("(max-width: 599px)", {
+  // Telas menores que 900px: mapa some e mostramos botão "Abrir mapa" (padrão da plataforma)
+  const isMapHiddenScreen = useMediaQuery("(max-width: 899px)", {
     noSsr: true,
   });
 
@@ -1486,97 +1474,6 @@ export function SearchComponent() {
     [currentFilters, applyFilters]
   );
 
-  // Handlers para o bottom sheet deslizante (mobile)
-  const handleBottomSheetTouchStart = (e: React.TouchEvent) => {
-    setIsDragging(true);
-    setDragStartY(e.touches[0].clientY);
-    setDragStartPosition(bottomSheetPosition);
-  };
-
-  const handleBottomSheetTouchMove = (e: React.TouchEvent) => {
-    if (!isDragging) return;
-    e.preventDefault();
-    const currentY = e.touches[0].clientY;
-    const deltaY = currentY - dragStartY;
-    const windowHeight = window.visualViewport?.height ?? window.innerHeight;
-    const minPosition = windowHeight * 0.3; // 30% da tela visível no mínimo
-    const maxPosition = windowHeight * 0.95; // 95% da tela no máximo
-
-    const newPosition = Math.max(
-      minPosition,
-      Math.min(maxPosition, dragStartPosition + deltaY)
-    );
-    setBottomSheetPosition(newPosition);
-  };
-
-  const handleBottomSheetTouchEnd = () => {
-    if (!isDragging) return;
-    setIsDragging(false);
-    const windowHeight = window.visualViewport?.height ?? window.innerHeight;
-    const threshold = windowHeight * 0.5; // 50% da tela como ponto de decisão
-
-    // Snap para cima ou para baixo baseado na posição
-    if (bottomSheetPosition < threshold) {
-      setBottomSheetPosition(windowHeight * 0.3);
-    } else {
-      setBottomSheetPosition(windowHeight * 0.95);
-    }
-  };
-
-  // Handler para mouse (desktop também pode arrastar)
-  const handleBottomSheetMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true);
-    setDragStartY(e.clientY);
-    setDragStartPosition(bottomSheetPosition);
-  };
-
-  // Efeito para atualizar posição inicial do bottom sheet
-  useEffect(() => {
-    if (isMobile) {
-      const windowHeight = window.visualViewport?.height ?? window.innerHeight;
-      setBottomSheetPosition(windowHeight * 0.3); // Começar com 30% visível
-    }
-  }, [isMobile]);
-
-  // Adicionar listeners globais para mouse quando está arrastando
-  useEffect(() => {
-    if (!isDragging) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      const deltaY = e.clientY - dragStartY;
-      const windowHeight = window.visualViewport?.height ?? window.innerHeight;
-      const minPosition = windowHeight * 0.3;
-      const maxPosition = windowHeight * 0.95;
-
-      const newPosition = Math.max(
-        minPosition,
-        Math.min(maxPosition, dragStartPosition + deltaY)
-      );
-      setBottomSheetPosition(newPosition);
-    };
-
-    const handleMouseUp = () => {
-      if (!isDragging) return;
-      setIsDragging(false);
-      const windowHeight = window.visualViewport?.height ?? window.innerHeight;
-      const threshold = windowHeight * 0.5;
-
-      if (bottomSheetPosition < threshold) {
-        setBottomSheetPosition(windowHeight * 0.3);
-      } else {
-        setBottomSheetPosition(windowHeight * 0.95);
-      }
-    };
-
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
-
-    return () => {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [isDragging, dragStartY, dragStartPosition, bottomSheetPosition]);
-
   return (
     <Box
       sx={{
@@ -1584,48 +1481,761 @@ export function SearchComponent() {
         minHeight: "100%",
         backgroundColor: theme.palette.background.default,
         py: { xs: 0, sm: 1 },
-        px: { xs: 0, sm: 2 },
+        px: { xs: 2, sm: 2 },
         position: "relative",
         overflow: { xs: "hidden", sm: "visible" },
       }}
     >
-      {isMobile ? (
-        // Layout Mobile com Bottom Sheet
+      <Container maxWidth={false} sx={{ px: 0 }}>
+        {/* Layout Principal: Cards + Mapa */}
         <Box
           sx={{
-            height: "100%",
-            width: "100%",
             display: "flex",
-            flexDirection: "column",
-            position: "relative",
+            gap: 3,
+            height: "calc(var(--app-height, 100vh) - 130px)", // Altura ajustável baseada na tela
+            minHeight: 600,
           }}
         >
-          {/* Barra de Pesquisa no topo (mobile) */}
+          {/* Coluna Esquerda: Cards de Propriedades */}
           <Box
             sx={{
-              position: "relative",
-              zIndex: 1100,
-              p: 2,
-              backgroundColor: theme.palette.background.paper,
-              borderBottom: `1px solid ${theme.palette.divider}`,
-              boxShadow: theme.shadows[2],
+              flex: 1.5, // 60% do espaço
+              minWidth: 0,
+              display: "flex",
+              flexDirection: "column",
             }}
           >
-            <FilterBar
-              onFiltersChange={applyFilters}
-              defaultCity={defaultCity}
-              availableCities={availableCities}
-              cityToCodeMap={cityToCodeMap}
-              externalFilters={currentFilters}
-            />
+            {/* Barra de Filtros - Apenas na coluna esquerda */}
+            <Box>
+              <FilterBar
+                onFiltersChange={applyFilters}
+                defaultCity={defaultCity}
+                availableCities={availableCities}
+                cityToCodeMap={cityToCodeMap}
+                externalFilters={currentFilters}
+              />
+            </Box>
+
+            {/* Contador de Resultados e Controles - Apenas na coluna esquerda */}
+            <Box
+              sx={{
+                mb: 3,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: 2,
+                backgroundColor: theme.palette.grey[50],
+                borderRadius: 2,
+                p: 2,
+                border: `1px solid ${theme.palette.divider}`,
+              }}
+            >
+              {/* Contador de Resultados */}
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    fontWeight: 700,
+                    color: theme.palette.text.primary,
+                    fontSize: "1.1rem",
+                  }}
+                >
+                  {totalProperties}
+                </Typography>
+                <Typography
+                  variant="body1"
+                  sx={{
+                    fontWeight: 400,
+                    color: theme.palette.text.secondary,
+                    fontSize: "1rem",
+                  }}
+                >
+                  Imóveis
+                </Typography>
+                <Box
+                  sx={{
+                    position: "relative",
+                    cursor: "pointer",
+                    p: 0.5,
+                    borderRadius: 1,
+                    "&:hover": {
+                      backgroundColor: theme.palette.action.hover,
+                    },
+                    transition: "all 0.2s ease",
+                  }}
+                  onMouseEnter={handleHelpHover}
+                  onMouseLeave={handleHelpLeave}
+                >
+                  <IconButton
+                    size="small"
+                    sx={{
+                      color: theme.palette.text.secondary,
+                      fontSize: "1rem",
+                      "&:hover": {
+                        backgroundColor: "transparent",
+                        color: theme.palette.text.primary,
+                      },
+                    }}
+                  >
+                    <HelpOutline fontSize="small" />
+                  </IconButton>
+
+                  {/* Popup de Ajuda */}
+                  <Popper
+                    open={Boolean(helpPopupAnchor)}
+                    anchorEl={helpPopupAnchor}
+                    placement="bottom"
+                    sx={{ zIndex: 9999 }}
+                  >
+                    <Paper
+                      sx={{
+                        p: 2,
+                        minWidth: 200,
+                        borderRadius: 2,
+                        boxShadow: theme.shadows[8],
+                        border: `1px solid ${theme.palette.divider}20`,
+                        backgroundColor: theme.palette.background.paper,
+                      }}
+                    >
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: theme.palette.text.primary,
+                          fontWeight: 500,
+                          lineHeight: 1.4,
+                        }}
+                      >
+                        Somente anúncios com coordenadas
+                        <br />
+                        são apresentados no mapa
+                      </Typography>
+                    </Paper>
+                  </Popper>
+                </Box>
+              </Box>
+
+              {/* Controles de Ordenação e Visualização */}
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                {/* Seletor de Ordenação */}
+                <FormControl
+                  size="small"
+                  sx={{
+                    minWidth: 150,
+                    "& .MuiOutlinedInput-root": {
+                      borderRadius: 2,
+                      backgroundColor: theme.palette.background.paper,
+                    },
+                  }}
+                >
+                  <InputLabel>Ordenar por</InputLabel>
+                  <Select
+                    value={sortBy}
+                    onChange={(e) =>
+                      handleSortChange(e.target.value as SortOption)
+                    }
+                    label="Ordenar por"
+                  >
+                    <MenuItem value="relevance">Relevância</MenuItem>
+                    <MenuItem value="price-per-m2-asc">Menor preço/m²</MenuItem>
+                    <MenuItem value="price-per-m2-desc">
+                      Maior preço/m²
+                    </MenuItem>
+                    <MenuItem value="price-asc">Menor preço</MenuItem>
+                    <MenuItem value="price-desc">Maior preço</MenuItem>
+                    <MenuItem value="area-asc">Menor área útil</MenuItem>
+                    <MenuItem value="area-desc">Maior área útil</MenuItem>
+                  </Select>
+                </FormControl>
+
+                {/* Botões de Visualização */}
+                <Box
+                  sx={{
+                    display: "flex",
+                    borderRadius: 2,
+                    overflow: "hidden",
+                    border: `1px solid ${theme.palette.divider}`,
+                    backgroundColor: theme.palette.background.paper,
+                  }}
+                >
+                  <IconButton
+                    onClick={() => setViewMode("cards")}
+                    sx={{
+                      borderRadius: 0,
+                      backgroundColor:
+                        viewMode === "cards"
+                          ? theme.palette.primary.main
+                          : "transparent",
+                      color:
+                        viewMode === "cards"
+                          ? theme.palette.primary.contrastText
+                          : theme.palette.text.secondary,
+                      "&:hover": {
+                        backgroundColor:
+                          viewMode === "cards"
+                            ? theme.palette.primary.dark
+                            : theme.palette.action.hover,
+                      },
+                    }}
+                  >
+                    <ViewModule fontSize="small" />
+                  </IconButton>
+                  <IconButton
+                    onClick={() => setViewMode("list")}
+                    sx={{
+                      borderRadius: 0,
+                      backgroundColor:
+                        viewMode === "list"
+                          ? theme.palette.primary.main
+                          : "transparent",
+                      color:
+                        viewMode === "list"
+                          ? theme.palette.primary.contrastText
+                          : theme.palette.text.secondary,
+                      "&:hover": {
+                        backgroundColor:
+                          viewMode === "list"
+                            ? theme.palette.primary.dark
+                            : theme.palette.action.hover,
+                      },
+                    }}
+                  >
+                    <ViewList fontSize="small" />
+                  </IconButton>
+                </Box>
+              </Box>
+            </Box>
+
+            {/* Loading State */}
+            {loading && (
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  py: 8,
+                }}
+              >
+                <CircularProgress size={48} />
+              </Box>
+            )}
+
+            {/* Cards de Propriedades */}
+            {!loading && (
+              <Box
+                sx={{
+                  flex: 1,
+                  overflow: "auto",
+                  pr: 1, // Padding para scrollbar
+                  paddingBottom: isMapHiddenScreen
+                    ? `calc(${theme.spacing(12)} + env(safe-area-inset-bottom))`
+                    : "env(safe-area-inset-bottom)", // Espaço para o botão flutuante
+                }}
+              >
+                {error ? (
+                  <Box
+                    sx={{
+                      textAlign: "center",
+                      py: 8,
+                      px: 3,
+                    }}
+                  >
+                    <ErrorOutline
+                      sx={{
+                        fontSize: 64,
+                        color: theme.palette.error.main,
+                        mb: 2,
+                      }}
+                    />
+                    <Typography
+                      variant="h5"
+                      sx={{
+                        fontWeight: 600,
+                        color: theme.palette.error.main,
+                        mb: 2,
+                      }}
+                    >
+                      Erro ao buscar propriedades
+                    </Typography>
+                    <Typography
+                      variant="body1"
+                      sx={{
+                        color: theme.palette.text.secondary,
+                        mb: 3,
+                        maxWidth: 400,
+                        mx: "auto",
+                      }}
+                    >
+                      {error}
+                    </Typography>
+                    <Button
+                      variant="contained"
+                      startIcon={<Refresh />}
+                      onClick={fetchInitialProperties}
+                      sx={{
+                        borderRadius: 2,
+                        px: 4,
+                        py: 1.5,
+                        textTransform: "none",
+                        fontWeight: 600,
+                      }}
+                    >
+                      Tentar Novamente
+                    </Button>
+                  </Box>
+                ) : filteredProperties.length > 0 ? (
+                  viewMode === "cards" ? (
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: {
+                          xs: "1fr",
+                          sm: "repeat(2, 1fr)",
+                          md: "repeat(2, 1fr)", // 2 colunas para telas menores que 1250px
+                          lg: "repeat(3, 1fr)", // 3 colunas para telas maiores que 1250px
+                        },
+                        gap: 2,
+                      }}
+                    >
+                      {paginatedProperties.map((property) => (
+                        <PropertiesCard
+                          key={property.id}
+                          id={property.id}
+                          title={property.title}
+                          price={property.price}
+                          pricePerSquareMeter={property.pricePerSquareMeter}
+                          address={property.address}
+                          neighborhood={property.neighborhood}
+                          city={property.city}
+                          state={property.state}
+                          propertyType={property.propertyType}
+                          bedrooms={property.bedrooms}
+                          bathrooms={property.bathrooms}
+                          parking={property.parking}
+                          area={property.area}
+                          images={property.images}
+                          isFavorite={property.isFavorite}
+                          onFavoriteToggle={handleFavoriteToggle}
+                          onShare={handleShare}
+                          onClick={handlePropertyClick}
+                        />
+                      ))}
+                    </Box>
+                  ) : (
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 1,
+                      }}
+                    >
+                      {paginatedProperties.map((property, index) => (
+                        <Paper
+                          key={property.id}
+                          sx={{
+                            p: 2,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 2,
+                            backgroundColor:
+                              index % 2 === 0 ? "grey.50" : "white",
+                            border: "1px solid",
+                            borderColor: "divider",
+                            borderRadius: 2,
+                            "&:hover": {
+                              backgroundColor: "action.hover",
+                            },
+                            cursor: "pointer",
+                          }}
+                          onClick={() => handlePropertyClick(property.id)}
+                        >
+                          {/* Foto miniatura */}
+                          <Box
+                            sx={{
+                              width: 80,
+                              height: 60,
+                              borderRadius: 1,
+                              overflow: "hidden",
+                              backgroundColor: theme.palette.grey[200],
+                              flexShrink: 0,
+                            }}
+                          >
+                            {property.images && property.images.length > 0 ? (
+                              <Box
+                                component="img"
+                                src={property.images[0]}
+                                alt={property.title}
+                                sx={{
+                                  width: "100%",
+                                  height: "100%",
+                                  objectFit: "cover",
+                                }}
+                              />
+                            ) : (
+                              <Box
+                                sx={{
+                                  width: "100%",
+                                  height: "100%",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  backgroundColor: theme.palette.grey[200],
+                                  color: theme.palette.grey[500],
+                                }}
+                              >
+                                <Typography variant="caption">
+                                  Sem foto
+                                </Typography>
+                              </Box>
+                            )}
+                          </Box>
+
+                          {/* Informações da propriedade */}
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 1,
+                                mb: 0.5,
+                                flexWrap: "wrap",
+                              }}
+                            >
+                              <Typography
+                                variant="h6"
+                                sx={{
+                                  fontWeight: 600,
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {property.title}
+                              </Typography>
+
+                              {/* Chip do tipo de propriedade */}
+                              <Chip
+                                label={property.propertyType}
+                                size="small"
+                                sx={{
+                                  backgroundColor: getPropertyTypeColor(
+                                    property.propertyType
+                                  ),
+                                  color: theme.palette.getContrastText(
+                                    getPropertyTypeColor(property.propertyType)
+                                  ),
+                                  fontWeight: 600,
+                                  textTransform: "uppercase",
+                                  fontSize: "0.6rem",
+                                  height: 20,
+                                  flexShrink: 0,
+                                  "& .MuiChip-label": {
+                                    px: 0.5,
+                                  },
+                                }}
+                              />
+                            </Box>
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                color: "text.secondary",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {property.address}
+                              <br />
+                              {property.neighborhood && property.city
+                                ? `${property.neighborhood}, ${property.city}`
+                                : property.city || property.neighborhood}
+                            </Typography>
+                          </Box>
+
+                          {/* Detalhes específicos */}
+                          <Box
+                            sx={{
+                              display: { xs: "none", sm: "flex" },
+                              flexDirection: "column",
+                              alignItems: "flex-end",
+                              gap: 1,
+                              color: "text.secondary",
+                            }}
+                          >
+                            {/* Preço e Preço por m² */}
+                            <Box
+                              sx={{
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "flex-end",
+                                gap: 1,
+                              }}
+                            >
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  flexDirection: { xs: "column", lg: "row" },
+                                  alignItems: "flex-end",
+                                  gap: { xs: 0.5, lg: 1.5 },
+                                  "@media (min-width: 1400px)": {
+                                    flexDirection: "row",
+                                  },
+                                  "@media (max-width: 1399px)": {
+                                    flexDirection: "column",
+                                  },
+                                }}
+                              >
+                                <Typography
+                                  variant="h6"
+                                  sx={{
+                                    fontWeight: 700,
+                                    color: theme.palette.text.primary,
+                                    fontSize: "1.1rem",
+                                  }}
+                                >
+                                  {formatCurrency(property.price)}
+                                </Typography>
+                                {property.pricePerSquareMeter > 0 && (
+                                  <Box
+                                    sx={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: 0.5,
+                                    }}
+                                  >
+                                    <SquareFoot
+                                      sx={{
+                                        fontSize: "0.875rem",
+                                        color: getIconColor(
+                                          property.propertyType
+                                        ),
+                                      }}
+                                    />
+                                    <Typography
+                                      variant="body2"
+                                      sx={{
+                                        color: theme.palette.text.secondary,
+                                        fontSize: "0.875rem",
+                                      }}
+                                    >
+                                      {formatPricePerSquareMeter(
+                                        property.pricePerSquareMeter
+                                      )}
+                                      /m²
+                                    </Typography>
+                                  </Box>
+                                )}
+                              </Box>
+                            </Box>
+
+                            {/* Ícones de quartos, banheiros, garagem e área */}
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 2,
+                              }}
+                            >
+                              {/* Para terrenos, mostrar apenas a área */}
+                              {property.propertyType === "TERRENO" ? (
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 0.5,
+                                  }}
+                                >
+                                  <SquareFoot
+                                    sx={{
+                                      fontSize: 16,
+                                      color: getIconColor(
+                                        property.propertyType
+                                      ),
+                                    }}
+                                  />
+                                  <Typography variant="body2">
+                                    {property.area} m²
+                                  </Typography>
+                                </Box>
+                              ) : (
+                                /* Para outros tipos, mostrar quartos, banheiros, garagem e área */
+                                <>
+                                  {property.bedrooms &&
+                                    property.bedrooms > 0 && (
+                                      <Box
+                                        sx={{
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: 0.5,
+                                        }}
+                                      >
+                                        <Bed
+                                          sx={{
+                                            fontSize: 16,
+                                            color: getIconColor(
+                                              property.propertyType
+                                            ),
+                                          }}
+                                        />
+                                        <Typography variant="body2">
+                                          {property.bedrooms}
+                                        </Typography>
+                                      </Box>
+                                    )}
+                                  {property.bathrooms &&
+                                    property.bathrooms > 0 && (
+                                      <Box
+                                        sx={{
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: 0.5,
+                                        }}
+                                      >
+                                        <Bathtub
+                                          sx={{
+                                            fontSize: 16,
+                                            color: getIconColor(
+                                              property.propertyType
+                                            ),
+                                          }}
+                                        />
+                                        <Typography variant="body2">
+                                          {property.bathrooms}
+                                        </Typography>
+                                      </Box>
+                                    )}
+                                  {property.parking && property.parking > 0 && (
+                                    <Box
+                                      sx={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 0.5,
+                                      }}
+                                    >
+                                      <DirectionsCar
+                                        sx={{
+                                          fontSize: 16,
+                                          color: getIconColor(
+                                            property.propertyType
+                                          ),
+                                        }}
+                                      />
+                                      <Typography variant="body2">
+                                        {property.parking}
+                                      </Typography>
+                                    </Box>
+                                  )}
+                                  <Box
+                                    sx={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: 0.5,
+                                    }}
+                                  >
+                                    <SquareFoot
+                                      sx={{
+                                        fontSize: 16,
+                                        color: getIconColor(
+                                          property.propertyType
+                                        ),
+                                      }}
+                                    />
+                                    <Typography variant="body2">
+                                      {property.area} m²
+                                    </Typography>
+                                  </Box>
+                                </>
+                              )}
+                            </Box>
+                          </Box>
+
+                          {/* Menu de ações */}
+                          <IconButton
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMenuOpen(e, property.id);
+                            }}
+                            sx={{ ml: 1 }}
+                          >
+                            <MoreVert />
+                          </IconButton>
+                        </Paper>
+                      ))}
+                    </Box>
+                  )
+                ) : (
+                  <Box
+                    sx={{
+                      textAlign: "center",
+                      py: 8,
+                      px: 3,
+                    }}
+                  >
+                    <Typography
+                      variant="h5"
+                      sx={{
+                        fontWeight: 600,
+                        color: theme.palette.text.primary,
+                        mb: 2,
+                      }}
+                    >
+                      Nenhuma propriedade encontrada
+                    </Typography>
+                    <Typography
+                      variant="body1"
+                      sx={{
+                        color: theme.palette.text.secondary,
+                        mb: 3,
+                        maxWidth: 400,
+                        mx: "auto",
+                      }}
+                    >
+                      Tente ajustar os filtros de busca para encontrar mais
+                      propriedades que correspondam aos seus critérios.
+                    </Typography>
+                    <Button
+                      variant="outlined"
+                      onClick={handleClearAllFilters}
+                      sx={{
+                        borderRadius: 2,
+                        px: 4,
+                        py: 1.5,
+                        textTransform: "none",
+                        fontWeight: 600,
+                        color: theme.palette.text.primary,
+                        borderColor: theme.palette.divider,
+                        "&:hover": {
+                          borderColor: theme.palette.text.primary,
+                          backgroundColor: theme.palette.action.hover,
+                        },
+                      }}
+                    >
+                      Limpar Filtros
+                    </Button>
+                  </Box>
+                )}
+
+                {/* Paginação - Dentro da área scrollável */}
+                {!loading &&
+                  filteredProperties.length > 0 &&
+                  totalPages > 1 && (
+                    <CustomPagination
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      onPageChange={setCurrentPage}
+                      maxVisiblePages={4}
+                    />
+                  )}
+              </Box>
+            )}
           </Box>
 
-          {/* Mapa */}
+          {/* Coluna Direita: Mapa */}
           <Box
             sx={{
-              flex: 1,
-              position: "relative",
-              minHeight: 0,
+              flex: 1, // 40% do espaço
+              minWidth: 0,
+              display: { xs: "none", md: "block" }, // Esconde em telas pequenas
             }}
           >
             <MapComponent
@@ -1658,1047 +2268,8 @@ export function SearchComponent() {
               onNeighborhoodClick={handleNeighborhoodClick}
             />
           </Box>
-
-          {/* Bottom Sheet com Lista de Propriedades */}
-          <Paper
-            elevation={16}
-            sx={{
-              position: "absolute",
-              bottom: 0,
-              left: 0,
-              right: 0,
-              height: `calc(var(--app-height, 100vh) - ${bottomSheetPosition}px)`,
-              maxHeight: "calc(var(--app-height, 100vh) * 0.95)",
-              minHeight: "calc(var(--app-height, 100vh) * 0.3)",
-              borderTopLeftRadius: 16,
-              borderTopRightRadius: 16,
-              display: "flex",
-              flexDirection: "column",
-              overflow: "hidden",
-              overscrollBehavior: "contain",
-              zIndex: 1200,
-              transition: isDragging ? "none" : "height 0.3s ease-out",
-              boxShadow: theme.shadows[24],
-            }}
-          >
-            {/* Barrinha cinza de arrasto */}
-            <Box
-              sx={{
-                width: "100%",
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                py: 1.5,
-                cursor: "grab",
-                userSelect: "none",
-                touchAction: "none",
-                "&:active": {
-                  cursor: "grabbing",
-                },
-              }}
-              onMouseDown={handleBottomSheetMouseDown}
-              onTouchStart={handleBottomSheetTouchStart}
-              onTouchMove={handleBottomSheetTouchMove}
-              onTouchEnd={handleBottomSheetTouchEnd}
-            >
-              <Box
-                sx={{
-                  width: 40,
-                  height: 4,
-                  borderRadius: 2,
-                  backgroundColor: theme.palette.grey[400],
-                }}
-              />
-            </Box>
-
-            {/* Conteúdo do Bottom Sheet */}
-            <Box
-              sx={{
-                flex: 1,
-                overflow: "auto",
-                px: 2,
-                paddingBottom: `calc(${theme.spacing(
-                  13
-                )} + env(safe-area-inset-bottom))`,
-                overscrollBehaviorY: "contain",
-              }}
-            >
-              {/* Contador e Controles */}
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  mb: 2,
-                  flexWrap: "wrap",
-                  gap: 2,
-                  pt: 1,
-                }}
-              >
-                <Typography
-                  variant="h6"
-                  sx={{
-                    fontWeight: 700,
-                    color: theme.palette.text.primary,
-                    fontSize: "1.1rem",
-                  }}
-                >
-                  {filteredProperties.length} Imóveis
-                </Typography>
-
-                <FormControl size="small">
-                  <InputLabel>Ordenar</InputLabel>
-                  <Select
-                    value={sortBy}
-                    onChange={(e) =>
-                      handleSortChange(e.target.value as SortOption)
-                    }
-                    label="Ordenar"
-                  >
-                    <MenuItem value="relevance">Relevância</MenuItem>
-                    <MenuItem value="price-per-m2-asc">Menor preço/m²</MenuItem>
-                    <MenuItem value="price-per-m2-desc">
-                      Maior preço/m²
-                    </MenuItem>
-                    <MenuItem value="price-asc">Menor preço</MenuItem>
-                    <MenuItem value="price-desc">Maior preço</MenuItem>
-                    <MenuItem value="area-asc">Menor área</MenuItem>
-                    <MenuItem value="area-desc">Maior área</MenuItem>
-                  </Select>
-                </FormControl>
-              </Box>
-
-              {/* Loading State */}
-              {loading && (
-                <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    py: 8,
-                  }}
-                >
-                  <CircularProgress size={48} />
-                </Box>
-              )}
-
-              {/* Lista de Propriedades */}
-              {!loading && (
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                  {error ? (
-                    <Box
-                      sx={{
-                        textAlign: "center",
-                        py: 6,
-                        px: 2,
-                      }}
-                    >
-                      <ErrorOutline
-                        sx={{
-                          fontSize: 64,
-                          color: theme.palette.error.main,
-                          mb: 2,
-                        }}
-                      />
-                      <Typography
-                        variant="h6"
-                        sx={{
-                          fontWeight: 600,
-                          color: theme.palette.error.main,
-                          mb: 1,
-                        }}
-                      >
-                        Erro ao buscar propriedades
-                      </Typography>
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          color: theme.palette.text.secondary,
-                          mb: 3,
-                          maxWidth: 400,
-                          mx: "auto",
-                        }}
-                      >
-                        {error}
-                      </Typography>
-                      <Button
-                        variant="contained"
-                        startIcon={<Refresh />}
-                        onClick={fetchInitialProperties}
-                        sx={{
-                          borderRadius: 2,
-                          px: 4,
-                          py: 1.5,
-                          textTransform: "none",
-                          fontWeight: 600,
-                        }}
-                      >
-                        Tentar Novamente
-                      </Button>
-                    </Box>
-                  ) : paginatedProperties.length > 0 ? (
-                    paginatedProperties.map((property) => (
-                      <PropertiesCard
-                        key={property.id}
-                        id={property.id}
-                        title={property.title}
-                        price={property.price}
-                        pricePerSquareMeter={property.pricePerSquareMeter}
-                        address={property.address}
-                        neighborhood={property.neighborhood}
-                        city={property.city}
-                        state={property.state}
-                        propertyType={property.propertyType}
-                        bedrooms={property.bedrooms}
-                        bathrooms={property.bathrooms}
-                        parking={property.parking}
-                        area={property.area}
-                        images={property.images}
-                        isFavorite={property.isFavorite}
-                        onFavoriteToggle={handleFavoriteToggle}
-                        onShare={handleShare}
-                        onClick={handlePropertyClick}
-                      />
-                    ))
-                  ) : (
-                    <Box
-                      sx={{
-                        textAlign: "center",
-                        py: 4,
-                        px: 2,
-                      }}
-                    >
-                      <Typography
-                        variant="h6"
-                        sx={{
-                          fontWeight: 600,
-                          color: theme.palette.text.primary,
-                          mb: 1,
-                        }}
-                      >
-                        Nenhuma propriedade encontrada
-                      </Typography>
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          color: theme.palette.text.secondary,
-                        }}
-                      >
-                        Tente ajustar os filtros de busca
-                      </Typography>
-                    </Box>
-                  )}
-
-                  {/* Paginação */}
-                  {!loading &&
-                    paginatedProperties.length > 0 &&
-                    totalPages > 1 && (
-                      <CustomPagination
-                        currentPage={currentPage}
-                        totalPages={totalPages}
-                        onPageChange={setCurrentPage}
-                        maxVisiblePages={4}
-                      />
-                    )}
-                </Box>
-              )}
-            </Box>
-          </Paper>
         </Box>
-      ) : (
-        // Layout Desktop/Tablet
-        <Container maxWidth={false} sx={{ px: 0 }}>
-          {/* Layout Principal: Cards + Mapa */}
-          <Box
-            sx={{
-              display: "flex",
-              gap: 3,
-              height: "calc(var(--app-height, 100vh) - 130px)", // Altura ajustável baseada na tela
-              minHeight: 600,
-            }}
-          >
-            {/* Coluna Esquerda: Cards de Propriedades */}
-            <Box
-              sx={{
-                flex: 1.5, // 60% do espaço
-                minWidth: 0,
-                display: "flex",
-                flexDirection: "column",
-              }}
-            >
-              {/* Barra de Filtros - Apenas na coluna esquerda */}
-              <Box sx={{ mb: 3 }}>
-                <FilterBar
-                  onFiltersChange={applyFilters}
-                  defaultCity={defaultCity}
-                  availableCities={availableCities}
-                  cityToCodeMap={cityToCodeMap}
-                  externalFilters={currentFilters}
-                />
-              </Box>
-
-              {/* Contador de Resultados e Controles - Apenas na coluna esquerda */}
-              <Box
-                sx={{
-                  mb: 3,
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  flexWrap: "wrap",
-                  gap: 2,
-                  backgroundColor: theme.palette.grey[50],
-                  borderRadius: 2,
-                  p: 2,
-                  border: `1px solid ${theme.palette.divider}`,
-                }}
-              >
-                {/* Contador de Resultados */}
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <Typography
-                    variant="h6"
-                    sx={{
-                      fontWeight: 700,
-                      color: theme.palette.text.primary,
-                      fontSize: "1.1rem",
-                    }}
-                  >
-                    {totalProperties}
-                  </Typography>
-                  <Typography
-                    variant="body1"
-                    sx={{
-                      fontWeight: 400,
-                      color: theme.palette.text.secondary,
-                      fontSize: "1rem",
-                    }}
-                  >
-                    Imóveis
-                  </Typography>
-                  <Box
-                    sx={{
-                      position: "relative",
-                      cursor: "pointer",
-                      p: 0.5,
-                      borderRadius: 1,
-                      "&:hover": {
-                        backgroundColor: theme.palette.action.hover,
-                      },
-                      transition: "all 0.2s ease",
-                    }}
-                    onMouseEnter={handleHelpHover}
-                    onMouseLeave={handleHelpLeave}
-                  >
-                    <IconButton
-                      size="small"
-                      sx={{
-                        color: theme.palette.text.secondary,
-                        fontSize: "1rem",
-                        "&:hover": {
-                          backgroundColor: "transparent",
-                          color: theme.palette.text.primary,
-                        },
-                      }}
-                    >
-                      <HelpOutline fontSize="small" />
-                    </IconButton>
-
-                    {/* Popup de Ajuda */}
-                    <Popper
-                      open={Boolean(helpPopupAnchor)}
-                      anchorEl={helpPopupAnchor}
-                      placement="bottom"
-                      sx={{ zIndex: 9999 }}
-                    >
-                      <Paper
-                        sx={{
-                          p: 2,
-                          minWidth: 200,
-                          borderRadius: 2,
-                          boxShadow: theme.shadows[8],
-                          border: `1px solid ${theme.palette.divider}20`,
-                          backgroundColor: theme.palette.background.paper,
-                        }}
-                      >
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            color: theme.palette.text.primary,
-                            fontWeight: 500,
-                            lineHeight: 1.4,
-                          }}
-                        >
-                          Somente anúncios com coordenadas
-                          <br />
-                          são apresentados no mapa
-                        </Typography>
-                      </Paper>
-                    </Popper>
-                  </Box>
-                </Box>
-
-                {/* Controles de Ordenação e Visualização */}
-                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                  {/* Seletor de Ordenação */}
-                  <FormControl
-                    size="small"
-                    sx={{
-                      minWidth: 150,
-                      "& .MuiOutlinedInput-root": {
-                        borderRadius: 2,
-                        backgroundColor: theme.palette.background.paper,
-                      },
-                    }}
-                  >
-                    <InputLabel>Ordenar por</InputLabel>
-                    <Select
-                      value={sortBy}
-                      onChange={(e) =>
-                        handleSortChange(e.target.value as SortOption)
-                      }
-                      label="Ordenar por"
-                    >
-                      <MenuItem value="relevance">Relevância</MenuItem>
-                      <MenuItem value="price-per-m2-asc">
-                        Menor preço/m²
-                      </MenuItem>
-                      <MenuItem value="price-per-m2-desc">
-                        Maior preço/m²
-                      </MenuItem>
-                      <MenuItem value="price-asc">Menor preço</MenuItem>
-                      <MenuItem value="price-desc">Maior preço</MenuItem>
-                      <MenuItem value="area-asc">Menor área útil</MenuItem>
-                      <MenuItem value="area-desc">Maior área útil</MenuItem>
-                    </Select>
-                  </FormControl>
-
-                  {/* Botões de Visualização */}
-                  <Box
-                    sx={{
-                      display: "flex",
-                      borderRadius: 2,
-                      overflow: "hidden",
-                      border: `1px solid ${theme.palette.divider}`,
-                      backgroundColor: theme.palette.background.paper,
-                    }}
-                  >
-                    <IconButton
-                      onClick={() => setViewMode("cards")}
-                      sx={{
-                        borderRadius: 0,
-                        backgroundColor:
-                          viewMode === "cards"
-                            ? theme.palette.primary.main
-                            : "transparent",
-                        color:
-                          viewMode === "cards"
-                            ? theme.palette.primary.contrastText
-                            : theme.palette.text.secondary,
-                        "&:hover": {
-                          backgroundColor:
-                            viewMode === "cards"
-                              ? theme.palette.primary.dark
-                              : theme.palette.action.hover,
-                        },
-                      }}
-                    >
-                      <ViewModule fontSize="small" />
-                    </IconButton>
-                    <IconButton
-                      onClick={() => setViewMode("list")}
-                      sx={{
-                        borderRadius: 0,
-                        backgroundColor:
-                          viewMode === "list"
-                            ? theme.palette.primary.main
-                            : "transparent",
-                        color:
-                          viewMode === "list"
-                            ? theme.palette.primary.contrastText
-                            : theme.palette.text.secondary,
-                        "&:hover": {
-                          backgroundColor:
-                            viewMode === "list"
-                              ? theme.palette.primary.dark
-                              : theme.palette.action.hover,
-                        },
-                      }}
-                    >
-                      <ViewList fontSize="small" />
-                    </IconButton>
-                  </Box>
-                </Box>
-              </Box>
-
-              {/* Loading State */}
-              {loading && (
-                <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    py: 8,
-                  }}
-                >
-                  <CircularProgress size={48} />
-                </Box>
-              )}
-
-              {/* Cards de Propriedades */}
-              {!loading && (
-                <Box
-                  sx={{
-                    flex: 1,
-                    overflow: "auto",
-                    pr: 1, // Padding para scrollbar
-                    paddingBottom: isMediumScreen
-                      ? `calc(${theme.spacing(
-                          12
-                        )} + env(safe-area-inset-bottom))`
-                      : "env(safe-area-inset-bottom)", // Espaço para o botão flutuante
-                  }}
-                >
-                  {error ? (
-                    <Box
-                      sx={{
-                        textAlign: "center",
-                        py: 8,
-                        px: 3,
-                      }}
-                    >
-                      <ErrorOutline
-                        sx={{
-                          fontSize: 64,
-                          color: theme.palette.error.main,
-                          mb: 2,
-                        }}
-                      />
-                      <Typography
-                        variant="h5"
-                        sx={{
-                          fontWeight: 600,
-                          color: theme.palette.error.main,
-                          mb: 2,
-                        }}
-                      >
-                        Erro ao buscar propriedades
-                      </Typography>
-                      <Typography
-                        variant="body1"
-                        sx={{
-                          color: theme.palette.text.secondary,
-                          mb: 3,
-                          maxWidth: 400,
-                          mx: "auto",
-                        }}
-                      >
-                        {error}
-                      </Typography>
-                      <Button
-                        variant="contained"
-                        startIcon={<Refresh />}
-                        onClick={fetchInitialProperties}
-                        sx={{
-                          borderRadius: 2,
-                          px: 4,
-                          py: 1.5,
-                          textTransform: "none",
-                          fontWeight: 600,
-                        }}
-                      >
-                        Tentar Novamente
-                      </Button>
-                    </Box>
-                  ) : filteredProperties.length > 0 ? (
-                    viewMode === "cards" ? (
-                      <Box
-                        sx={{
-                          display: "grid",
-                          gridTemplateColumns: {
-                            xs: "1fr",
-                            sm: "repeat(2, 1fr)",
-                            md: "repeat(2, 1fr)", // 2 colunas para telas menores que 1250px
-                            lg: "repeat(3, 1fr)", // 3 colunas para telas maiores que 1250px
-                          },
-                          gap: 2,
-                        }}
-                      >
-                        {paginatedProperties.map((property) => (
-                          <PropertiesCard
-                            key={property.id}
-                            id={property.id}
-                            title={property.title}
-                            price={property.price}
-                            pricePerSquareMeter={property.pricePerSquareMeter}
-                            address={property.address}
-                            neighborhood={property.neighborhood}
-                            city={property.city}
-                            state={property.state}
-                            propertyType={property.propertyType}
-                            bedrooms={property.bedrooms}
-                            bathrooms={property.bathrooms}
-                            parking={property.parking}
-                            area={property.area}
-                            images={property.images}
-                            isFavorite={property.isFavorite}
-                            onFavoriteToggle={handleFavoriteToggle}
-                            onShare={handleShare}
-                            onClick={handlePropertyClick}
-                          />
-                        ))}
-                      </Box>
-                    ) : (
-                      <Box
-                        sx={{
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: 1,
-                        }}
-                      >
-                        {paginatedProperties.map((property, index) => (
-                          <Paper
-                            key={property.id}
-                            sx={{
-                              p: 2,
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 2,
-                              backgroundColor:
-                                index % 2 === 0 ? "grey.50" : "white",
-                              border: "1px solid",
-                              borderColor: "divider",
-                              borderRadius: 2,
-                              "&:hover": {
-                                backgroundColor: "action.hover",
-                              },
-                              cursor: "pointer",
-                            }}
-                            onClick={() => handlePropertyClick(property.id)}
-                          >
-                            {/* Foto miniatura */}
-                            <Box
-                              sx={{
-                                width: 80,
-                                height: 60,
-                                borderRadius: 1,
-                                overflow: "hidden",
-                                backgroundColor: theme.palette.grey[200],
-                                flexShrink: 0,
-                              }}
-                            >
-                              {property.images && property.images.length > 0 ? (
-                                <Box
-                                  component="img"
-                                  src={property.images[0]}
-                                  alt={property.title}
-                                  sx={{
-                                    width: "100%",
-                                    height: "100%",
-                                    objectFit: "cover",
-                                  }}
-                                />
-                              ) : (
-                                <Box
-                                  sx={{
-                                    width: "100%",
-                                    height: "100%",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    backgroundColor: theme.palette.grey[200],
-                                    color: theme.palette.grey[500],
-                                  }}
-                                >
-                                  <Typography variant="caption">
-                                    Sem foto
-                                  </Typography>
-                                </Box>
-                              )}
-                            </Box>
-
-                            {/* Informações da propriedade */}
-                            <Box sx={{ flex: 1, minWidth: 0 }}>
-                              <Box
-                                sx={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 1,
-                                  mb: 0.5,
-                                  flexWrap: "wrap",
-                                }}
-                              >
-                                <Typography
-                                  variant="h6"
-                                  sx={{
-                                    fontWeight: 600,
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    whiteSpace: "nowrap",
-                                  }}
-                                >
-                                  {property.title}
-                                </Typography>
-
-                                {/* Chip do tipo de propriedade */}
-                                <Chip
-                                  label={property.propertyType}
-                                  size="small"
-                                  sx={{
-                                    backgroundColor: getPropertyTypeColor(
-                                      property.propertyType
-                                    ),
-                                    color: theme.palette.getContrastText(
-                                      getPropertyTypeColor(
-                                        property.propertyType
-                                      )
-                                    ),
-                                    fontWeight: 600,
-                                    textTransform: "uppercase",
-                                    fontSize: "0.6rem",
-                                    height: 20,
-                                    flexShrink: 0,
-                                    "& .MuiChip-label": {
-                                      px: 0.5,
-                                    },
-                                  }}
-                                />
-                              </Box>
-                              <Typography
-                                variant="body2"
-                                sx={{
-                                  color: "text.secondary",
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                {property.address}
-                                <br />
-                                {property.neighborhood && property.city
-                                  ? `${property.neighborhood}, ${property.city}`
-                                  : property.city || property.neighborhood}
-                              </Typography>
-                            </Box>
-
-                            {/* Detalhes específicos */}
-                            <Box
-                              sx={{
-                                display: { xs: "none", sm: "flex" },
-                                flexDirection: "column",
-                                alignItems: "flex-end",
-                                gap: 1,
-                                color: "text.secondary",
-                              }}
-                            >
-                              {/* Preço e Preço por m² */}
-                              <Box
-                                sx={{
-                                  display: "flex",
-                                  flexDirection: "column",
-                                  alignItems: "flex-end",
-                                  gap: 1,
-                                }}
-                              >
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    flexDirection: { xs: "column", lg: "row" },
-                                    alignItems: "flex-end",
-                                    gap: { xs: 0.5, lg: 1.5 },
-                                    "@media (min-width: 1400px)": {
-                                      flexDirection: "row",
-                                    },
-                                    "@media (max-width: 1399px)": {
-                                      flexDirection: "column",
-                                    },
-                                  }}
-                                >
-                                  <Typography
-                                    variant="h6"
-                                    sx={{
-                                      fontWeight: 700,
-                                      color: theme.palette.text.primary,
-                                      fontSize: "1.1rem",
-                                    }}
-                                  >
-                                    {formatCurrency(property.price)}
-                                  </Typography>
-                                  {property.pricePerSquareMeter > 0 && (
-                                    <Box
-                                      sx={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: 0.5,
-                                      }}
-                                    >
-                                      <SquareFoot
-                                        sx={{
-                                          fontSize: "0.875rem",
-                                          color: getIconColor(
-                                            property.propertyType
-                                          ),
-                                        }}
-                                      />
-                                      <Typography
-                                        variant="body2"
-                                        sx={{
-                                          color: theme.palette.text.secondary,
-                                          fontSize: "0.875rem",
-                                        }}
-                                      >
-                                        {formatPricePerSquareMeter(
-                                          property.pricePerSquareMeter
-                                        )}
-                                        /m²
-                                      </Typography>
-                                    </Box>
-                                  )}
-                                </Box>
-                              </Box>
-
-                              {/* Ícones de quartos, banheiros, garagem e área */}
-                              <Box
-                                sx={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 2,
-                                }}
-                              >
-                                {/* Para terrenos, mostrar apenas a área */}
-                                {property.propertyType === "TERRENO" ? (
-                                  <Box
-                                    sx={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: 0.5,
-                                    }}
-                                  >
-                                    <SquareFoot
-                                      sx={{
-                                        fontSize: 16,
-                                        color: getIconColor(
-                                          property.propertyType
-                                        ),
-                                      }}
-                                    />
-                                    <Typography variant="body2">
-                                      {property.area} m²
-                                    </Typography>
-                                  </Box>
-                                ) : (
-                                  /* Para outros tipos, mostrar quartos, banheiros, garagem e área */
-                                  <>
-                                    {property.bedrooms &&
-                                      property.bedrooms > 0 && (
-                                        <Box
-                                          sx={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                            gap: 0.5,
-                                          }}
-                                        >
-                                          <Bed
-                                            sx={{
-                                              fontSize: 16,
-                                              color: getIconColor(
-                                                property.propertyType
-                                              ),
-                                            }}
-                                          />
-                                          <Typography variant="body2">
-                                            {property.bedrooms}
-                                          </Typography>
-                                        </Box>
-                                      )}
-                                    {property.bathrooms &&
-                                      property.bathrooms > 0 && (
-                                        <Box
-                                          sx={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                            gap: 0.5,
-                                          }}
-                                        >
-                                          <Bathtub
-                                            sx={{
-                                              fontSize: 16,
-                                              color: getIconColor(
-                                                property.propertyType
-                                              ),
-                                            }}
-                                          />
-                                          <Typography variant="body2">
-                                            {property.bathrooms}
-                                          </Typography>
-                                        </Box>
-                                      )}
-                                    {property.parking &&
-                                      property.parking > 0 && (
-                                        <Box
-                                          sx={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                            gap: 0.5,
-                                          }}
-                                        >
-                                          <DirectionsCar
-                                            sx={{
-                                              fontSize: 16,
-                                              color: getIconColor(
-                                                property.propertyType
-                                              ),
-                                            }}
-                                          />
-                                          <Typography variant="body2">
-                                            {property.parking}
-                                          </Typography>
-                                        </Box>
-                                      )}
-                                    <Box
-                                      sx={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: 0.5,
-                                      }}
-                                    >
-                                      <SquareFoot
-                                        sx={{
-                                          fontSize: 16,
-                                          color: getIconColor(
-                                            property.propertyType
-                                          ),
-                                        }}
-                                      />
-                                      <Typography variant="body2">
-                                        {property.area} m²
-                                      </Typography>
-                                    </Box>
-                                  </>
-                                )}
-                              </Box>
-                            </Box>
-
-                            {/* Menu de ações */}
-                            <IconButton
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleMenuOpen(e, property.id);
-                              }}
-                              sx={{ ml: 1 }}
-                            >
-                              <MoreVert />
-                            </IconButton>
-                          </Paper>
-                        ))}
-                      </Box>
-                    )
-                  ) : (
-                    <Box
-                      sx={{
-                        textAlign: "center",
-                        py: 8,
-                        px: 3,
-                      }}
-                    >
-                      <Typography
-                        variant="h5"
-                        sx={{
-                          fontWeight: 600,
-                          color: theme.palette.text.primary,
-                          mb: 2,
-                        }}
-                      >
-                        Nenhuma propriedade encontrada
-                      </Typography>
-                      <Typography
-                        variant="body1"
-                        sx={{
-                          color: theme.palette.text.secondary,
-                          mb: 3,
-                          maxWidth: 400,
-                          mx: "auto",
-                        }}
-                      >
-                        Tente ajustar os filtros de busca para encontrar mais
-                        propriedades que correspondam aos seus critérios.
-                      </Typography>
-                      <Button
-                        variant="outlined"
-                        onClick={handleClearAllFilters}
-                        sx={{
-                          borderRadius: 2,
-                          px: 4,
-                          py: 1.5,
-                          textTransform: "none",
-                          fontWeight: 600,
-                          color: theme.palette.text.primary,
-                          borderColor: theme.palette.divider,
-                          "&:hover": {
-                            borderColor: theme.palette.text.primary,
-                            backgroundColor: theme.palette.action.hover,
-                          },
-                        }}
-                      >
-                        Limpar Filtros
-                      </Button>
-                    </Box>
-                  )}
-
-                  {/* Paginação - Dentro da área scrollável */}
-                  {!loading &&
-                    filteredProperties.length > 0 &&
-                    totalPages > 1 && (
-                      <CustomPagination
-                        currentPage={currentPage}
-                        totalPages={totalPages}
-                        onPageChange={setCurrentPage}
-                        maxVisiblePages={4}
-                      />
-                    )}
-                </Box>
-              )}
-            </Box>
-
-            {/* Coluna Direita: Mapa */}
-            <Box
-              sx={{
-                flex: 1, // 40% do espaço
-                minWidth: 0,
-                display: { xs: "none", md: "block" }, // Esconde em telas pequenas
-              }}
-            >
-              <MapComponent
-                properties={filteredProperties}
-                onPropertyClick={handlePropertyClick}
-                height="100%"
-                center={mapCenter}
-                zoom={mapZoom}
-                onDrawingComplete={handleDrawingComplete}
-                onClearFilters={handleClearFilters}
-                neighborhoods={neighborhoodsData}
-                selectedNeighborhoodNames={currentFilters?.neighborhoods || []}
-                cities={citiesData}
-                selectedCityCodes={
-                  currentFilters?.cities
-                    .map((city) => cityToCodeMap[city])
-                    .filter((code): code is string => Boolean(code)) || []
-                }
-                allNeighborhoodsForCityBounds={allNeighborhoodsForBounds}
-                filters={currentFilters}
-                cityToCodeMap={cityToCodeMap}
-                defaultCity={defaultCity}
-                refreshKey={mapRefreshKey}
-                token={
-                  auth.store.token ||
-                  localStorage.getItem("auth_token") ||
-                  undefined
-                }
-                useMapSearch={true}
-                onNeighborhoodClick={handleNeighborhoodClick}
-              />
-            </Box>
-          </Box>
-        </Container>
-      )}
+      </Container>
 
       {/* Componentes Compartilhados */}
       {/* Menu de ações */}
@@ -2730,12 +2301,12 @@ export function SearchComponent() {
         propertyId={propertyId}
       />
 
-      {/* Botão flutuante para abrir mapa (apenas entre 600px e 900px) */}
-      {isMediumScreen && (
+      {/* Botão flutuante para abrir mapa (telas menores que 900px) */}
+      {isMapHiddenScreen && (
         <Box
           sx={{
             position: "fixed",
-            bottom: 24,
+            bottom: `calc(24px + env(safe-area-inset-bottom))`,
             left: "50%",
             transform: "translateX(-50%)",
             zIndex: 1300,
@@ -2763,8 +2334,8 @@ export function SearchComponent() {
         </Box>
       )}
 
-      {/* Modal do Mapa (apenas entre 600px e 900px) */}
-      {isMediumScreen && (
+      {/* Modal do Mapa (telas menores que 900px) */}
+      {isMapHiddenScreen && (
         <Modal
           open={mapModalOpen}
           onClose={() => setMapModalOpen(false)}
@@ -2772,6 +2343,7 @@ export function SearchComponent() {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            zIndex: theme.zIndex.modal + 2,
           }}
         >
           <Box
