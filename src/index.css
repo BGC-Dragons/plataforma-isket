@@ -66,3 +66,10 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+/* Fix: overlay do Google Maps (.gm-style-moc) pode bloquear cliques em polígonos
+   (ex.: bairros) em dispositivos com touchpad; unset height permite que os eventos
+   alcancem os overlays clicáveis */
+.gm-style-moc {
+  height: unset !important;
+}

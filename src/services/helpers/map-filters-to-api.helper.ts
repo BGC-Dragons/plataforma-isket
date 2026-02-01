@@ -37,6 +37,7 @@ export interface ILocalFilterState {
   apartamento_duplex: boolean;
   apartamento_triplex: boolean;
   apartamento_cobertura: boolean;
+  apartamento_garden: boolean;
   // Comerciais
   comercial_sala: boolean;
   comercial_casa: boolean;
@@ -95,6 +96,7 @@ const PROPERTY_TYPE_MAP: Record<string, string> = {
   apartamento_duplex: "DUPLEX",
   apartamento_triplex: "TRIPLEX",
   apartamento_cobertura: "PENTHOUSE",
+  apartamento_garden: "GARDEN",
   comercial_sala: "COMMERCIAL_ROOM",
   comercial_casa: "COMMERCIAL_HOUSE",
   comercial_ponto: "COMMERCIAL_POINT",
@@ -309,9 +311,9 @@ export const mapFiltersToApi = (
     request.advertiserTypes = advertiserTypes;
   }
 
-  // Property Features (Opcionais)
-  if (filters.propertyFeatures && filters.propertyFeatures.length > 0) {
-    request.propertyFeatures = filters.propertyFeatures;
+  // Lançamento (status NEW_LISTING)
+  if (filters.lancamento) {
+    request.status = ["NEW_LISTING"];
   }
 
   // Geometrias dos desenhos (quando há desenhos no mapa)

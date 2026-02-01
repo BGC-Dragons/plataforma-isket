@@ -71,7 +71,8 @@ export const FilterModal: React.FC<FilterModalProps> = ({
     apartamento_duplex: false,
     apartamento_triplex: false,
     apartamento_cobertura: false,
-    // Comerciais
+    apartamento_garden: false,
+  // Comerciais
     comercial_sala: false,
     comercial_casa: false,
     comercial_ponto: false,
@@ -200,6 +201,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
       apartamento_duplex: filters.apartamento_duplex,
       apartamento_triplex: filters.apartamento_triplex,
       apartamento_cobertura: filters.apartamento_cobertura,
+      apartamento_garden: filters.apartamento_garden,
       comercial_sala: filters.comercial_sala,
       comercial_casa: filters.comercial_casa,
       comercial_ponto: filters.comercial_ponto,
@@ -386,8 +388,9 @@ export const FilterModal: React.FC<FilterModalProps> = ({
       apartamento_studio: false,
       apartamento_duplex: false,
       apartamento_triplex: false,
-      apartamento_cobertura: false,
-      // Comerciais
+    apartamento_cobertura: false,
+    apartamento_garden: false,
+  // Comerciais
       comercial_sala: false,
       comercial_casa: false,
       comercial_ponto: false,
@@ -621,6 +624,17 @@ export const FilterModal: React.FC<FilterModalProps> = ({
                     />
                   }
                   label="Cobertura"
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={filters.apartamento_garden}
+                      onChange={() =>
+                        handleCheckboxChange("apartamento_garden")
+                      }
+                    />
+                  }
+                  label="Garden"
                 />
               </FormGroup>
             </AccordionDetails>

@@ -16,6 +16,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     token: null,
     refreshToken: null,
     user: null,
+    subscriptionBlocked: false,
   });
   const [isValidating, setIsValidating] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
@@ -94,7 +95,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     ) => {
       // Limpar cache do SWR antes de fazer login para evitar mostrar dados de usuário anterior
       clearAllUserDataCache();
-      
+
       // Marcar que estamos fazendo login para evitar interferências
       setIsLoggingIn(true);
       setIsValidating(false);
@@ -110,35 +111,84 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const loginWithGoogle = useCallback(
-    async (googleResponse: { code: string }) => {
+    async (googleResponse: {
+      code?: string;
+      idToken?: string;
+      accessToken?: string;
+    }) => {
       try {
-        // Extrair o code da resposta do Google
-        const code = googleResponse.code;
-
-        // Chamar o backend com o code e redirectUri
+        // SignInGoogleDto: code ou idToken (um dos dois). O code é de uso único.
         const redirectUri = window.location.origin;
-        const authResponse = await postAuthGoogle({ code, redirectUri });
+        const body =
+          googleResponse.code != null
+            ? { code: googleResponse.code, redirectUri }
+            : googleResponse.idToken != null
+              ? {
+                  idToken: googleResponse.idToken,
+                  accessToken: googleResponse.accessToken,
+                }
+              : null;
+
+        if (!body) {
+          throw new Error("É necessário enviar code ou idToken.");
+        }
+
+        const authResponse = await postAuthGoogle(body);
 
         if (authResponse.accessToken && authResponse.refreshToken) {
-          const user: IAuthUser = {
-            id: authResponse.user?.id || "temp-id",
-            name: authResponse.user?.name || "Usuário Google",
-            email: authResponse.user?.email || "",
-            picture: authResponse.user?.picture,
-            sub: authResponse.user?.sub,
-          };
+          const accessToken = authResponse.accessToken;
+          const refreshToken = authResponse.refreshToken;
 
-          login(
-            {
-              accessToken: authResponse.accessToken,
-              refreshToken: authResponse.refreshToken,
-            },
-            user
-          );
+          try {
+            const userResponse = await getAuthMe(accessToken);
+            const userData = userResponse.data;
+
+            const user: IAuthUser = {
+              id: userData.id,
+              name: userData.name,
+              email: userData.profile.email,
+              picture: userData.profile.imageURL || undefined,
+              sub: authResponse.user?.sub,
+            };
+
+            login(
+              { accessToken, refreshToken },
+              user
+            );
+          } catch (userError: unknown) {
+            const axiosError = userError as {
+              response?: {
+                data?: {
+                  error?: string;
+                  message?: string;
+                  statusCode?: number;
+                };
+              };
+            };
+
+            if (
+              axiosError.response?.data?.error === "ForbiddenException" ||
+              axiosError.response?.data?.message ===
+                "Your subscription has expired. Please update your payment method." ||
+              axiosError.response?.data?.statusCode === 403
+            ) {
+              setStore((prev) => ({ ...prev, subscriptionBlocked: true }));
+              return;
+            }
+
+            const user: IAuthUser = {
+              id: authResponse.user?.id || "temp-id",
+              name: authResponse.user?.name || "Usuário Google",
+              email: authResponse.user?.email || "",
+              picture: authResponse.user?.picture,
+              sub: authResponse.user?.sub,
+            };
+
+            login({ accessToken, refreshToken }, user);
+          }
         } else if (authResponse.newAccount) {
-          // Parar validação antes de navegar para completar perfil
           setIsValidating(false);
-          navigate("/completar-perfil", {
+          navigate("/complete-profile", {
             state: {
               googleUser: authResponse.newAccount,
             },
@@ -152,14 +202,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     [login, navigate]
   );
 
+  const clearSubscriptionBlocked = useCallback(() => {
+    setStore((prev) => ({ ...prev, subscriptionBlocked: false }));
+  }, []);
+
   const logout = useCallback(() => {
-    // Limpar cache do SWR antes de limpar o store
     clearAllUserDataCache();
-    
+
     setStore({
       token: null,
       refreshToken: null,
       user: null,
+      subscriptionBlocked: false,
     });
     localStorage.removeItem("auth_token");
     localStorage.removeItem("auth_refresh_token");
@@ -202,6 +256,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       logout,
       refreshAuth,
       isValidating,
+      clearSubscriptionBlocked,
     };
   }, [
     store,
@@ -211,6 +266,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     logout,
     refreshAuth,
     isValidating,
+    clearSubscriptionBlocked,
   ]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

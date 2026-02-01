@@ -9,16 +9,48 @@ import {
   Alert,
 } from "@mui/material";
 import { PersonAdd } from "@mui/icons-material";
-import { useNavigate, useLocation } from "react-router";
+import { useLocation } from "react-router";
 import isketLogo from "../../../assets/isket.svg";
 import { CitySelect } from "../../library/components/city-select";
 import { CustomTextField } from "../../library/components/custom-text-field";
 import { postAuthRegister } from "../../../services/post-auth-register.service";
-import { postAuthLogin } from "../../../services/post-auth-login.service";
 import { getAuthMe } from "../../../services/get-auth-me.service";
+import { patchUser } from "../../../services/patch-user.service";
+import { patchProfile } from "../../../services/patch-auth-profile.service";
 import { useAuth } from "../../modules/access-manager/auth.hook";
 import { validatePassword } from "../../library/helpers/validate-password.helper";
 import { convertCityDescriptionToCode } from "../../library/helpers/convert-city-description-to-code.helper";
+
+function formatCPF(value: string): string {
+  const numbers = value.replace(/\D/g, "");
+  if (numbers.length <= 3) return numbers;
+  if (numbers.length <= 6) return `${numbers.slice(0, 3)}.${numbers.slice(3)}`;
+  if (numbers.length <= 9)
+    return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6)}`;
+  return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(
+    6,
+    9
+  )}-${numbers.slice(9, 11)}`;
+}
+
+function formatPhone(value: string): string {
+  const numbers = value.replace(/\D/g, "");
+  if (numbers.length <= 2) return numbers;
+  if (numbers.length <= 7)
+    return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
+  return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(
+    7,
+    11
+  )}`;
+}
+
+function isCPFComplete(value: string): boolean {
+  return value.replace(/\D/g, "").length === 11;
+}
+
+function isPhoneComplete(value: string): boolean {
+  return value.replace(/\D/g, "").length >= 10;
+}
 
 export function CompleteSignUp() {
   const [name, setName] = useState("");
@@ -26,10 +58,12 @@ export function CompleteSignUp() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [city, setCity] = useState("");
+  const [cpf, setCpf] = useState("");
+  const [address, setAddress] = useState("");
+  const [phone, setPhone] = useState("");
 
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
   const { login } = useAuth();
@@ -45,6 +79,24 @@ export function CompleteSignUp() {
     }
   }, [verifiedEmail]);
 
+  const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCpf(formatCPF(e.target.value));
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPhone(formatPhone(e.target.value));
+  };
+
+  const allFilled =
+    name.trim() &&
+    email.trim() &&
+    password &&
+    confirmPassword &&
+    city.trim() &&
+    isCPFComplete(cpf) &&
+    address.trim() &&
+    isPhoneComplete(phone);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -59,84 +111,67 @@ export function CompleteSignUp() {
       return;
     }
 
-    if (!name.trim() || !email.trim() || !city.trim()) {
+    if (!allFilled) {
       setError("Preencha todos os campos obrigatórios");
       return;
     }
+
+    const cpfDigits = cpf.replace(/\D/g, "");
+    const phoneDigits = phone.replace(/\D/g, "");
+    const addressTrim = address.trim();
 
     setIsSubmitting(true);
     setError("");
 
     try {
-      // Converter cidade do formato "Curitiba, PR, Brasil" para "curitiba_pr"
       const cityCode = convertCityDescriptionToCode(city.trim());
 
-      // Chamar API de registro
-      await postAuthRegister({
+      // Register já devolve accessToken e refreshToken; usar direto (login direto após registro).
+      const registerResponse = await postAuthRegister({
         name: name.trim(),
         email: email.trim(),
         password,
-        verificationCode: verificationCode || "1234", // Código da verificação ou fallback
+        verificationCode: verificationCode || "1234",
         defaultCityStateCode: cityCode,
-        // Campos opcionais podem ser adicionados aqui
+        phone: phoneDigits,
       });
 
-      // Após registro bem-sucedido, fazer login automático
+      const accessToken = registerResponse.data.accessToken;
+      const refreshToken = registerResponse.data.refreshToken;
+
+      let user: { id: string; name: string; email: string };
       try {
-        const loginResponse = await postAuthLogin({
-          authenticator: email.trim(),
-          pass: password,
-        });
+        const userResponse = await getAuthMe(accessToken);
 
-        if (loginResponse.data.accessToken && loginResponse.data.refreshToken) {
-          try {
-            // Buscar dados do usuário usando o token
-            const userResponse = await getAuthMe(
-              loginResponse.data.accessToken
-            );
-
-            const user = {
-              id: userResponse.data.id,
-              name: userResponse.data.name,
-              email: userResponse.data.email || email.trim(),
-            };
-
-            // Fazer login automático e redirecionar para a busca
-            login(
-              {
-                accessToken: loginResponse.data.accessToken,
-                refreshToken: loginResponse.data.refreshToken,
-              },
-              user
-            );
-          } catch (userError) {
-            console.error("Erro ao buscar dados do usuário:", userError);
-
-            // Fallback: usar dados do formulário
-            const user = {
-              id: email.trim(),
-              name: name.trim(),
-              email: email.trim(),
-            };
-
-            login(
-              {
-                accessToken: loginResponse.data.accessToken,
-                refreshToken: loginResponse.data.refreshToken,
-              },
-              user
-            );
-          }
+        try {
+          await patchUser(accessToken, userResponse.data.id, {
+            personalId: cpfDigits,
+          });
+          await patchProfile(accessToken, {
+            profile: {
+              formattedAddress: addressTrim,
+              phoneNumber: phoneDigits,
+            },
+          });
+        } catch (patchErr) {
+          console.warn("Erro ao salvar CPF/endereço/telefone:", patchErr);
         }
-      } catch (loginError) {
-        console.error("Erro no login automático:", loginError);
-        // Se falhar o login automático, redirecionar para login com mensagem
-        navigate("/login", {
-          state: {
-            message: "Conta criada com sucesso! Faça login para continuar.",
-          },
-        });
+
+        user = {
+          id: userResponse.data.id,
+          name: userResponse.data.name,
+          email: userResponse.data.email || email.trim(),
+        };
+      } catch (userError) {
+        console.error("Erro ao buscar dados do usuário:", userError);
+        user = {
+          id: email.trim(),
+          name: name.trim(),
+          email: email.trim(),
+        };
       }
+
+      login({ accessToken, refreshToken }, user);
     } catch (err: unknown) {
       // Tratar erros específicos da API
       if (err && typeof err === "object" && "response" in err) {
@@ -267,6 +302,42 @@ export function CompleteSignUp() {
             <CustomTextField
               required
               fullWidth
+              id="cpf"
+              label="CPF"
+              name="cpf"
+              value={cpf}
+              onChange={handleCpfChange}
+              placeholder="000.000.000-00"
+              inputProps={{ maxLength: 14 }}
+            />
+
+            <CustomTextField
+              required
+              fullWidth
+              id="address"
+              label="Endereço"
+              name="address"
+              autoComplete="street-address"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="Rua, número, bairro, cidade..."
+            />
+
+            <CustomTextField
+              required
+              fullWidth
+              id="phone"
+              label="Telefone"
+              name="phone"
+              value={phone}
+              onChange={handlePhoneChange}
+              placeholder="(00) 00000-0000"
+              inputProps={{ maxLength: 15 }}
+            />
+
+            <CustomTextField
+              required
+              fullWidth
               id="password"
               label="Senha"
               name="password"
@@ -319,16 +390,22 @@ export function CompleteSignUp() {
               value={city}
               onChange={setCity}
               required
-              sx={{ mb: 2 }}
+              sx={{ mb: 1 }}
             />
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: "block", mb: 2 }}
+            >
+              Selecione uma cidade da lista. O botão só habilita após escolher
+              uma opção no dropdown.
+            </Typography>
 
             <Button
               type="submit"
               fullWidth
               variant="contained"
-              disabled={
-                isSubmitting || !name || !password || !confirmPassword || !city
-              }
+              disabled={isSubmitting || !allFilled}
               sx={{
                 py: 1.8,
                 borderRadius: 3,

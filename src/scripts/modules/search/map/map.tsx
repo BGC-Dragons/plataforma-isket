@@ -24,6 +24,7 @@ import {
   Button,
   Stack,
   CircularProgress,
+  Popover,
 } from "@mui/material";
 import {
   Close,
@@ -37,6 +38,7 @@ import {
   Delete,
   Gesture,
   OpenWith,
+  BarChart,
 } from "@mui/icons-material";
 import { GOOGLE_CONFIG } from "../../../config/google.constant";
 import type { INeighborhoodFull } from "../../../../services/get-locations-neighborhoods.service";
@@ -46,8 +48,12 @@ import {
   type IMapCluster,
   type IMapPoint,
 } from "../../../../services/post-property-ad-search-map.service";
+import { postPropertyAdSearchStatistics } from "../../../../services/post-property-ad-search-statistics.service";
 import { mapFiltersToSearchMap } from "../../../../services/helpers/map-filters-to-search-map.helper";
-import type { ILocalFilterState } from "../../../../services/helpers/map-filters-to-api.helper";
+import {
+  mapFiltersToApi,
+  type ILocalFilterState,
+} from "../../../../services/helpers/map-filters-to-api.helper";
 
 // Interface para os dados das propriedades
 interface PropertyData {
@@ -99,6 +105,8 @@ interface MapProps {
   onNeighborhoodClick?: (neighborhood: INeighborhoodFull) => void; // Callback quando um bairro é clicado
   heatmapData?: number[][]; // Array de [longitude, latitude] para heatmap
   refreshKey?: number; // Força atualização do mapa ao retornar dos detalhes
+  /** Cidade padrão do plano (mesma lógica da listagem para montar o payload de estatísticas) */
+  defaultCity?: string;
 }
 
 // Configurações do mapa
@@ -156,6 +164,7 @@ export function MapComponent({
   onNeighborhoodClick,
   heatmapData,
   refreshKey,
+  defaultCity,
 }: MapProps) {
   // Fallback: pegar token do localStorage se não foi passado via props
   const token =
@@ -208,6 +217,7 @@ export function MapComponent({
     null
   );
   const mouseUpListenerRef = useRef<google.maps.MapsEventListener | null>(null);
+  const touchListenersRef = useRef<{ remove: () => void } | null>(null);
 
   // Estados para busca do mapa
   const [mapClusters, setMapClusters] = useState<IMapCluster[]>([]);
@@ -226,6 +236,17 @@ export function MapComponent({
   const [addressZoom, setAddressZoom] = useState<number | null>(null);
   const addressCircleOverlayRef = useRef<google.maps.Circle | null>(null);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Estatísticas de anúncios (hover no botão)
+  const [statisticsAnchorEl, setStatisticsAnchorEl] =
+    useState<HTMLElement | null>(null);
+  const [statisticsData, setStatisticsData] = useState<{
+    avgPrice: number | null;
+    avgTotalArea: number | null;
+    avgUsableArea: number | null;
+    avgTotalPricePerArea: number | null;
+    avgUsablePricePerArea: number | null;
+  } | null>(null);
+  const [statisticsLoading, setStatisticsLoading] = useState(false);
   const tokenRef = useRef<string | undefined>(token);
   const fetchMapDataRef = useRef<
     | ((bounds: google.maps.LatLngBounds, zoomLevel: number) => Promise<void>)
@@ -676,6 +697,76 @@ export function MapComponent({
     const newZoom = map.getZoom() || zoom;
     fetchMapDataRef.current(bounds, newZoom);
   }, [refreshKey, map, useMapSearch, token, zoom]);
+
+  // Buscar estatísticas quando o popover de estatísticas abrir (clique no botão)
+  useEffect(() => {
+    if (!statisticsAnchorEl || !token) return;
+
+    let cancelled = false;
+    setStatisticsLoading(true);
+    setStatisticsData(null);
+
+    // Mesma lógica da listagem: aplicar fallback de cidade padrão e montar payload completo
+    let request: Parameters<typeof postPropertyAdSearchStatistics>[0];
+    if (filters && cityToCodeMap) {
+      const filtersForApi = { ...filters };
+      if (
+        filtersForApi.cities.length === 0 &&
+        !filtersForApi.addressCoordinates &&
+        (!filtersForApi.drawingGeometries ||
+          filtersForApi.drawingGeometries.length === 0) &&
+        defaultCity &&
+        cityToCodeMap[defaultCity]
+      ) {
+        filtersForApi.cities = [defaultCity];
+      }
+      request = mapFiltersToApi(filtersForApi, cityToCodeMap, 1, 1);
+    } else {
+      request = {};
+    }
+
+    postPropertyAdSearchStatistics(request, token)
+      .then((res) => {
+        if (!cancelled) {
+          setStatisticsData(res.data);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setStatisticsData(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setStatisticsLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [statisticsAnchorEl, token, filters, cityToCodeMap, defaultCity]);
+
+  const handleStatisticsClick = (event: React.MouseEvent<HTMLElement>) => {
+    setStatisticsAnchorEl(event.currentTarget);
+  };
+
+  const formatStatCurrency = (value: number | null) => {
+    if (value == null) return "—";
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
+
+  const formatStatNumber = (value: number | null) => {
+    if (value == null) return "—";
+    return new Intl.NumberFormat("pt-BR", {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    }).format(value);
+  };
 
   // Efeito para animar o mapa quando center ou zoom mudarem
   useEffect(() => {
@@ -1291,6 +1382,28 @@ export function MapComponent({
   );
 
   // -------- Freehand drawing (desenho à mão livre) ---------
+  // Converte coordenadas de toque/tela (clientX, clientY) em LatLng no mapa
+  const getLatLngFromClientCoords = useCallback(
+    (
+      mapInstance: google.maps.Map,
+      clientX: number,
+      clientY: number
+    ): google.maps.LatLng | null => {
+      const bounds = mapInstance.getBounds();
+      if (!bounds) return null;
+      const rect = mapInstance.getDiv().getBoundingClientRect();
+      const x = (clientX - rect.left) / rect.width;
+      const y = (clientY - rect.top) / rect.height;
+      if (x < 0 || x > 1 || y < 0 || y > 1) return null;
+      const ne = bounds.getNorthEast();
+      const sw = bounds.getSouthWest();
+      const lat = sw.lat() + (1 - y) * (ne.lat() - sw.lat());
+      const lng = sw.lng() + x * (ne.lng() - sw.lng());
+      return new google.maps.LatLng(lat, lng);
+    },
+    []
+  );
+
   const teardownFreehandListeners = useCallback(() => {
     mouseMoveListenerRef.current?.remove();
     mouseDownListenerRef.current?.remove();
@@ -1298,6 +1411,8 @@ export function MapComponent({
     mouseMoveListenerRef.current = null;
     mouseDownListenerRef.current = null;
     mouseUpListenerRef.current = null;
+    touchListenersRef.current?.remove();
+    touchListenersRef.current = null;
   }, []);
 
   const stopFreehand = useCallback(() => {
@@ -1415,51 +1530,30 @@ export function MapComponent({
     // Distância mínima em metros para adicionar um novo ponto durante o desenho
     const MIN_DISTANCE_DURING_DRAWING = 200; // metros
 
-    mouseMoveListenerRef.current = map.addListener(
-      "mousemove",
-      (e: google.maps.MapMouseEvent) => {
-        if (
-          !isMouseDownRef.current ||
-          !freehandPolylineRef.current ||
-          !e.latLng
-        )
-          return;
-
-        // Verificar distância mínima antes de adicionar o ponto
-        if (lastPointRef.current) {
-          const distance =
-            google.maps.geometry.spherical.computeDistanceBetween(
-              lastPointRef.current,
-              e.latLng
-            );
-
-          // Só adicionar ponto se estiver a pelo menos MIN_DISTANCE_DURING_DRAWING metros
-          if (distance < MIN_DISTANCE_DURING_DRAWING) {
-            return;
-          }
-        }
-
-        const path = freehandPolylineRef.current.getPath();
-        path.push(e.latLng);
-        lastPointRef.current = e.latLng;
+    const addPointToFreehand = (latLng: google.maps.LatLng) => {
+      if (!freehandPolylineRef.current) return;
+      if (lastPointRef.current) {
+        const distance =
+          google.maps.geometry.spherical.computeDistanceBetween(
+            lastPointRef.current,
+            latLng
+          );
+        if (distance < MIN_DISTANCE_DURING_DRAWING) return;
       }
-    );
+      const path = freehandPolylineRef.current.getPath();
+      path.push(latLng);
+      lastPointRef.current = latLng;
+    };
 
-    mouseUpListenerRef.current = map.addListener("mouseup", () => {
+    const finishFreehandStroke = () => {
       if (!freehandPolylineRef.current) return;
       isMouseDownRef.current = false;
-      // Converte o polyline para polygon
       const path = freehandPolylineRef.current.getPath();
-
-      // Simplificar o path antes de criar o polígono
       const simplifiedPath = simplifyPolygonPath(path);
-
-      // Criar um novo MVCArray com os pontos simplificados
       const simplifiedMVCArray = new google.maps.MVCArray<google.maps.LatLng>();
       simplifiedPath.forEach((point) => {
         simplifiedMVCArray.push(point);
       });
-
       const polygon = new google.maps.Polygon({
         map,
         paths: simplifiedMVCArray,
@@ -1474,47 +1568,95 @@ export function MapComponent({
       });
       freehandPolylineRef.current.setMap(null);
       freehandPolylineRef.current = null;
-
-      // Emula OverlayCompleteEvent para manter fluxo existente
       const fakeEvent = {
         type: google.maps.drawing.OverlayType.POLYGON,
         overlay: polygon,
       } as unknown as google.maps.drawing.OverlayCompleteEvent;
-
       setDrawnOverlays((prev) => [...prev, fakeEvent]);
-
-      // Adicionar listeners de arrasto/edição
       addOverlayListeners(fakeEvent);
-
       if (onDrawingCompleteRef.current) onDrawingCompleteRef.current(fakeEvent);
       setDrawingMode(null);
-
-      // Desselecionar o polígono após um pequeno delay
-      // Usar a API do Google Maps para disparar um evento de clique no mapa
       setTimeout(() => {
         if (map) {
-          // Obter o centro do mapa para simular o clique
           const center = map.getCenter();
           if (center) {
-            // Criar um evento de clique no mapa usando a API do Google Maps
-            google.maps.event.trigger(map, "click", {
-              latLng: center,
-            });
+            google.maps.event.trigger(map, "click", { latLng: center });
           }
         }
       }, 100);
-
-      // Desativar o modo freehand automaticamente após completar o desenho
-      // Isso permite que o usuário mexa no mapa sem criar um novo desenho
       setFreehandActive(false);
-      isMouseDownRef.current = false;
       lastPointRef.current = null;
       teardownFreehandListeners();
       if (map) {
         map.setOptions({ draggable: true });
         map.setOptions({ draggableCursor: undefined });
       }
-    });
+    };
+
+    mouseMoveListenerRef.current = map.addListener(
+      "mousemove",
+      (e: google.maps.MapMouseEvent) => {
+        if (
+          !isMouseDownRef.current ||
+          !freehandPolylineRef.current ||
+          !e.latLng
+        )
+          return;
+        addPointToFreehand(e.latLng);
+      }
+    );
+
+    mouseUpListenerRef.current = map.addListener("mouseup", finishFreehandStroke);
+
+    // Suporte a toque (tablet/celular): desenho com dedo
+    const mapDiv = map.getDiv();
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 0) return;
+      const touch = e.touches[0];
+      const latLng = getLatLngFromClientCoords(map, touch.clientX, touch.clientY);
+      if (!latLng) return;
+      isMouseDownRef.current = true;
+      if (freehandPolylineRef.current) {
+        freehandPolylineRef.current.setMap(null);
+        freehandPolylineRef.current = null;
+      }
+      freehandPolylineRef.current = new google.maps.Polyline({
+        map,
+        clickable: false,
+        strokeColor: "#4285F4",
+        strokeOpacity: 0.8,
+        strokeWeight: 2,
+      });
+      const path = freehandPolylineRef.current.getPath();
+      path.push(latLng);
+      lastPointRef.current = latLng;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (!isMouseDownRef.current || e.touches.length === 0) return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      const latLng = getLatLngFromClientCoords(map, touch.clientX, touch.clientY);
+      if (latLng) addPointToFreehand(latLng);
+    };
+    const onTouchEnd = () => {
+      if (isMouseDownRef.current && freehandPolylineRef.current) {
+        finishFreehandStroke();
+      }
+    };
+    const touchOptions = { passive: false };
+    mapDiv.addEventListener("touchstart", onTouchStart, touchOptions);
+    mapDiv.addEventListener("touchmove", onTouchMove, touchOptions);
+    mapDiv.addEventListener("touchend", onTouchEnd, touchOptions);
+    mapDiv.addEventListener("touchcancel", onTouchEnd, touchOptions);
+    touchListenersRef.current = {
+      remove: () => {
+        mapDiv.removeEventListener("touchstart", onTouchStart);
+        mapDiv.removeEventListener("touchmove", onTouchMove);
+        mapDiv.removeEventListener("touchend", onTouchEnd);
+        mapDiv.removeEventListener("touchcancel", onTouchEnd);
+        touchListenersRef.current = null;
+      },
+    };
   }, [
     map,
     drawingManager,
@@ -1522,6 +1664,7 @@ export function MapComponent({
     addOverlayListeners,
     simplifyPolygonPath,
     isEditMode,
+    getLatLngFromClientCoords,
   ]);
 
   const toggleFreehand = useCallback(() => {
@@ -2601,7 +2744,7 @@ export function MapComponent({
           }
         }
 
-        // Limpar listeners do freehand
+        // Limpar listeners do freehand (mouse e touch)
         try {
           if (mouseMoveListenerRef.current) {
             mouseMoveListenerRef.current.remove();
@@ -2615,6 +2758,8 @@ export function MapComponent({
             mouseUpListenerRef.current.remove();
             mouseUpListenerRef.current = null;
           }
+          touchListenersRef.current?.remove();
+          touchListenersRef.current = null;
         } catch {
           // Ignorar erros silenciosamente durante cleanup
         }
@@ -3394,6 +3539,47 @@ export function MapComponent({
         </Box>
       )}
 
+      {/* Botão Estatísticas - centralizado no topo */}
+      {useMapSearch && token && (
+        <Box
+          sx={{
+            position: "absolute",
+            top: 10,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 1000,
+          }}
+        >
+          <Paper
+            elevation={2}
+            sx={{
+              borderRadius: 1,
+              overflow: "hidden",
+              backgroundColor: theme.palette.common.white,
+              border: `1px solid ${theme.palette.divider}`,
+            }}
+          >
+            <IconButton
+              onClick={handleStatisticsClick}
+              title="Ver estatísticas dos imóveis filtrados"
+              aria-label="Estatísticas"
+              sx={{
+                width: 40,
+                height: 40,
+                color: theme.palette.text.primary,
+                backgroundColor: theme.palette.common.white,
+                "&:hover": {
+                  backgroundColor: theme.palette.action.hover,
+                  color: theme.palette.primary.main,
+                },
+              }}
+            >
+              <BarChart />
+            </IconButton>
+          </Paper>
+        </Box>
+      )}
+
       {/* Controles Customizados de Desenho */}
       <Box
         sx={{
@@ -3599,6 +3785,108 @@ export function MapComponent({
           </Stack>
         </Paper>
       </Box>
+
+      {/* Popover de estatísticas (hover no botão) */}
+      <Popover
+        open={Boolean(statisticsAnchorEl)}
+        anchorEl={statisticsAnchorEl}
+        onClose={() => setStatisticsAnchorEl(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+        disableRestoreFocus
+      >
+        <Box sx={{ pointerEvents: "auto", p: 2, minWidth: 220 }}>
+          <Typography
+            variant="subtitle2"
+            sx={{ fontWeight: 600, mb: 1.5, color: theme.palette.primary.main }}
+          >
+            Estatísticas dos imóveis
+          </Typography>
+          {statisticsLoading ? (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 1 }}>
+              <CircularProgress size={16} />
+              <Typography variant="caption">Carregando...</Typography>
+            </Box>
+          ) : statisticsData ? (
+            <Stack spacing={0.75}>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <Typography variant="caption" color="text.secondary">
+                  Preço médio
+                </Typography>
+                <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                  {formatStatCurrency(statisticsData.avgPrice)}
+                </Typography>
+              </Box>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <Typography variant="caption" color="text.secondary">
+                  Área total média
+                </Typography>
+                <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                  {formatStatNumber(statisticsData.avgTotalArea)} m²
+                </Typography>
+              </Box>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <Typography variant="caption" color="text.secondary">
+                  Área útil média
+                </Typography>
+                <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                  {formatStatNumber(statisticsData.avgUsableArea)} m²
+                </Typography>
+              </Box>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <Typography variant="caption" color="text.secondary">
+                  Preço/m² (total)
+                </Typography>
+                <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                  {formatStatCurrency(statisticsData.avgTotalPricePerArea)}
+                </Typography>
+              </Box>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <Typography variant="caption" color="text.secondary">
+                  Preço/m² (útil)
+                </Typography>
+                <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                  {formatStatCurrency(statisticsData.avgUsablePricePerArea)}
+                </Typography>
+              </Box>
+            </Stack>
+          ) : (
+            <Typography variant="caption" color="text.secondary">
+              Nenhum dado disponível para os filtros atuais.
+            </Typography>
+          )}
+        </Box>
+      </Popover>
     </Box>
   );
 }

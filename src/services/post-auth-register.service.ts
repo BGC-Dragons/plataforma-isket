@@ -7,13 +7,16 @@ import { useAuth } from "../scripts/modules/access-manager/auth.hook";
 export interface IRegisterRequest {
   name: string;
   email: string;
+  /** Obrigatório no cadastro por email; ignorado quando googleUserId está presente. */
   password: string;
   phone?: string;
+  /** Código de verificação (email); no fluxo Google pode ser placeholder. */
   verificationCode: string;
   defaultCityStateCode: string;
   companyName?: string;
   companyId?: string;
   profileImg?: string;
+  /** ID do Google (sub); quando presente, registro é por Google e o backend já devolve tokens. */
   googleUserId?: string;
 }
 

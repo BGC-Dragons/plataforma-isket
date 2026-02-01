@@ -934,6 +934,7 @@ export function SearchComponent() {
       apartamento_duplex: false,
       apartamento_triplex: false,
       apartamento_cobertura: false,
+      apartamento_garden: false,
       comercial_sala: false,
       comercial_casa: false,
       comercial_ponto: false,
@@ -1310,6 +1311,7 @@ export function SearchComponent() {
           apartamento_duplex: false,
           apartamento_triplex: false,
           apartamento_cobertura: false,
+          apartamento_garden: false,
           comercial_sala: false,
           comercial_casa: false,
           comercial_ponto: false,
@@ -1405,6 +1407,7 @@ export function SearchComponent() {
       apartamento_duplex: false,
       apartamento_triplex: false,
       apartamento_cobertura: false,
+      apartamento_garden: false,
       // Comerciais
       comercial_sala: false,
       comercial_casa: false,
@@ -1458,22 +1461,23 @@ export function SearchComponent() {
     applyFilters(clearedFilters);
   }, [applyFilters]);
 
-  // Handler para quando um bairro é clicado no mapa
+  // Handler para quando um bairro é clicado no mapa (selecionar ou desselecionar)
   const handleNeighborhoodClick = useCallback(
     (neighborhood: INeighborhoodFull) => {
       if (!currentFilters) return;
 
-      // Adicionar o bairro aos filtros se ainda não estiver selecionado
-      const neighborhoodName = neighborhood.name;
+      const isSelected = currentFilters.neighborhoods?.includes(
+        neighborhood.name
+      );
       const currentNeighborhoods = currentFilters.neighborhoods || [];
+      const newNeighborhoods = isSelected
+        ? currentNeighborhoods.filter((n) => n !== neighborhood.name)
+        : [...currentNeighborhoods, neighborhood.name];
 
-      if (!currentNeighborhoods.includes(neighborhoodName)) {
-        const updatedFilters: FilterState = {
-          ...currentFilters,
-          neighborhoods: [...currentNeighborhoods, neighborhoodName],
-        };
-        applyFilters(updatedFilters);
-      }
+      applyFilters({
+        ...currentFilters,
+        neighborhoods: newNeighborhoods,
+      });
     },
     [currentFilters, applyFilters]
   );
@@ -1639,6 +1643,7 @@ export function SearchComponent() {
               allNeighborhoodsForCityBounds={allNeighborhoodsForBounds}
               filters={currentFilters}
               cityToCodeMap={cityToCodeMap}
+              defaultCity={defaultCity}
               refreshKey={mapRefreshKey}
               token={
                 auth.store.token ||
@@ -1646,6 +1651,7 @@ export function SearchComponent() {
                 undefined
               }
               useMapSearch={true}
+              onNeighborhoodClick={handleNeighborhoodClick}
             />
           </Box>
 
@@ -2675,6 +2681,7 @@ export function SearchComponent() {
                 allNeighborhoodsForCityBounds={allNeighborhoodsForBounds}
                 filters={currentFilters}
                 cityToCodeMap={cityToCodeMap}
+                defaultCity={defaultCity}
                 refreshKey={mapRefreshKey}
                 token={
                   auth.store.token ||
@@ -2832,6 +2839,7 @@ export function SearchComponent() {
                 allNeighborhoodsForCityBounds={allNeighborhoodsForBounds}
                 filters={currentFilters}
                 cityToCodeMap={cityToCodeMap}
+                defaultCity={defaultCity}
                 refreshKey={mapRefreshKey}
                 token={
                   auth.store.token ||
@@ -2839,6 +2847,7 @@ export function SearchComponent() {
                   undefined
                 }
                 useMapSearch={true}
+                onNeighborhoodClick={handleNeighborhoodClick}
               />
             </Box>
           </Box>
@@ -2847,3 +2856,5 @@ export function SearchComponent() {
     </Box>
   );
 }
+
+export default SearchComponent;

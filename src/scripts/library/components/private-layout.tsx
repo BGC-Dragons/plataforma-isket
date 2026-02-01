@@ -1,6 +1,7 @@
 import React from "react";
 import { Box, useTheme } from "@mui/material";
 import { FloatingTopMenu } from "./floating-top-menu";
+import { CompleteProfileModal } from "./complete-profile-modal";
 import { useViewportHeight } from "../hooks/use-viewport-height";
 
 interface PrivateLayoutProps {
@@ -21,6 +22,7 @@ export function PrivateLayout({ children }: PrivateLayoutProps) {
         overflow: "hidden",
       }}
     >
+      <CompleteProfileModal />
       <FloatingTopMenu />
 
       <Box

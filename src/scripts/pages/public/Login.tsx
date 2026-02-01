@@ -32,7 +32,7 @@ export function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
-  const { login } = useAuth();
+  const { login, store, clearSubscriptionBlocked } = useAuth();
   const { clearFilters: clearPersistedFilters } = useFilterSelection();
 
   // Carregar erro do localStorage quando o componente monta
@@ -193,11 +193,12 @@ export function Login() {
 
   const handleCloseSubscriptionBlocked = () => {
     setShowSubscriptionBlocked(false);
+    clearSubscriptionBlocked();
   };
 
   const handleBackToLogin = () => {
     setShowSubscriptionBlocked(false);
-    // Limpar campos e focar no email
+    clearSubscriptionBlocked();
     setEmail("");
     setPassword("");
     setError(null);
@@ -398,9 +399,9 @@ export function Login() {
         </Paper>
       </Container>
 
-      {/* Modal de Assinatura Bloqueada */}
+      {/* Modal de Assinatura Bloqueada (login email ou Google sem assinatura ativa) */}
       <SubscriptionBlockedModal
-        open={showSubscriptionBlocked}
+        open={showSubscriptionBlocked || store.subscriptionBlocked}
         onClose={handleCloseSubscriptionBlocked}
         onBackToLogin={handleBackToLogin}
       />
