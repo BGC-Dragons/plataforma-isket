@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -19,9 +19,17 @@ import {
   Slider,
   TextField,
   InputAdornment,
+  Autocomplete,
+  Chip,
+  CircularProgress,
 } from "@mui/material";
 import { Close, ExpandMore } from "@mui/icons-material";
 import type { FilterState } from "./filter.types";
+import {
+  postPropertyAdFeatures,
+  type IPropertyFeature,
+} from "../../../../services/get-property-ad-features.service";
+import { mapFiltersToApi } from "../../../../services/helpers/map-filters-to-api.helper";
 
 interface FilterModalProps {
   isOpen: boolean;
@@ -29,6 +37,7 @@ interface FilterModalProps {
   onApplyFilters: (filters: FilterState) => void;
   onClearFilters?: () => void;
   initialFilters?: FilterState;
+  cityToCodeMap?: Record<string, string>;
 }
 
 export const FilterModal: React.FC<FilterModalProps> = ({
@@ -37,6 +46,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
   onApplyFilters,
   onClearFilters,
   initialFilters,
+  cityToCodeMap = {},
 }) => {
   const [areaRange, setAreaRange] = useState<number[]>([0, 1000000]);
   const [precoRange, setPrecoRange] = useState<number[]>([0, 100000000]);
@@ -107,12 +117,71 @@ export const FilterModal: React.FC<FilterModalProps> = ({
     portal: false,
     // Opcionais
     lancamento: false,
-    palavras_chave: "",
+    propertyFeatures: [],
   });
 
   const [filters, setFilters] = useState<FilterState>(getDefaultFilters());
   const prevIsOpenRef = useRef(false);
   const prevInitialFiltersRef = useRef<string>("");
+
+  // Features da API para o autocomplete de Opcionais
+  const [availableFeatures, setAvailableFeatures] = useState<IPropertyFeature[]>([]);
+  const [featuresLoading, setFeaturesLoading] = useState(false);
+  const featuresDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Buscar features com filtros ativos (debounced)
+  const fetchFeatures = useCallback(
+    (currentFilters: FilterState) => {
+      const apiFilters = mapFiltersToApi(currentFilters, cityToCodeMap);
+      // Remover propertyFeatures para evitar filtro circular
+      delete apiFilters.propertyFeatures;
+      // Remover paginação (não faz sentido para aggregation)
+      delete apiFilters.page;
+      delete apiFilters.size;
+
+      setFeaturesLoading(true);
+      let cancelled = false;
+      postPropertyAdFeatures(apiFilters)
+        .then((res) => {
+          if (!cancelled) setAvailableFeatures(res.data.data);
+        })
+        .catch((err) => {
+          if (!cancelled) console.error("Erro ao carregar features:", err);
+        })
+        .finally(() => {
+          if (!cancelled) setFeaturesLoading(false);
+        });
+      return () => {
+        cancelled = true;
+      };
+    },
+    [cityToCodeMap]
+  );
+
+  // Gerar chave dos filtros (excluindo propertyFeatures) para detectar mudanças
+  const getFiltersKeyForFeatures = useCallback((f: FilterState): string => {
+    const { propertyFeatures: _pf, ...rest } = f;
+    return JSON.stringify(rest);
+  }, []);
+
+  // Disparar busca de features ao abrir o modal e quando filtros mudam
+  useEffect(() => {
+    if (!isOpen) return;
+
+    if (featuresDebounceRef.current) {
+      clearTimeout(featuresDebounceRef.current);
+    }
+
+    featuresDebounceRef.current = setTimeout(() => {
+      fetchFeatures(filters);
+    }, 500);
+
+    return () => {
+      if (featuresDebounceRef.current) {
+        clearTimeout(featuresDebounceRef.current);
+      }
+    };
+  }, [isOpen, getFiltersKeyForFeatures(filters), fetchFeatures]);
 
   // Função para criar uma string de comparação dos filtros
   const getFiltersKey = (filters: FilterState | undefined): string => {
@@ -169,7 +238,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
       imobiliaria: filters.imobiliaria,
       portal: filters.portal,
       lancamento: filters.lancamento,
-      palavras_chave: filters.palavras_chave,
+      propertyFeatures: filters.propertyFeatures,
     });
   };
 
@@ -364,7 +433,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
       portal: false,
       // Opcionais
       lancamento: false,
-      palavras_chave: "",
+      propertyFeatures: [],
     };
 
     // Apenas limpar o estado interno do modal
@@ -1282,17 +1351,66 @@ export const FilterModal: React.FC<FilterModalProps> = ({
               label="Lançamento"
             />
           </FormGroup>
-          <TextField
-            label="Opcionais"
-            placeholder="Digite opcionais para buscar"
-            value={filters.palavras_chave}
-            onChange={(e) =>
+          <Autocomplete
+            multiple
+            options={availableFeatures.filter(
+              (f) => !filters.propertyFeatures.includes(f.key)
+            )}
+            getOptionLabel={(option) =>
+              option.count > 0
+                ? `${option.key} (${option.count.toLocaleString("pt-BR")})`
+                : option.key
+            }
+            isOptionEqualToValue={(option, value) => option.key === value.key}
+            value={filters.propertyFeatures.map((key) => {
+              const found = availableFeatures.find((f) => f.key === key);
+              return found ?? { key, count: 0 };
+            })}
+            onChange={(_event, newValue) => {
               setFilters((prev) => ({
                 ...prev,
-                palavras_chave: e.target.value,
-              }))
+                propertyFeatures: newValue.map((v) => v.key),
+              }));
+            }}
+            loading={featuresLoading}
+            renderTags={(value, getTagProps) =>
+              value.map((option, index) => {
+                const { key, ...tagProps } = getTagProps({ index });
+                return (
+                  <Chip
+                    key={key}
+                    label={option.key}
+                    size="small"
+                    {...tagProps}
+                  />
+                );
+              })
             }
-            fullWidth
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Opcionais"
+                placeholder={
+                  filters.propertyFeatures.length === 0
+                    ? "Digite para buscar opcionais..."
+                    : ""
+                }
+                size="small"
+                InputProps={{
+                  ...params.InputProps,
+                  endAdornment: (
+                    <>
+                      {featuresLoading ? (
+                        <CircularProgress color="inherit" size={20} />
+                      ) : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }}
+              />
+            )}
+            noOptionsText="Nenhum opcional encontrado"
+            loadingText="Carregando opcionais..."
             size="small"
             sx={{ mt: 1 }}
           />

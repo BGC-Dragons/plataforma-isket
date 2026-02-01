@@ -124,6 +124,9 @@ export interface IPostPropertyAdSearchRequest {
   advertiserIds?: string[];
   advertiserTypes?: AdvertiserType[];
 
+  // Features
+  propertyFeatures?: string[];
+
   // Outros
   requireAreaInfo?: boolean;
   requireCoordinates?: boolean;

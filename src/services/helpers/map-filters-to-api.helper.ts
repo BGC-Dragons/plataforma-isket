@@ -83,7 +83,7 @@ export interface ILocalFilterState {
   portal: boolean;
   // Opcionais
   lancamento: boolean;
-  palavras_chave: string;
+  propertyFeatures: string[];
 }
 
 // Mapeamento de tipos de propriedade locais para API
@@ -307,6 +307,11 @@ export const mapFiltersToApi = (
   }
   if (advertiserTypes.length > 0) {
     request.advertiserTypes = advertiserTypes;
+  }
+
+  // Property Features (Opcionais)
+  if (filters.propertyFeatures && filters.propertyFeatures.length > 0) {
+    request.propertyFeatures = filters.propertyFeatures;
   }
 
   // Geometrias dos desenhos (quando há desenhos no mapa)

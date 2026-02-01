@@ -72,5 +72,5 @@ export interface FilterState {
   portal: boolean;
   // Opcionais
   lancamento: boolean;
-  palavras_chave: string;
+  propertyFeatures: string[];
 }

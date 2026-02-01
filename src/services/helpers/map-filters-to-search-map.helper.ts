@@ -231,6 +231,11 @@ export const mapFiltersToSearchMap = (
     request.advertiserTypes = advertiserTypes;
   }
 
+  // Property Features (Opcionais)
+  if (filters.propertyFeatures && filters.propertyFeatures.length > 0) {
+    request.propertyFeatures = filters.propertyFeatures;
+  }
+
   // Geometrias dos desenhos (quando há desenhos no mapa)
   if (filters.drawingGeometries && filters.drawingGeometries.length > 0) {
     request.geometry = filters.drawingGeometries.map((geom) => {

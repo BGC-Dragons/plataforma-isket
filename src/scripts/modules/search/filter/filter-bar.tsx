@@ -110,7 +110,7 @@ export function FilterBar({
     portal: false,
     // Opcionais
     lancamento: false,
-    palavras_chave: "",
+    propertyFeatures: [],
   });
 
   const [appliedFilters, setAppliedFilters] =
@@ -848,7 +848,7 @@ export function FilterBar({
       preco_min: externalFilters.preco_min,
       preco_max: externalFilters.preco_max,
       lancamento: externalFilters.lancamento,
-      palavras_chave: externalFilters.palavras_chave,
+      propertyFeatures: externalFilters.propertyFeatures,
     });
 
     // Só sincronizar se realmente mudou E se não foi uma mudança que nós mesmos causamos
@@ -974,7 +974,7 @@ export function FilterBar({
       portal: false,
       // Opcionais
       lancamento: false,
-      palavras_chave: "",
+      propertyFeatures: [],
     };
     // Limpar também o campo de busca visual
     setSearchInputValue("");
@@ -1072,7 +1072,7 @@ export function FilterBar({
 
     // Opcionais
     if (appliedFilters.lancamento) count++;
-    if (appliedFilters.palavras_chave) count++;
+    if (appliedFilters.propertyFeatures && appliedFilters.propertyFeatures.length > 0) count++;
 
     return count;
   };
@@ -1791,6 +1791,7 @@ export function FilterBar({
         onApplyFilters={handleApplyFilters}
         onClearFilters={clearAllFilters}
         initialFilters={appliedFilters}
+        cityToCodeMap={cityToCodeMap}
       />
     </>
   );

@@ -972,7 +972,7 @@ export function SearchComponent() {
       imobiliaria: false,
       portal: false,
       lancamento: false,
-      palavras_chave: "",
+      propertyFeatures: [],
     };
 
     // Definir filtros ANTES de fazer a busca
@@ -1348,7 +1348,7 @@ export function SearchComponent() {
           imobiliaria: false,
           portal: false,
           lancamento: false,
-          palavras_chave: "",
+          propertyFeatures: [],
         }),
         drawingGeometries: nextGeometries,
       };
@@ -1451,7 +1451,7 @@ export function SearchComponent() {
       portal: false,
       // Opcionais
       lancamento: false,
-      palavras_chave: "",
+      propertyFeatures: [],
       // Geometrias dos desenhos
       drawingGeometries: undefined,
     };

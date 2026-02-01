@@ -914,7 +914,7 @@ export function AnalysesComponent() {
         imobiliaria: false,
         portal: false,
         lancamento: false,
-        palavras_chave: "",
+        propertyFeatures: [],
       };
       applyFilters(initialFilters);
     }
@@ -1032,7 +1032,7 @@ export function AnalysesComponent() {
       imobiliaria: false,
       portal: false,
       lancamento: false,
-      palavras_chave: "",
+      propertyFeatures: [],
       drawingGeometries: [],
     };
     applyFilters(clearedFilters);

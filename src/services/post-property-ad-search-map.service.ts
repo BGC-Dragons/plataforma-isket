@@ -76,6 +76,9 @@ export interface IPostPropertyAdSearchMapRequest {
   advertiserIds?: string[];
   advertiserTypes?: string[];
 
+  // Features
+  propertyFeatures?: string[];
+
   // Outros
   requireAreaInfo?: boolean;
 }

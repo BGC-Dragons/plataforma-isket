@@ -975,7 +975,7 @@ export function EvaluationComponent() {
           imobiliaria: false,
           portal: false,
           lancamento: false,
-          palavras_chave: "",
+          propertyFeatures: [],
         }),
         drawingGeometries: nextGeometries,
       };
@@ -1141,7 +1141,7 @@ export function EvaluationComponent() {
           imobiliaria: false,
           portal: false,
           lancamento: false,
-          palavras_chave: "",
+          propertyFeatures: [],
         };
 
         await applyFilters(initialFilters);
