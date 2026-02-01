@@ -15,6 +15,8 @@ import {
   Select,
   MenuItem,
   useMediaQuery,
+  Button,
+  Modal,
 } from "@mui/material";
 import {
   ViewModule,
@@ -23,6 +25,8 @@ import {
   Bed,
   Bathtub,
   DirectionsCar,
+  Map as MapIcon,
+  Close,
 } from "@mui/icons-material";
 import { FilterBar } from "../../../modules/search/filter/filter-bar";
 import { MapComponent } from "../../../modules/search/map/map";
@@ -133,6 +137,11 @@ export function EvaluationComponent() {
   const { filters: persistedFilters, setFilters: setPersistedFilters } =
     useFilterSelection();
   const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm")); // < 600px
+  // Telas menores que 900px: mapa some e mostramos botão "Abrir mapa" (igual à tela de análises)
+  const isMapHiddenScreen = useMediaQuery("(max-width: 899px)", {
+    noSsr: true,
+  });
+  const [mapModalOpen, setMapModalOpen] = useState(false);
 
   const { data: purchasesData } = useGetPurchases();
 
@@ -1871,7 +1880,11 @@ export function EvaluationComponent() {
                   overflow: { xs: "visible", sm: "auto" },
                   overflowX: "hidden", // Prevenir scroll horizontal
                   pr: { xs: 0, sm: 1 },
-                  pb: selectedProperties.size > 0 ? 12 : 0,
+                  pb: isMapHiddenScreen
+                    ? `calc(${theme.spacing(12)} + env(safe-area-inset-bottom))`
+                    : selectedProperties.size > 0
+                    ? 12
+                    : 0,
                   maxWidth: "100%", // Prevenir overflow horizontal
                   minWidth: 0,
                 }}
@@ -2286,6 +2299,133 @@ export function EvaluationComponent() {
           </Box>
         </Box>
       </Container>
+
+      {/* Botão flutuante para abrir mapa (telas menores que 900px) */}
+      {isMapHiddenScreen && (
+        <Box
+          sx={{
+            position: "fixed",
+            bottom: `calc(24px + env(safe-area-inset-bottom))`,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 1300,
+          }}
+        >
+          <Button
+            variant="contained"
+            startIcon={mapModalOpen ? <Close /> : <MapIcon />}
+            onClick={() => setMapModalOpen(!mapModalOpen)}
+            sx={{
+              borderRadius: 3,
+              px: 4,
+              py: 1.5,
+              fontSize: "1rem",
+              fontWeight: 600,
+              textTransform: "none",
+              boxShadow: theme.shadows[8],
+              "&:hover": {
+                boxShadow: theme.shadows[12],
+              },
+            }}
+          >
+            {mapModalOpen ? "Fechar mapa" : "Abrir mapa"}
+          </Button>
+        </Box>
+      )}
+
+      {/* Modal do Mapa (telas menores que 900px) */}
+      {isMapHiddenScreen && (
+        <Modal
+          open={mapModalOpen}
+          onClose={() => setMapModalOpen(false)}
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: theme.zIndex.modal + 2,
+          }}
+        >
+          <Box
+            sx={{
+              position: "relative",
+              width: "95vw",
+              height: "90vh",
+              maxWidth: 900,
+              maxHeight: 800,
+              backgroundColor: theme.palette.background.paper,
+              borderRadius: 3,
+              overflow: "hidden",
+              boxShadow: theme.shadows[24],
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            {/* Cabeçalho do Modal */}
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                p: 2,
+                borderBottom: `1px solid ${theme.palette.divider}`,
+                backgroundColor: theme.palette.background.paper,
+              }}
+            >
+              <Typography
+                variant="h6"
+                sx={{
+                  fontWeight: 600,
+                  fontSize: "1.25rem",
+                }}
+              >
+                Mapa de Propriedades
+              </Typography>
+              <IconButton
+                onClick={() => setMapModalOpen(false)}
+                sx={{
+                  color: theme.palette.text.primary,
+                  "&:hover": {
+                    backgroundColor: theme.palette.action.hover,
+                  },
+                }}
+              >
+                <Close />
+              </IconButton>
+            </Box>
+
+            {/* Mapa */}
+            <Box sx={{ flex: 1, position: "relative", overflow: "hidden" }}>
+              <MapComponent
+                key={`map-modal-${mapModalOpen}-${citiesData.length}`}
+                properties={properties}
+                center={mapCenter}
+                zoom={mapZoom}
+                onDrawingComplete={handleDrawingComplete}
+                onClearFilters={handleClearFilters}
+                neighborhoods={neighborhoodsData}
+                selectedNeighborhoodNames={currentFilters?.neighborhoods || []}
+                cities={citiesData}
+                selectedCityCodes={
+                  currentFilters?.cities
+                    .map((city) => cityToCodeMap[city])
+                    .filter((code): code is string => Boolean(code)) || []
+                }
+                allNeighborhoodsForCityBounds={allNeighborhoodsForBounds}
+                height="100%"
+                filters={currentFilters}
+                cityToCodeMap={cityToCodeMap}
+                token={
+                  auth.store.token ||
+                  localStorage.getItem("auth_token") ||
+                  undefined
+                }
+                useMapSearch={true}
+                onNeighborhoodClick={handleNeighborhoodClick}
+              />
+            </Box>
+          </Box>
+        </Modal>
+      )}
 
       {/* Menu Flutuante de Ações */}
       <EvaluationActionBar
