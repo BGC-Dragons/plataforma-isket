@@ -802,8 +802,12 @@ export function MapComponent({
     // Se há cidades selecionadas, usar fitBounds com as coordenadas das cidades
     // Caso contrário, usar panTo/setZoom diretamente
     const hasSelectedCities = cities.length > 0 && selectedCityCodes.length > 0;
-    const hasSelectedNeighborhoods =
-      neighborhoods.length > 0 && selectedNeighborhoodNames.length > 0;
+    const hasSelectedNeighborhoods = selectedNeighborhoodNames.length > 0;
+
+    // Se há bairros selecionados mas os dados ainda não chegaram, não animar
+    if (hasSelectedNeighborhoods && neighborhoods.length === 0) {
+      return;
+    }
 
     // Coletar coordenadas de bairros e cidades para fitBounds
     const allCoordinates: google.maps.LatLng[] = [];
@@ -933,22 +937,30 @@ export function MapComponent({
         if (bounds && bounds.getNorthEast() && bounds.getSouthWest()) {
           isAnimatingRef.current = true;
 
-          // Usar fitBounds mas limitar o zoom máximo após o fitBounds
-          map.fitBounds(bounds, {
-            top: 50,
-            right: 50,
-            bottom: 50,
-            left: 50,
-          });
+          if (hasSelectedNeighborhoods) {
+            // Para bairro selecionado, usar fitBounds padrão (sem padding e sem pós-zoom)
+            map.fitBounds(bounds);
+            setTimeout(() => {
+              isAnimatingRef.current = false;
+            }, 600);
+          } else {
+            // Usar fitBounds com padding e limitar zoom máximo
+            map.fitBounds(bounds, {
+              top: 50,
+              right: 50,
+              bottom: 50,
+              left: 50,
+            });
 
-          // Limitar o zoom após fitBounds para evitar zoom máximo
-          setTimeout(() => {
-            const currentZoom = map.getZoom();
-            if (currentZoom && currentZoom > 13) {
-              map.setZoom(13);
-            }
-            isAnimatingRef.current = false;
-          }, 600); // Aumentar timeout para garantir que fitBounds terminou
+            // Limitar o zoom após fitBounds para evitar zoom máximo
+            setTimeout(() => {
+              const currentZoom = map.getZoom();
+              if (currentZoom && currentZoom > 13) {
+                map.setZoom(13);
+              }
+              isAnimatingRef.current = false;
+            }, 600);
+          }
 
           previousCenterRef.current = effectiveCenter;
           previousZoomRef.current = effectiveZoom;
