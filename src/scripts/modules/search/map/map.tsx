@@ -834,63 +834,66 @@ export function MapComponent({
     });
 
     // Adicionar coordenadas das cidades selecionadas
-    const citiesToFit = cities.filter(
-      (city) =>
-        selectedCityCodes.length === 0 ||
-        selectedCityCodes.includes(city.cityStateCode)
-    );
+    // Quando há bairros selecionados, focar somente neles para evitar "zoom out"
+    if (!hasSelectedNeighborhoods) {
+      const citiesToFit = cities.filter(
+        (city) =>
+          selectedCityCodes.length === 0 ||
+          selectedCityCodes.includes(city.cityStateCode)
+      );
 
-    citiesToFit.forEach((city) => {
-      if (!city.geo?.geometry) return;
+      citiesToFit.forEach((city) => {
+        if (!city.geo?.geometry) return;
 
-      const geometry = city.geo.geometry;
-      if (geometry.type === "Polygon") {
-        const coords = geometry.coordinates as number[][][];
-        if (coords && coords[0] && Array.isArray(coords[0])) {
-          coords[0].forEach((coord) => {
-            if (
-              Array.isArray(coord) &&
-              coord.length >= 2 &&
-              typeof coord[0] === "number" &&
-              typeof coord[1] === "number"
-            ) {
-              try {
-                allCoordinates.push(
-                  new google.maps.LatLng(coord[1], coord[0]) // lat, lng
-                );
-              } catch {
-                // Ignorar coordenadas inválidas
-              }
-            }
-          });
-        }
-      } else if (geometry.type === "MultiPolygon") {
-        const coords = geometry.coordinates as number[][][][];
-        // Iterar sobre todos os polígonos no MultiPolygon, não apenas o primeiro
-        if (coords && Array.isArray(coords)) {
-          coords.forEach((polygon) => {
-            if (polygon && polygon[0] && Array.isArray(polygon[0])) {
-              polygon[0].forEach((coord) => {
-                if (
-                  Array.isArray(coord) &&
-                  coord.length >= 2 &&
-                  typeof coord[0] === "number" &&
-                  typeof coord[1] === "number"
-                ) {
-                  try {
-                    allCoordinates.push(
-                      new google.maps.LatLng(coord[1], coord[0]) // lat, lng
-                    );
-                  } catch {
-                    // Ignorar coordenadas inválidas
-                  }
+        const geometry = city.geo.geometry;
+        if (geometry.type === "Polygon") {
+          const coords = geometry.coordinates as number[][][];
+          if (coords && coords[0] && Array.isArray(coords[0])) {
+            coords[0].forEach((coord) => {
+              if (
+                Array.isArray(coord) &&
+                coord.length >= 2 &&
+                typeof coord[0] === "number" &&
+                typeof coord[1] === "number"
+              ) {
+                try {
+                  allCoordinates.push(
+                    new google.maps.LatLng(coord[1], coord[0]) // lat, lng
+                  );
+                } catch {
+                  // Ignorar coordenadas inválidas
                 }
-              });
-            }
-          });
+              }
+            });
+          }
+        } else if (geometry.type === "MultiPolygon") {
+          const coords = geometry.coordinates as number[][][][];
+          // Iterar sobre todos os polígonos no MultiPolygon, não apenas o primeiro
+          if (coords && Array.isArray(coords)) {
+            coords.forEach((polygon) => {
+              if (polygon && polygon[0] && Array.isArray(polygon[0])) {
+                polygon[0].forEach((coord) => {
+                  if (
+                    Array.isArray(coord) &&
+                    coord.length >= 2 &&
+                    typeof coord[0] === "number" &&
+                    typeof coord[1] === "number"
+                  ) {
+                    try {
+                      allCoordinates.push(
+                        new google.maps.LatLng(coord[1], coord[0]) // lat, lng
+                      );
+                    } catch {
+                      // Ignorar coordenadas inválidas
+                    }
+                  }
+                });
+              }
+            });
+          }
         }
-      }
-    });
+      });
+    }
 
     // Se há coordenadas de cidades/bairros, usar fitBounds
     // EXCETO quando for busca apenas por cidade (sem bairros) - nesse caso usar zoom calculado
@@ -1034,35 +1037,6 @@ export function MapComponent({
     setSelectedProperty(null);
   }, []);
 
-  // Função para calcular o centro e bounds de um bairro
-  const calculateNeighborhoodBounds = useCallback(
-    (neighborhood: INeighborhoodFull) => {
-      const coords = neighborhood.geo?.coordinates?.[0];
-      if (!coords || coords.length === 0) return null;
-
-      const paths = coords.map((coord) => ({
-        lat: coord[1],
-        lng: coord[0],
-      }));
-
-      const lats = paths.map((p) => p.lat);
-      const lngs = paths.map((p) => p.lng);
-
-      const minLat = Math.min(...lats);
-      const maxLat = Math.max(...lats);
-      const minLng = Math.min(...lngs);
-      const maxLng = Math.max(...lngs);
-
-      const center = {
-        lat: (minLat + maxLat) / 2,
-        lng: (minLng + maxLng) / 2,
-      };
-
-      return { paths, center, bounds: { minLat, maxLat, minLng, maxLng } };
-    },
-    []
-  );
-
   // Ref para armazenar o overlay usado para calcular posição do tooltip
   const tooltipOverlayRef = useRef<google.maps.OverlayView | null>(null);
   const tooltipMouseMoveListenerRef =
@@ -1179,43 +1153,10 @@ export function MapComponent({
     (neighborhood: INeighborhoodFull) => {
       if (!map || !onNeighborhoodClick) return;
 
-      const boundsData = calculateNeighborhoodBounds(neighborhood);
-      if (!boundsData) return;
-
-      // Fazer zoom no bairro
-      try {
-        const bounds = new google.maps.LatLngBounds();
-        boundsData.paths.forEach((path) => {
-          // Validar coordenadas antes de adicionar ao bounds
-          if (isValidCoordinate(path)) {
-            bounds.extend(new google.maps.LatLng(path.lat, path.lng));
-          }
-        });
-
-        if (bounds && bounds.getNorthEast() && bounds.getSouthWest()) {
-          map.fitBounds(bounds, {
-            top: 50,
-            right: 50,
-            bottom: 50,
-            left: 50,
-          });
-
-          // Limitar o zoom após fitBounds para evitar zoom máximo
-          setTimeout(() => {
-            const currentZoom = map.getZoom();
-            if (currentZoom && currentZoom > 13) {
-              map.setZoom(13);
-            }
-          }, 600);
-        }
-      } catch {
-        // Ignorar erros
-      }
-
       // Chamar callback para atualizar filtros
       onNeighborhoodClick(neighborhood);
     },
-    [map, onNeighborhoodClick, calculateNeighborhoodBounds]
+    [map, onNeighborhoodClick]
   );
 
   // Função para atualizar geometria e buscar quando overlay é modificado (com debounce)
