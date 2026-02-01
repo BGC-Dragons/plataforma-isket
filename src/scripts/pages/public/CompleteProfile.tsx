@@ -9,7 +9,7 @@ import {
   Alert,
 } from "@mui/material";
 import { PersonAdd } from "@mui/icons-material";
-import { useNavigate, useLocation } from "react-router";
+import { useLocation } from "react-router";
 import isketLogo from "../../../assets/isket.svg";
 import { CitySelect } from "../../library/components/city-select";
 import { CustomTextField } from "../../library/components/custom-text-field";
@@ -59,7 +59,6 @@ export function CompleteProfile() {
   const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
   const { login } = useAuth();
