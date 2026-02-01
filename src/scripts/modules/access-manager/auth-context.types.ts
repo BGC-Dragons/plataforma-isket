@@ -7,9 +7,13 @@ export interface IAuth {
     user: IAuthUser,
     redirect?: string
   ) => void;
-  loginWithGoogle: (googleResponse: { code: string }) => Promise<void>;
+  /** code (fluxo OAuth) ou idToken (fluxo One Tap). O code é de uso único. */
+  loginWithGoogle: (
+    googleResponse: { code?: string; idToken?: string; accessToken?: string }
+  ) => Promise<void>;
   isLogged: boolean;
   logout: () => void;
   refreshAuth: () => Promise<boolean>;
   isValidating: boolean;
+  clearSubscriptionBlocked: () => void;
 }

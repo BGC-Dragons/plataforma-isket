@@ -2,9 +2,22 @@ import { getHeader } from "./helpers/get-header-function";
 import { isketApiClient } from "./clients/isket-api.client";
 import axios from "axios";
 
+/**
+ * Body da requisição signInGoogle (SignInGoogleDto).
+ * É necessário um dos dois: code ou idToken.
+ * - code: fluxo OAuth (redirect); o backend troca por tokens no Google.
+ * - idToken: fluxo One Tap / Sign-In; o backend valida em tokeninfo.
+ * O code é de uso único: não reenviar o mesmo code em retry.
+ */
 export interface IPostAuthGoogleParams {
-  code: string;
-  redirectUri: string;
+  /** Código de autorização (fluxo OAuth com redirect). Uso único. */
+  code?: string;
+  /** ID Token (fluxo One Tap / Sign-In). */
+  idToken?: string;
+  /** Access token do Google (opcional). */
+  accessToken?: string;
+  /** URI de redirect (opcional; o backend pode usar GOOGLE_REDIRECT_URI do env). */
+  redirectUri?: string;
 }
 
 export interface GoogleAuthResponse {
@@ -17,6 +30,7 @@ export interface GoogleAuthResponse {
     picture?: string;
     sub?: string;
   };
+  /** Quando o usuário não existe; front deve abrir tela de conclusão de cadastro. */
   newAccount?: {
     name: string;
     picture: string;
@@ -28,6 +42,9 @@ export interface GoogleAuthResponse {
 export const postAuthGoogle = async (
   data: IPostAuthGoogleParams
 ): Promise<GoogleAuthResponse> => {
+  if (!data.code && !data.idToken) {
+    throw new Error("É necessário enviar code ou idToken.");
+  }
   try {
     const response = await isketApiClient.post<GoogleAuthResponse>(
       `/auth/signInGoogle`,

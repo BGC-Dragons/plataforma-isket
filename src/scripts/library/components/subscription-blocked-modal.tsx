@@ -31,7 +31,7 @@ export const SubscriptionBlockedModal: React.FC<
   };
 
   const handleWhatsAppClick = () => {
-    window.open("https://wa.me/5541999999999", "_blank");
+    window.open("https://wa.me/5541988628686", "_blank");
   };
 
   return (
@@ -233,7 +233,7 @@ export const SubscriptionBlockedModal: React.FC<
                       mt: 0.5,
                     }}
                   >
-                    (41) 99999-9999
+                    (41) 98862-8686
                   </Typography>
                 </Box>
                 <ArrowForwardIcon sx={{ color: "#666", fontSize: 20 }} />
@@ -275,13 +275,14 @@ export const SubscriptionBlockedModal: React.FC<
               py: 1.5,
               borderRadius: 2,
               borderColor: "#e0e0e0",
-              color: "#333",
+              color: "white",
               fontWeight: 500,
               textTransform: "none",
               fontSize: "1rem",
               "&:hover": {
                 borderColor: "#999",
                 backgroundColor: "#f5f5f5",
+                color: "red",
               },
             }}
           >
