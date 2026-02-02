@@ -16,7 +16,6 @@ import { useAuth } from "../../../../modules/access-manager/auth.hook";
 import {
   useGetMyCompany,
   clearMyCompanyCache,
-  getMyCompanyPATH,
   type IGetMyCompanyResponseSuccess,
 } from "../../../../../services/get-my-company.service";
 import {
