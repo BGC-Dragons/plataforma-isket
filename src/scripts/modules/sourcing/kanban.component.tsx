@@ -39,6 +39,7 @@ import {
 import { postPropertyListingAcquisitionStage } from "../../../services/post-property-listing-acquisitions-stage.service";
 import { deletePropertyListingAcquisitionStage } from "../../../services/delete-property-listing-acquisitions-stage.service";
 import { patchPropertyListingAcquisitionStage } from "../../../services/patch-property-listing-acquisitions-stage.service";
+import { patchPropertyListingAcquisition } from "../../../services/patch-property-listing-acquisition.service";
 import { deletePropertyListingAcquisition } from "../../../services/delete-property-listing-acquisition.service";
 
 import {
@@ -423,9 +424,16 @@ function SortableCard({
           columnId,
           index: cardIndex,
         }),
-        onGenerateDragPreview: ({ nativeSetDragImage }) => {
+        onGenerateDragPreview: ({ nativeSetDragImage, source }) => {
+          const sourceRect = (
+            source.element as HTMLElement
+          ).getBoundingClientRect();
           setCustomNativeDragPreview({
             nativeSetDragImage,
+            getOffset: () => ({
+              x: sourceRect.width / 2,
+              y: sourceRect.height / 2,
+            }),
             render({ container }: { container: HTMLElement }) {
               const root = createRoot(container);
               root.render(
@@ -725,23 +733,34 @@ export function Kanban({
           columnTarget && isColumnDragData(columnTarget.data)
             ? columnTarget.data
             : null;
+        const effectiveColumnTarget =
+          columnTarget ?? (cardTarget ? cardTarget : null);
+        const effectiveColumnTargetData =
+          columnTargetData ??
+          (cardTargetData
+            ? {
+                type: "column" as const,
+                columnId: cardTargetData.columnId,
+                index: -1,
+              }
+            : null);
 
         const baseColumns =
           dragSnapshotRef.current ?? latestStateRef.current.columns;
 
         if (isColumnDragData(dragData)) {
-          if (!columnTargetData || !columnTarget) return;
+          if (!effectiveColumnTargetData || !effectiveColumnTarget) return;
 
           const sourceIndex = baseColumns.findIndex(
             (col) => col.id === dragData.columnId
           );
           const destinationIndex = baseColumns.findIndex(
-            (col) => col.id === columnTargetData.columnId
+            (col) => col.id === effectiveColumnTargetData.columnId
           );
           if (sourceIndex === -1 || destinationIndex === -1) return;
 
           const columnRect = (
-            columnTarget.element as HTMLElement
+            effectiveColumnTarget.element as HTMLElement
           ).getBoundingClientRect();
           const isAfter =
             location.current.input.clientX >
@@ -868,9 +887,20 @@ export function Kanban({
           columnTarget && isColumnDragData(columnTarget.data)
             ? columnTarget.data
             : null;
+        const effectiveColumnTarget =
+          columnTarget ?? (cardTarget ? cardTarget : null);
+        const effectiveColumnTargetData =
+          columnTargetData ??
+          (cardTargetData
+            ? {
+                type: "column" as const,
+                columnId: cardTargetData.columnId,
+                index: -1,
+              }
+            : null);
 
         if (isColumnDragData(dragData)) {
-          if (!columnTargetData || !columnTarget) return;
+          if (!effectiveColumnTargetData || !effectiveColumnTarget) return;
 
           const currentColumns =
             dragSnapshotRef.current ?? latestStateRef.current.columns;
@@ -878,13 +908,13 @@ export function Kanban({
             (col) => col.id === dragData.columnId
           );
           const destinationIndex = currentColumns.findIndex(
-            (col) => col.id === columnTargetData.columnId
+            (col) => col.id === effectiveColumnTargetData.columnId
           );
 
           if (sourceIndex === -1 || destinationIndex === -1) return;
 
           const columnRect = (
-            columnTarget.element as HTMLElement
+            effectiveColumnTarget.element as HTMLElement
           ).getBoundingClientRect();
           const isAfter =
             location.current.input.clientX >
@@ -896,18 +926,20 @@ export function Kanban({
 
           if (insertIndex === sourceIndex) return;
 
-          const previousColumns = [...currentColumns];
+          const previousColumns = cloneColumns(currentColumns);
           const reordered = arrayMove(currentColumns, sourceIndex, insertIndex);
           setLocalColumns(reordered);
           dragSnapshotRef.current = null;
 
           const token = latestStateRef.current.token;
           const currentStages = latestStateRef.current.stages;
-          if (token && currentStages) {
-            const stageMap = new Map(currentStages.map((s) => [s.id, s]));
+          if (token) {
+            const stageMap = currentStages
+              ? new Map(currentStages.map((s) => [s.id, s]))
+              : null;
             const updatePromises = reordered.map((col, index) => {
-              const stage = stageMap.get(col.id);
-              if (stage && stage.order !== index + 1) {
+              const stage = stageMap?.get(col.id) ?? null;
+              if (!stage || stage.order !== index + 1) {
                 return patchPropertyListingAcquisitionStage(
                   token,
                   col.id as string,
@@ -1007,6 +1039,7 @@ export function Kanban({
         );
         if (!movedCard) return;
 
+        const previousColumns = cloneColumns(currentColumns);
         setLocalColumns(() =>
           currentColumns.map((col) => {
             if (col.id === sourceColumn.id) {
@@ -1033,6 +1066,21 @@ export function Kanban({
           sourceColumn.id,
           destinationColumn.id
         );
+        const token = latestStateRef.current.token;
+        if (token) {
+          patchPropertyListingAcquisition(dragData.cardId, token, {
+            stageId: destinationColumn.id as string,
+          })
+            .then(() => {
+              clearPropertyListingAcquisitionsStagesCache();
+              return mutateRef.current();
+            })
+            .catch((error) => {
+              console.error("Erro ao mover captação:", error);
+              setLocalColumns(previousColumns);
+              alert("Erro ao mover captação. Tente novamente.");
+            });
+        }
         dragSnapshotRef.current = null;
       },
     });
