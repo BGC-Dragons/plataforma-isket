@@ -1519,26 +1519,35 @@ export function SearchComponent() {
             {/* Contador de Resultados e Controles - Apenas na coluna esquerda */}
             <Box
               sx={{
-                mb: 3,
+                mb: { xs: 2, sm: 3 },
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
                 flexWrap: "wrap",
-                gap: 2,
+                gap: { xs: 1, sm: 2 },
                 backgroundColor: theme.palette.grey[50],
                 borderRadius: 2,
-                p: 2,
+                p: { xs: 1.5, sm: 2 },
                 border: `1px solid ${theme.palette.divider}`,
               }}
             >
-              {/* Contador de Resultados */}
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              {/* Contador de Resultados - uma linha, compacto no mobile */}
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: { xs: 0.5, sm: 1 },
+                  flexShrink: 0,
+                  whiteSpace: "nowrap",
+                }}
+              >
                 <Typography
                   variant="h6"
                   sx={{
                     fontWeight: 700,
                     color: theme.palette.text.primary,
-                    fontSize: "1.1rem",
+                    fontSize: { xs: "0.9375rem", sm: "1.1rem" },
+                    lineHeight: 1.2,
                   }}
                 >
                   {totalProperties}
@@ -1548,7 +1557,8 @@ export function SearchComponent() {
                   sx={{
                     fontWeight: 400,
                     color: theme.palette.text.secondary,
-                    fontSize: "1rem",
+                    fontSize: { xs: "0.8125rem", sm: "1rem" },
+                    lineHeight: 1.2,
                   }}
                 >
                   Imóveis
@@ -1557,7 +1567,7 @@ export function SearchComponent() {
                   sx={{
                     position: "relative",
                     cursor: "pointer",
-                    p: 0.5,
+                    p: { xs: 0.25, sm: 0.5 },
                     borderRadius: 1,
                     "&:hover": {
                       backgroundColor: theme.palette.action.hover,
@@ -1571,14 +1581,15 @@ export function SearchComponent() {
                     size="small"
                     sx={{
                       color: theme.palette.text.secondary,
-                      fontSize: "1rem",
+                      fontSize: { xs: "0.875rem", sm: "1rem" },
+                      padding: { xs: 0.25, sm: 0.5 },
                       "&:hover": {
                         backgroundColor: "transparent",
                         color: theme.palette.text.primary,
                       },
                     }}
                   >
-                    <HelpOutline fontSize="small" />
+                    <HelpOutline sx={{ fontSize: { xs: 18, sm: 20 } }} />
                   </IconButton>
 
                   {/* Popup de Ajuda */}
