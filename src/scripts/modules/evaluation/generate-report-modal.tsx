@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Modal,
   Box,
@@ -46,6 +46,7 @@ import { mapCalculationCriterionToAreaType } from "./evaluation-helpers";
 import { ReportTemplate } from "./report-template";
 import type { IPropertyAd } from "../../../services/post-property-ad-search.service";
 import { useGetMyCompany } from "../../../services/get-my-company.service";
+import { useAuth } from "../access-manager/auth.hook";
 
 interface GenerateReportModalProps {
   open: boolean;
@@ -59,6 +60,17 @@ interface TabPanelProps {
   children?: React.ReactNode;
   index: number;
   value: number;
+}
+
+function formatPhone(value: string): string {
+  const numbers = value.replace(/\D/g, "");
+  if (numbers.length <= 2) return numbers;
+  if (numbers.length <= 7)
+    return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
+  return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(
+    7,
+    11
+  )}`;
 }
 
 function TabPanel(props: TabPanelProps) {
@@ -102,6 +114,13 @@ export function GenerateReportModal({
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
+  const pendingColorsRef = useRef<{
+    primaryColor?: string;
+    secondaryColor?: string;
+  } | null>(null);
+  const colorRafIdRef = useRef<number | null>(null);
+
+  const { store } = useAuth();
   const { data: myCompanyData } = useGetMyCompany();
 
   // Inicializa dados do relatório quando o modal abre (pré-preenche empresa com my-company)
@@ -111,6 +130,9 @@ export function GenerateReportModal({
         selectedProperties,
         reportAreaType
       );
+      // Pré-preenche autor com o nome do usuário da conta
+      initialData.author = store.user?.name || initialData.author;
+
       // Pré-preenche dados da empresa com o já salvo em my-company
       if (myCompanyData) {
         initialData.company = {
@@ -121,10 +143,9 @@ export function GenerateReportModal({
             myCompanyData.profile?.formattedAddress ||
             initialData.company.address ||
             "",
-          phone:
-            myCompanyData.profile?.phoneNumber ||
-            initialData.company.phone ||
-            "",
+          phone: myCompanyData.profile?.phoneNumber
+            ? formatPhone(myCompanyData.profile.phoneNumber)
+            : initialData.company.phone || "",
           email:
             myCompanyData.profile?.email || initialData.company.email || "",
           website:
@@ -148,10 +169,26 @@ export function GenerateReportModal({
   useEffect(() => {
     if (reportData) {
       const summary = calculateSummary(reportData.properties, reportAreaType);
-      setReportData((prev) => (prev ? { ...prev, summary } : null));
+      setReportData((prev) =>
+        prev ? { ...prev, summary, areaType: reportAreaType } : null
+      );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reportData?.properties, reportAreaType]);
+
+  // Cancela rAF do seletor de cores ao fechar o modal
+  useEffect(() => {
+    if (!open && colorRafIdRef.current !== null) {
+      cancelAnimationFrame(colorRafIdRef.current);
+      colorRafIdRef.current = null;
+      pendingColorsRef.current = null;
+    }
+    return () => {
+      if (colorRafIdRef.current !== null) {
+        cancelAnimationFrame(colorRafIdRef.current);
+      }
+    };
+  }, [open]);
 
   const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
@@ -185,6 +222,11 @@ export function GenerateReportModal({
     markAsDirty();
   };
 
+  const handleCompanyPhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhone(e.target.value);
+    handleCompanyChange("phone", formatted);
+  };
+
   const handleAnalysisChange = (field: string, value: string) => {
     if (!reportData) return;
     setReportData((prev) => {
@@ -197,11 +239,42 @@ export function GenerateReportModal({
     markAsDirty();
   };
 
+  const flushPendingColors = useCallback(() => {
+    colorRafIdRef.current = null;
+    const pending = pendingColorsRef.current;
+    if (!pending) return;
+    pendingColorsRef.current = null;
+    setReportData((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        styling: { ...prev.styling, ...pending },
+      };
+    });
+  }, []);
+
+  const scheduleColorUpdate = useCallback(
+    (field: "primaryColor" | "secondaryColor", value: string) => {
+      pendingColorsRef.current = {
+        ...pendingColorsRef.current,
+        [field]: value,
+      };
+      if (colorRafIdRef.current === null) {
+        colorRafIdRef.current = requestAnimationFrame(flushPendingColors);
+      }
+    },
+    [flushPendingColors]
+  );
+
   const handleStylingChange = (
     field: string,
     value: string | boolean | "left" | "center" | "right"
   ) => {
     if (!reportData) return;
+    if (field === "primaryColor" || field === "secondaryColor") {
+      scheduleColorUpdate(field, value as string);
+      return;
+    }
     setReportData((prev) => {
       if (!prev) return null;
       return {
@@ -210,6 +283,26 @@ export function GenerateReportModal({
       };
     });
     markAsDirty();
+  };
+
+  /** Atualização imediata da cor (ex.: ao digitar no campo hex), sem throttle */
+  const handleColorHexChange = (
+    field: "primaryColor" | "secondaryColor",
+    value: string
+  ) => {
+    if (!reportData) return;
+    pendingColorsRef.current = null;
+    if (colorRafIdRef.current !== null) {
+      cancelAnimationFrame(colorRafIdRef.current);
+      colorRafIdRef.current = null;
+    }
+    setReportData((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        styling: { ...prev.styling, [field]: value },
+      };
+    });
   };
 
   const handlePropertyChange = (
@@ -606,9 +699,8 @@ export function GenerateReportModal({
                       fullWidth
                       placeholder="(11) 99999-9999"
                       value={reportData.company.phone || ""}
-                      onChange={(e) =>
-                        handleCompanyChange("phone", e.target.value)
-                      }
+                      onChange={handleCompanyPhoneChange}
+                      inputProps={{ maxLength: 15 }}
                     />
                     <TextField
                       label="E-mail"
@@ -1122,7 +1214,7 @@ export function GenerateReportModal({
                           size="small"
                           value={reportData.styling.primaryColor}
                           onChange={(e) =>
-                            handleStylingChange("primaryColor", e.target.value)
+                            handleColorHexChange("primaryColor", e.target.value)
                           }
                           placeholder="#262353"
                         />
@@ -1160,7 +1252,7 @@ export function GenerateReportModal({
                           size="small"
                           value={reportData.styling.secondaryColor}
                           onChange={(e) =>
-                            handleStylingChange(
+                            handleColorHexChange(
                               "secondaryColor",
                               e.target.value
                             )

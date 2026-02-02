@@ -27,16 +27,27 @@ export function ReportTemplate({ reportData }: ReportTemplateProps) {
     (p) => p.includeInReport
   );
 
+  const fontFamily = reportData.styling.fontFamily;
+  const areaType = reportData.areaType ?? "TOTAL";
+  const isUsableArea = areaType === "USABLE";
+  const areaLabel = isUsableArea ? "Área Útil" : "Área Total";
+  const averageAreaValue = isUsableArea
+    ? reportData.summary.averageUsableArea
+    : reportData.summary.averageTotalArea;
+
   return (
     <Box
       sx={{
         maxWidth: "896px",
         width: "100%",
         backgroundColor: "#ffffff",
-        fontFamily: reportData.styling.fontFamily,
+        fontFamily,
         color: "#000000",
         p: 4,
         boxShadow: theme.shadows[4],
+        "& *, & *::before, & *::after": {
+          fontFamily: "inherit",
+        },
       }}
     >
       {/* Header */}
@@ -241,7 +252,8 @@ export function ReportTemplate({ reportData }: ReportTemplateProps) {
           </Typography>
           <Typography variant="body1">
             Estimativa baseada em{" "}
-            {formatCurrency(reportData.summary.averagePricePerM2)}/m²
+            {formatCurrency(reportData.summary.averagePricePerM2)}/m² (
+            {areaLabel})
           </Typography>
         </Paper>
 
@@ -267,15 +279,15 @@ export function ReportTemplate({ reportData }: ReportTemplateProps) {
               {formatCurrency(reportData.summary.averagePricePerM2)}
             </Typography>
             <Typography variant="body2" sx={{ color: "text.secondary" }}>
-              Preço/m² médio
+              Preço/m² médio ({areaLabel})
             </Typography>
           </Paper>
           <Paper sx={{ p: 2, textAlign: "center" }}>
             <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>
-              {Math.round(reportData.summary.averageUsableArea)}m²
+              {Math.round(averageAreaValue)}m²
             </Typography>
             <Typography variant="body2" sx={{ color: "text.secondary" }}>
-              Área útil média
+              {areaLabel} média
             </Typography>
           </Paper>
         </Box>
@@ -312,7 +324,7 @@ export function ReportTemplate({ reportData }: ReportTemplateProps) {
           </Paper>
           <Paper sx={{ p: 2 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-              Faixa de Área Útil
+              Faixa de {areaLabel}
             </Typography>
             <Typography variant="body2">
               Menor: {reportData.summary.areaRange.min}m²

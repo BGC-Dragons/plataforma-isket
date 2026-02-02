@@ -79,6 +79,8 @@ export interface ReportData {
   summary: ReportSummary;
   analysis: ReportAnalysis;
   styling: ReportStyling;
+  /** Base do resumo: "USABLE" (área útil) ou "TOTAL" (área total) */
+  areaType?: "USABLE" | "TOTAL" | "BUILT";
 }
 
 /**
@@ -191,6 +193,7 @@ export function createInitialReportData(
       showCompanyInfo: true,
       showAnalysis: true,
     },
+    areaType: areaType === "BUILT" ? "TOTAL" : areaType,
   };
 }
 
@@ -341,6 +344,13 @@ function generatePrintableHTML(reportData: ReportData): string {
   const includedProperties = reportData.properties.filter(
     (p) => p.includeInReport
   );
+
+  const areaType = reportData.areaType ?? "TOTAL";
+  const isUsableArea = areaType === "USABLE";
+  const areaLabel = isUsableArea ? "Área Útil" : "Área Total";
+  const averageAreaValue = isUsableArea
+    ? reportData.summary.averageUsableArea
+    : reportData.summary.averageTotalArea;
 
   // CSS inline completo
   const css = `
@@ -864,7 +874,7 @@ function generatePrintableHTML(reportData: ReportData): string {
       <div class="evaluation-label">VALOR DE AVALIAÇÃO</div>
       <div>Estimativa baseada em ${formatCurrency(
         reportData.summary.averagePricePerM2
-      )}/m²</div>
+      )}/m² (${areaLabel})</div>
     </div>
     <div class="metrics-grid">
       <div class="metric-card">
@@ -875,13 +885,11 @@ function generatePrintableHTML(reportData: ReportData): string {
         <div class="metric-value">${formatCurrency(
           reportData.summary.averagePricePerM2
         )}</div>
-        <div class="metric-label">Preço/m² médio</div>
+        <div class="metric-label">Preço/m² médio (${areaLabel})</div>
       </div>
       <div class="metric-card">
-        <div class="metric-value">${Math.round(
-          reportData.summary.averageUsableArea
-        )}m²</div>
-        <div class="metric-label">Área útil média</div>
+        <div class="metric-value">${Math.round(averageAreaValue)}m²</div>
+        <div class="metric-label">${areaLabel} média</div>
       </div>
     </div>
     <div class="ranges-grid">
@@ -897,7 +905,7 @@ function generatePrintableHTML(reportData: ReportData): string {
         </div>
       </div>
       <div class="range-card">
-        <div class="range-title">Faixa de Área Útil</div>
+        <div class="range-title">Faixa de ${areaLabel}</div>
         <div>Menor: ${reportData.summary.areaRange.min}m²</div>
         <div>Maior: ${reportData.summary.areaRange.max}m²</div>
         <div style="margin-top: 8px; font-weight: 500;">
