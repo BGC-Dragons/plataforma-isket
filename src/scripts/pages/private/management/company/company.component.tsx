@@ -8,17 +8,25 @@ import {
   Avatar,
   Alert,
   CircularProgress,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
-import { Business, Save } from "@mui/icons-material";
+import { Business, Save, PhotoCamera } from "@mui/icons-material";
 import { useAuth } from "../../../../modules/access-manager/auth.hook";
 import {
   useGetMyCompany,
+  clearMyCompanyCache,
+  getMyCompanyPATH,
   type IGetMyCompanyResponseSuccess,
 } from "../../../../../services/get-my-company.service";
 import {
   patchMyCompany,
   type IPatchMyCompanyRequest,
 } from "../../../../../services/patch-my-company.service";
+import {
+  uploadProfilePhoto,
+  type IUploadProfilePhotoResult,
+} from "../../../../../services/helpers/upload-profile-photo.helper";
 
 export function CompanySection() {
   const theme = useTheme();
@@ -36,10 +44,16 @@ export function CompanySection() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   // Data via SWR
-  const { data: companyDataSWR, error: companyError, isLoading: isLoadingSWR } = useGetMyCompany();
-  
+  const {
+    data: companyDataSWR,
+    error: companyError,
+    isLoading: isLoadingSWR,
+  } = useGetMyCompany();
+
   useEffect(() => {
     if (companyDataSWR) {
       setCompanyData(companyDataSWR);
@@ -89,6 +103,129 @@ export function CompanySection() {
     setFormData((prev) => ({ ...prev, [field]: formattedValue }));
   };
 
+  const convertImageToJpg = (file: File): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      const img = new Image();
+
+      img.onload = () => {
+        const maxSize = 800;
+        let { width, height } = img;
+
+        if (width > maxSize || height > maxSize) {
+          if (width > height) {
+            height = (height * maxSize) / width;
+            width = maxSize;
+          } else {
+            width = (width * maxSize) / height;
+            height = maxSize;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        ctx?.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              resolve(new File([blob], "profile.jpg", { type: "image/jpeg" }));
+            } else {
+              reject(new Error("Erro ao converter imagem"));
+            }
+          },
+          "image/jpeg",
+          0.9
+        );
+      };
+
+      img.onerror = () => reject(new Error("Erro ao carregar imagem"));
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  const handlePhotoUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file || !store.token || !companyData) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("Por favor, selecione apenas arquivos de imagem.");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert("A imagem deve ter no máximo 5MB.");
+      return;
+    }
+
+    setIsUploadingPhoto(true);
+    setError(null);
+
+    try {
+      const jpgFile = await convertImageToJpg(file);
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPhotoPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(jpgFile);
+
+      const uploadResult: IUploadProfilePhotoResult = await uploadProfilePhoto(
+        store.token,
+        jpgFile,
+        companyData.id,
+        companyData.accountId,
+        "COMPANY_PROFILE_IMG"
+      );
+
+      if (uploadResult.success) {
+        const updateData: IPatchMyCompanyRequest = {
+          profile: {
+            imageURL: uploadResult.publicUrl,
+            ...(formData.phoneNumber?.replace(/\D/g, "") && {
+              phoneNumber: formData.phoneNumber.replace(/\D/g, ""),
+            }),
+            ...(formData.site?.trim() && { site: formData.site.trim() }),
+            ...(formData.formattedAddress?.trim() && {
+              formattedAddress: formData.formattedAddress.trim(),
+            }),
+          },
+        };
+
+        await patchMyCompany(store.token, updateData);
+
+        clearMyCompanyCache();
+
+        setCompanyData((prev) =>
+          prev
+            ? {
+                ...prev,
+                profile: {
+                  ...prev.profile,
+                  imageURL: uploadResult.publicUrl,
+                },
+              }
+            : null
+        );
+        setPhotoPreview(null);
+        setSuccess("Logotipo atualizado com sucesso!");
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(`Erro no upload: ${uploadResult.error}`);
+        setPhotoPreview(null);
+      }
+    } catch (err) {
+      console.error("Erro ao fazer upload do logotipo:", err);
+      setError("Erro ao fazer upload do logotipo. Tente novamente.");
+      setPhotoPreview(null);
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!store.token) return;
 
@@ -100,9 +237,12 @@ export function CompanySection() {
       const updateData: IPatchMyCompanyRequest = {
         name: formData.name,
         profile: {
-          phoneNumber: formData.phoneNumber.replace(/\D/g, ""), // Remove formatação
+          phoneNumber: formData.phoneNumber.replace(/\D/g, ""),
           site: formData.site,
           formattedAddress: formData.formattedAddress,
+          ...(companyData?.profile?.imageURL && {
+            imageURL: companyData.profile.imageURL,
+          }),
         },
       };
 
@@ -171,18 +311,59 @@ export function CompanySection() {
       >
         {/* Header com logo e informações da empresa */}
         <Box sx={{ display: "flex", alignItems: "center", mb: 4 }}>
-          <Avatar
-            src={companyData?.profile?.imageURL}
-            sx={{
-              bgcolor: theme.palette.primary.main,
-              mr: 2,
-              width: 60,
-              height: 60,
-              fontSize: "1.5rem",
-            }}
-          >
-            {companyData?.name?.charAt(0)?.toUpperCase() || <Business />}
-          </Avatar>
+          <Box sx={{ position: "relative", mr: 2 }}>
+            <Avatar
+              src={photoPreview || companyData?.profile?.imageURL}
+              sx={{
+                bgcolor: theme.palette.primary.main,
+                width: 60,
+                height: 60,
+                fontSize: "1.5rem",
+                cursor: "pointer",
+                "&:hover": { opacity: 0.8 },
+              }}
+            >
+              {companyData?.name?.charAt(0)?.toUpperCase() || <Business />}
+            </Avatar>
+
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handlePhotoUpload}
+              style={{ display: "none" }}
+              id="company-logo-upload"
+              disabled={isUploadingPhoto}
+            />
+
+            <Tooltip title="Alterar logotipo">
+              <IconButton
+                component="label"
+                htmlFor="company-logo-upload"
+                disabled={isUploadingPhoto}
+                sx={{
+                  position: "absolute",
+                  bottom: -5,
+                  right: -5,
+                  bgcolor: theme.palette.primary.main,
+                  color: "white",
+                  width: 32,
+                  height: 32,
+                  "&:hover": {
+                    bgcolor: theme.palette.primary.dark,
+                  },
+                  "&:disabled": {
+                    bgcolor: theme.palette.action.disabled,
+                  },
+                }}
+              >
+                {isUploadingPhoto ? (
+                  <CircularProgress size={16} color="inherit" />
+                ) : (
+                  <PhotoCamera sx={{ fontSize: 16 }} />
+                )}
+              </IconButton>
+            </Tooltip>
+          </Box>
           <Box sx={{ flex: 1 }}>
             <Typography
               variant="h6"
