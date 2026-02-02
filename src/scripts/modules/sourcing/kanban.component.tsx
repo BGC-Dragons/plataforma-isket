@@ -783,6 +783,7 @@ export function Kanban({
 }: KanbanProps) {
   const theme = useTheme();
   const auth = useAuth();
+  const boardRef = useRef<HTMLDivElement | null>(null);
   const {
     data: stages,
     error,
@@ -840,6 +841,15 @@ export function Kanban({
   });
   const mutateRef = useRef(mutate);
   const [instanceId] = useState(() => Symbol("instance-id"));
+  const autoScrollRef = useRef<{
+    rafId: number | null;
+    clientX: number;
+    active: boolean;
+  }>({
+    rafId: null,
+    clientX: 0,
+    active: false,
+  });
 
   // Função para normalizar texto (remover acentos e espaços extras)
   const normalizeText = (text: string): string => {
@@ -1250,10 +1260,52 @@ export function Kanban({
             setDraggingColumnId(data.columnId);
           }
         },
+        onDrag({ location }) {
+          const board = boardRef.current;
+          if (!board) {
+            return;
+          }
+          autoScrollRef.current.clientX = location.current.input.clientX;
+          if (autoScrollRef.current.active) {
+            return;
+          }
+          autoScrollRef.current.active = true;
+          const tick = () => {
+            const state = autoScrollRef.current;
+            const target = boardRef.current;
+            if (!state.active || !target) {
+              state.rafId = null;
+              return;
+            }
+            const rect = target.getBoundingClientRect();
+            const edgeThreshold = 48;
+            const maxSpeed = 18;
+            const leftDistance = state.clientX - rect.left;
+            const rightDistance = rect.right - state.clientX;
+            let delta = 0;
+            if (leftDistance < edgeThreshold) {
+              const strength = (edgeThreshold - leftDistance) / edgeThreshold;
+              delta = -Math.ceil(maxSpeed * strength);
+            } else if (rightDistance < edgeThreshold) {
+              const strength = (edgeThreshold - rightDistance) / edgeThreshold;
+              delta = Math.ceil(maxSpeed * strength);
+            }
+            if (delta !== 0) {
+              target.scrollLeft += delta;
+            }
+            state.rafId = requestAnimationFrame(tick);
+          };
+          autoScrollRef.current.rafId = requestAnimationFrame(tick);
+        },
         onDrop({ location, source }) {
           setIsDraggingCard(false);
           setDraggingCardId(null);
           setDraggingColumnId(null);
+          autoScrollRef.current.active = false;
+          if (autoScrollRef.current.rafId !== null) {
+            cancelAnimationFrame(autoScrollRef.current.rafId);
+            autoScrollRef.current.rafId = null;
+          }
 
           if (!location.current.dropTargets.length) {
             return;
@@ -1555,6 +1607,7 @@ export function Kanban({
   return (
     <>
       <Box
+        ref={boardRef}
         sx={{
           display: "flex",
           gap: 2,
