@@ -563,6 +563,10 @@ export function AnalysesComponent() {
         }
       }
 
+      // Sinalizar que applyFilters já está tratando a chamada de loadAnalyticsData
+      // para evitar que o useEffect de neighborhoodsData/citiesData dispare duplicado
+      skipNextAnalyticsReloadRef.current = true;
+
       // Buscar dados de análises com bounds corretos
       await loadAnalyticsData(
         effectiveFilters,
@@ -645,6 +649,9 @@ export function AnalysesComponent() {
     setNeighborhoodsData(selectedNeighborhoods);
   }, [currentFilters, allNeighborhoodsForBounds]);
 
+  // Ref para evitar que o useEffect abaixo dispare logo após applyFilters já ter chamado loadAnalyticsData
+  const skipNextAnalyticsReloadRef = useRef(false);
+
   // Efeito para recarregar dados de análises quando neighborhoodsData ou citiesData mudarem
   // Isso garante que cityBounds seja recalculado corretamente quando bairros são selecionados
   // Usar ref para evitar recarregamentos desnecessários
@@ -673,6 +680,12 @@ export function AnalysesComponent() {
     ) {
       lastNeighborhoodsKeyRef.current = neighborhoodsKey;
       lastCitiesKeyRef.current = citiesKey;
+
+      // Pular se applyFilters já chamou loadAnalyticsData
+      if (skipNextAnalyticsReloadRef.current) {
+        skipNextAnalyticsReloadRef.current = false;
+        return;
+      }
 
       // Recarregar dados com bounds atualizados
       loadAnalyticsData(currentFilters, citiesData, neighborhoodsData);
