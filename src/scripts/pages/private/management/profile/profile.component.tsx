@@ -219,10 +219,20 @@ export function ProfileSection() {
           uploadResult.publicUrl
         );
 
-        // Atualizar perfil com a nova URL da foto
+        // Atualizar perfil com a nova URL da foto, preservando dados do formulário
+        // (usa profileData pois o backend pode ter devolvido profile com nulls após PATCH anterior)
         const updateData: IPatchProfileRequest = {
           profile: {
             imageURL: uploadResult.publicUrl,
+            ...(profileData.email?.trim() && {
+              email: profileData.email.trim(),
+            }),
+            ...(profileData.phone?.replace(/\D/g, "") && {
+              phoneNumber: profileData.phone.replace(/\D/g, ""),
+            }),
+            ...(profileData.address?.trim() && {
+              formattedAddress: profileData.address.trim(),
+            }),
           },
         };
 
@@ -260,12 +270,15 @@ export function ProfileSection() {
       // Debug: Verificar dados antes do envio
       console.log("🔍 Debug - profileData antes do envio:", profileData);
 
-      // Preparar dados para envio
+      // Preparar dados para envio (incluir imageURL se existir para não perder a foto)
       const updateData: IPatchProfileRequest = {
         profile: {
           email: profileData.email,
           phoneNumber: profileData.phone.replace(/\D/g, ""), // Remove formatação
           formattedAddress: profileData.address,
+          ...(profileInfo?.profile?.imageURL && {
+            imageURL: profileInfo.profile.imageURL,
+          }),
         },
       };
 
