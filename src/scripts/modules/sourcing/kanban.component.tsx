@@ -49,6 +49,15 @@ import {
 } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine";
 import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview";
+import { triggerPostMoveFlash } from "@atlaskit/pragmatic-drag-and-drop-flourish/trigger-post-move-flash";
+import { reorder } from "@atlaskit/pragmatic-drag-and-drop/reorder";
+import {
+  attachClosestEdge,
+  extractClosestEdge,
+} from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
+import type { Edge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/types";
+import { getReorderDestinationIndex } from "@atlaskit/pragmatic-drag-and-drop-hitbox/util/get-reorder-destination-index";
+import * as liveRegion from "@atlaskit/pragmatic-drag-and-drop-live-region";
 
 export type ColumnId =
   | "property-sourcing"
@@ -109,46 +118,121 @@ const defaultColumns: KanbanColumn[] = [
   },
 ];
 
+const COLUMN_WIDTH = 280;
+
 type DragItemData =
   | {
       type: "card";
-      cardId: string;
+      itemId: string;
       columnId: ColumnId;
-      index: number;
+      instanceId: symbol;
     }
   | {
       type: "column";
       columnId: ColumnId;
-      index: number;
+      instanceId: symbol;
     };
 
 const isCardDragData = (
   data: Record<string, unknown>
 ): data is Extract<DragItemData, { type: "card" }> =>
   data.type === "card" &&
-  typeof data.cardId === "string" &&
+  typeof data.itemId === "string" &&
   typeof data.columnId === "string" &&
-  typeof data.index === "number";
+  typeof data.instanceId === "symbol";
 
 const isColumnDragData = (
   data: Record<string, unknown>
 ): data is Extract<DragItemData, { type: "column" }> =>
   data.type === "column" &&
   typeof data.columnId === "string" &&
-  typeof data.index === "number";
+  typeof data.instanceId === "symbol";
 
-const arrayMove = <T,>(list: T[], fromIndex: number, toIndex: number): T[] => {
-  const next = list.slice();
-  const [moved] = next.splice(fromIndex, 1);
-  next.splice(toIndex, 0, moved);
-  return next;
+function invariant(condition: unknown, message: string): asserts condition {
+  if (!condition) {
+    throw new Error(message);
+  }
+}
+
+type Outcome =
+  | {
+      type: "column-reorder";
+      columnId: string;
+      startIndex: number;
+      finishIndex: number;
+    }
+  | {
+      type: "card-reorder";
+      columnId: string;
+      startIndex: number;
+      finishIndex: number;
+    }
+  | {
+      type: "card-move";
+      finishColumnId: string;
+      itemIndexInStartColumn: number;
+      itemIndexInFinishColumn: number;
+    };
+
+type Trigger = "pointer" | "keyboard";
+
+type Operation = {
+  trigger: Trigger;
+  outcome: Outcome;
 };
 
-const findColumnByCardId = (
-  columns: KanbanColumn[],
-  cardId: string
-): KanbanColumn | undefined =>
-  columns.find((col) => col.cards.some((card) => card.id === cardId));
+type CardRegistryEntry = {
+  element: HTMLElement;
+  focusTarget: HTMLElement;
+};
+
+type ColumnRegistryEntry = {
+  element: HTMLElement;
+};
+
+function createRegistry() {
+  const cardMap = new Map<string, CardRegistryEntry>();
+  const columnMap = new Map<string, ColumnRegistryEntry>();
+
+  return {
+    registerCard({
+      cardId,
+      element,
+      focusTarget,
+    }: {
+      cardId: string;
+      element: HTMLElement;
+      focusTarget: HTMLElement;
+    }) {
+      cardMap.set(cardId, { element, focusTarget });
+      return () => {
+        cardMap.delete(cardId);
+      };
+    },
+    registerColumn({
+      columnId,
+      element,
+    }: {
+      columnId: string;
+      element: HTMLElement;
+    }) {
+      columnMap.set(columnId, { element });
+      return () => {
+        columnMap.delete(columnId);
+      };
+    },
+    getCard(cardId: string) {
+      const entry = cardMap.get(cardId);
+      invariant(entry, `Card not registered: ${cardId}`);
+      return entry;
+    },
+    getColumn(columnId: string) {
+      const entry = columnMap.get(columnId);
+      invariant(entry, `Column not registered: ${columnId}`);
+      return entry;
+    },
+  };
+}
 
 const cloneColumns = (columns: KanbanColumn[]): KanbanColumn[] =>
   columns.map((col) => ({
@@ -159,16 +243,18 @@ const cloneColumns = (columns: KanbanColumn[]): KanbanColumn[] =>
 // Componente wrapper para tornar coluna arrastável
 function SortableColumnWrapper({
   column,
-  columnIndex,
   onCardDelete,
   onCardClick,
   onMenuOpen,
   isDraggingCard,
   isDraggingColumn,
   draggingCardId,
+  registerColumn,
+  registerCard,
+  instanceId,
+  isLast,
 }: {
   column: KanbanColumn;
-  columnIndex: number;
   onCardDelete: (cardId: string, columnId: ColumnId) => void;
   onCardClick?: (card: KanbanCardData) => void;
   onMenuOpen?: (
@@ -178,9 +264,15 @@ function SortableColumnWrapper({
   isDraggingCard?: boolean;
   isDraggingColumn?: boolean;
   draggingCardId?: string | null;
+  registerColumn: ReturnType<typeof createRegistry>["registerColumn"];
+  registerCard: ReturnType<typeof createRegistry>["registerCard"];
+  instanceId: symbol;
+  isLast?: boolean;
 }) {
+  const theme = useTheme();
   const columnRef = useRef<HTMLDivElement | null>(null);
   const headerRef = useRef<HTMLDivElement | null>(null);
+  const [closestEdge, setClosestEdge] = useState<Edge | null>(null);
 
   useEffect(() => {
     const element = columnRef.current;
@@ -193,7 +285,7 @@ function SortableColumnWrapper({
         getInitialData: () => ({
           type: "column",
           columnId: column.id,
-          index: columnIndex,
+          instanceId,
         }),
         onGenerateDragPreview: ({ nativeSetDragImage }) => {
           setCustomNativeDragPreview({
@@ -208,25 +300,70 @@ function SortableColumnWrapper({
       }),
       dropTargetForElements({
         element,
-        getData: () => ({
-          type: "column",
-          columnId: column.id,
-          index: columnIndex,
-        }),
+        getData: ({ input, element }) =>
+          attachClosestEdge(
+            {
+              type: "column",
+              columnId: column.id,
+              instanceId,
+            },
+            {
+              input,
+              element,
+              allowedEdges: ["left", "right"],
+            }
+          ),
+        onDragEnter: (args) => {
+          setClosestEdge(extractClosestEdge(args.self.data));
+        },
+        onDropTargetChange: (args) => {
+          setClosestEdge(extractClosestEdge(args.self.data));
+        },
+        onDragLeave: () => {
+          setClosestEdge(null);
+        },
+        onDrop: () => {
+          setClosestEdge(null);
+        },
       })
     );
-  }, [column.id, columnIndex, column]);
+  }, [column.id, column, instanceId]);
+
+  useEffect(() => {
+    const element = columnRef.current;
+    if (!element) return;
+    return registerColumn({ columnId: column.id, element });
+  }, [column.id, registerColumn]);
 
   return (
     <Box
       ref={columnRef}
       sx={{
         flexShrink: 0,
-        minWidth: 300,
+        minWidth: COLUMN_WIDTH,
+        height: "100%",
+        minHeight: 0,
         opacity: isDraggingColumn ? 0.5 : 1,
         transition: "opacity 0.2s ease",
+        borderRight: isLast ? "none" : `1px solid ${theme.palette.divider}`,
+        pr: 2,
+        position: "relative",
       }}
     >
+      {closestEdge ? (
+        <Box
+          sx={{
+            position: "absolute",
+            top: 0,
+            bottom: 0,
+            width: 2,
+            backgroundColor: theme.palette.primary.main,
+            borderRadius: 1,
+            left: closestEdge === "left" ? -4 : "auto",
+            right: closestEdge === "right" ? -4 : "auto",
+          }}
+        />
+      ) : null}
       <SortableColumn
         column={column}
         onCardDelete={onCardDelete}
@@ -235,6 +372,8 @@ function SortableColumnWrapper({
         headerRef={headerRef}
         isDraggingCard={isDraggingCard}
         draggingCardId={draggingCardId}
+        registerCard={registerCard}
+        instanceId={instanceId}
       />
     </Box>
   );
@@ -249,6 +388,8 @@ function SortableColumn({
   headerRef,
   isDraggingCard,
   draggingCardId,
+  registerCard,
+  instanceId,
 }: {
   column: KanbanColumn;
   onCardDelete: (cardId: string, columnId: ColumnId) => void;
@@ -260,17 +401,20 @@ function SortableColumn({
   headerRef?: React.Ref<HTMLDivElement>;
   isDraggingCard?: boolean;
   draggingCardId?: string | null;
+  registerCard: ReturnType<typeof createRegistry>["registerCard"];
+  instanceId: symbol;
 }) {
   const theme = useTheme();
 
   return (
     <Box
       sx={{
-        width: 300,
+        width: COLUMN_WIDTH,
         display: "flex",
         flexDirection: "column",
         height: "100%",
         maxHeight: "100%",
+        minHeight: 0,
         borderRadius: 2,
         transition: "background-color 0.2s ease",
         overflow: "hidden",
@@ -280,6 +424,8 @@ function SortableColumn({
       <Paper
         elevation={2}
         ref={headerRef}
+        tabIndex={0}
+        role="button"
         sx={{
           p: 2,
           mb: 2,
@@ -373,16 +519,17 @@ function SortableColumn({
         }}
       >
         <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
-          {column.cards.map((card, index) => (
+          {column.cards.map((card) => (
             <SortableCard
               key={card.id}
               card={card}
               columnId={column.id}
-              cardIndex={index}
               onDelete={onCardDelete}
               onClick={onCardClick}
               isDraggingCard={isDraggingCard}
               isDraggingSelf={draggingCardId === card.id}
+              registerCard={registerCard}
+              instanceId={instanceId}
             />
           ))}
         </Box>
@@ -395,21 +542,25 @@ function SortableColumn({
 function SortableCard({
   card,
   columnId,
-  cardIndex,
   onDelete,
   onClick,
   isDraggingCard,
   isDraggingSelf,
+  registerCard,
+  instanceId,
 }: {
   card: KanbanCardData;
   columnId: ColumnId;
-  cardIndex: number;
   onDelete: (cardId: string, columnId: ColumnId) => void;
   onClick?: (card: KanbanCardData) => void;
   isDraggingCard?: boolean;
   isDraggingSelf?: boolean;
+  registerCard: ReturnType<typeof createRegistry>["registerCard"];
+  instanceId: symbol;
 }) {
+  const theme = useTheme();
   const cardRef = useRef<HTMLDivElement | null>(null);
+  const [closestEdge, setClosestEdge] = useState<Edge | null>(null);
 
   useEffect(() => {
     const element = cardRef.current;
@@ -420,9 +571,9 @@ function SortableCard({
         element,
         getInitialData: () => ({
           type: "card",
-          cardId: card.id,
+          itemId: card.id,
           columnId,
-          index: cardIndex,
+          instanceId,
         }),
         onGenerateDragPreview: ({ nativeSetDragImage, source }) => {
           const sourceRect = (
@@ -437,7 +588,7 @@ function SortableCard({
             render({ container }: { container: HTMLElement }) {
               const root = createRoot(container);
               root.render(
-                <Box sx={{ width: 280 }}>
+                <Box sx={{ width: COLUMN_WIDTH }}>
                   <KanbanCard card={card} />
                 </Box>
               );
@@ -448,18 +599,48 @@ function SortableCard({
       }),
       dropTargetForElements({
         element,
-        getData: () => ({
-          type: "card",
-          cardId: card.id,
-          columnId,
-          index: cardIndex,
-        }),
+        getData: ({ input, element }) =>
+          attachClosestEdge(
+            {
+              type: "card",
+              itemId: card.id,
+              columnId,
+              instanceId,
+            },
+            {
+              input,
+              element,
+              allowedEdges: ["top", "bottom"],
+            }
+          ),
         canDrop: ({ source }) => {
           return isCardDragData(source.data);
         },
+        onDragEnter: (args) => {
+          setClosestEdge(extractClosestEdge(args.self.data));
+        },
+        onDropTargetChange: (args) => {
+          setClosestEdge(extractClosestEdge(args.self.data));
+        },
+        onDragLeave: () => {
+          setClosestEdge(null);
+        },
+        onDrop: () => {
+          setClosestEdge(null);
+        },
       })
     );
-  }, [card, cardIndex, columnId]);
+  }, [card, columnId, instanceId]);
+
+  useEffect(() => {
+    const element = cardRef.current;
+    if (!element) return;
+    return registerCard({
+      cardId: card.id,
+      element,
+      focusTarget: element,
+    });
+  }, [card.id, registerCard]);
 
   // Criar handler de clique que verifica se não está arrastando
   const handleClick = (clickedCard: KanbanCardData) => {
@@ -471,13 +652,29 @@ function SortableCard({
   return (
     <div
       ref={cardRef}
+      tabIndex={0}
       style={{
+        position: "relative",
         opacity: isDraggingSelf ? 0.3 : 1,
         transition: "opacity 0.2s ease",
         touchAction: "manipulation",
         userSelect: "none",
       }}
     >
+      {closestEdge ? (
+        <div
+          style={{
+            position: "absolute",
+            left: 8,
+            right: 8,
+            height: 2,
+            backgroundColor: theme.palette.primary.main,
+            borderRadius: 2,
+            top: closestEdge === "top" ? -2 : "auto",
+            bottom: closestEdge === "bottom" ? -2 : "auto",
+          }}
+        />
+      ) : null}
       <KanbanCard
         card={card}
         onDelete={(id) => onDelete(id, columnId)}
@@ -491,7 +688,7 @@ function ColumnPreview({ column }: { column: KanbanColumn }) {
   return (
     <Box
       sx={{
-        width: 300,
+        width: COLUMN_WIDTH,
         borderRadius: 2,
         backgroundColor: column.color,
         p: 2,
@@ -592,13 +789,21 @@ export function Kanban({
     isLoading,
     mutate,
   } = useGetPropertyListingAcquisitionsStages();
-  const [localColumns, setLocalColumns] = useState<KanbanColumn[]>([]);
+  const [boardState, setBoardState] = useState<{
+    columns: KanbanColumn[];
+    lastOperation: Operation | null;
+  }>({
+    columns: [],
+    lastOperation: null,
+  });
+  const { columns: localColumns, lastOperation } = boardState;
+  const stableColumnsRef = useRef<KanbanColumn[]>(localColumns);
+  const [registry] = useState(createRegistry);
   const [isDraggingCard, setIsDraggingCard] = useState(false);
   const [draggingCardId, setDraggingCardId] = useState<string | null>(null);
   const [draggingColumnId, setDraggingColumnId] = useState<ColumnId | null>(
     null
   );
-  const dragSnapshotRef = useRef<KanbanColumn[] | null>(null);
   const [menuAnchor, setMenuAnchor] = useState<{
     element: HTMLElement;
     columnId: ColumnId;
@@ -634,6 +839,7 @@ export function Kanban({
     onCardMove,
   });
   const mutateRef = useRef(mutate);
+  const [instanceId] = useState(() => Symbol("instance-id"));
 
   // Função para normalizar texto (remover acentos e espaços extras)
   const normalizeText = (text: string): string => {
@@ -662,9 +868,9 @@ export function Kanban({
             return cardTitle.includes(searchNormalized);
           }),
         }));
-        setLocalColumns(filtered);
+        setBoardState((prev) => ({ ...prev, columns: filtered }));
       } else {
-        setLocalColumns(mappedColumns);
+        setBoardState((prev) => ({ ...prev, columns: mappedColumns }));
       }
     } else if (propsColumns) {
       // Fallback para props se não houver dados da API
@@ -679,14 +885,18 @@ export function Kanban({
             return cardTitle.includes(searchNormalized);
           }),
         }));
-        setLocalColumns(filtered);
+        setBoardState((prev) => ({ ...prev, columns: filtered }));
       } else {
-        setLocalColumns(propsColumns);
+        setBoardState((prev) => ({ ...prev, columns: propsColumns }));
       }
     } else {
-      setLocalColumns(defaultColumns);
+      setBoardState((prev) => ({ ...prev, columns: defaultColumns }));
     }
   }, [stages, propsColumns, searchQuery]);
+
+  useEffect(() => {
+    stableColumnsRef.current = localColumns;
+  }, [localColumns]);
 
   useEffect(() => {
     latestStateRef.current = {
@@ -702,389 +912,487 @@ export function Kanban({
   }, [mutate]);
 
   useEffect(() => {
-    return monitorForElements({
-      onDragStart: ({ source }) => {
-        const data = source.data as Record<string, unknown>;
-        dragSnapshotRef.current = cloneColumns(latestStateRef.current.columns);
-        if (isCardDragData(data)) {
-          setIsDraggingCard(true);
-          setDraggingCardId(data.cardId);
-        }
-        if (isColumnDragData(data)) {
-          setDraggingColumnId(data.columnId);
-        }
-      },
-      onDropTargetChange: ({ source, location }) => {
-        const dragData = source.data as Record<string, unknown>;
-        const dropTargets = location.current.dropTargets;
-        if (!dropTargets.length) return;
+    if (lastOperation === null) {
+      return;
+    }
 
-        const cardTarget = dropTargets.find((target) =>
-          isCardDragData(target.data)
-        );
-        const columnTarget = dropTargets.find((target) =>
-          isColumnDragData(target.data)
-        );
-        const cardTargetData =
-          cardTarget && isCardDragData(cardTarget.data)
-            ? cardTarget.data
-            : null;
-        const columnTargetData =
-          columnTarget && isColumnDragData(columnTarget.data)
-            ? columnTarget.data
-            : null;
-        const effectiveColumnTarget =
-          columnTarget ?? (cardTarget ? cardTarget : null);
-        const effectiveColumnTargetData =
-          columnTargetData ??
-          (cardTargetData
-            ? {
-                type: "column" as const,
-                columnId: cardTargetData.columnId,
-                index: -1,
-              }
-            : null);
+    const { outcome, trigger } = lastOperation;
 
-        const baseColumns =
-          dragSnapshotRef.current ?? latestStateRef.current.columns;
+    if (outcome.type === "column-reorder") {
+      const { startIndex, finishIndex } = outcome;
+      const columns = stableColumnsRef.current;
+      const sourceColumn = columns[finishIndex];
+      if (!sourceColumn) {
+        return;
+      }
 
-        if (isColumnDragData(dragData)) {
-          if (!effectiveColumnTargetData || !effectiveColumnTarget) return;
+      const entry = registry.getColumn(sourceColumn.id);
+      triggerPostMoveFlash(entry.element);
 
-          const sourceIndex = baseColumns.findIndex(
-            (col) => col.id === dragData.columnId
-          );
-          const destinationIndex = baseColumns.findIndex(
-            (col) => col.id === effectiveColumnTargetData.columnId
-          );
-          if (sourceIndex === -1 || destinationIndex === -1) return;
+      liveRegion.announce(
+        `You've moved ${sourceColumn.title} from position ${
+          startIndex + 1
+        } to position ${finishIndex + 1} of ${columns.length}.`
+      );
+      return;
+    }
 
-          const columnRect = (
-            effectiveColumnTarget.element as HTMLElement
-          ).getBoundingClientRect();
-          const isAfter =
-            location.current.input.clientX >
-            columnRect.left + columnRect.width / 2;
-          let insertIndex = destinationIndex + (isAfter ? 1 : 0);
-          if (insertIndex > sourceIndex) {
-            insertIndex -= 1;
-          }
-          if (insertIndex === sourceIndex) return;
+    if (outcome.type === "card-reorder") {
+      const { columnId, startIndex, finishIndex } = outcome;
+      const column = stableColumnsRef.current.find(
+        (col) => col.id === columnId
+      );
+      if (!column) {
+        return;
+      }
+      const item = column.cards[finishIndex];
+      if (!item) {
+        return;
+      }
 
-          setLocalColumns(arrayMove(baseColumns, sourceIndex, insertIndex));
-          return;
-        }
+      const entry = registry.getCard(item.id);
+      triggerPostMoveFlash(entry.element);
 
-        if (!isCardDragData(dragData)) return;
+      if (trigger !== "keyboard") {
+        return;
+      }
 
-        const sourceColumn = findColumnByCardId(baseColumns, dragData.cardId);
-        if (!sourceColumn) return;
+      liveRegion.announce(
+        `You've moved ${item.title} from position ${
+          startIndex + 1
+        } to position ${finishIndex + 1} of ${column.cards.length} in the ${
+          column.title
+        } column.`
+      );
+      return;
+    }
 
-        const destinationColumnId = cardTargetData
-          ? cardTargetData.columnId
-          : columnTargetData
-          ? columnTargetData.columnId
-          : undefined;
-        if (!destinationColumnId) return;
+    if (outcome.type === "card-move") {
+      const {
+        finishColumnId,
+        itemIndexInStartColumn,
+        itemIndexInFinishColumn,
+      } = outcome;
+      const destinationColumn = stableColumnsRef.current.find(
+        (col) => col.id === finishColumnId
+      );
+      if (!destinationColumn) {
+        return;
+      }
+      const item = destinationColumn.cards[itemIndexInFinishColumn];
+      if (!item) {
+        return;
+      }
 
-        const destinationColumn = baseColumns.find(
-          (col) => col.id === destinationColumnId
-        );
-        if (!destinationColumn) return;
+      const finishPosition =
+        typeof itemIndexInFinishColumn === "number"
+          ? itemIndexInFinishColumn + 1
+          : destinationColumn.cards.length;
 
-        const sourceIndex = sourceColumn.cards.findIndex(
-          (card) => card.id === dragData.cardId
-        );
-        if (sourceIndex === -1) return;
+      const entry = registry.getCard(item.id);
+      triggerPostMoveFlash(entry.element);
 
-        let insertIndex = destinationColumn.cards.length;
-        if (cardTarget && cardTargetData) {
-          const overIndex = destinationColumn.cards.findIndex(
-            (card) => card.id === cardTargetData.cardId
-          );
-          if (overIndex !== -1) {
-            const cardRect = (
-              cardTarget.element as HTMLElement
-            ).getBoundingClientRect();
-            const isAfter =
-              location.current.input.clientY >
-              cardRect.top + cardRect.height / 2;
-            insertIndex = overIndex + (isAfter ? 1 : 0);
-          }
-        }
+      if (trigger !== "keyboard") {
+        return;
+      }
 
-        if (sourceColumn.id === destinationColumn.id) {
-          let adjustedIndex = insertIndex;
-          if (adjustedIndex > sourceIndex) {
-            adjustedIndex -= 1;
-          }
-          if (adjustedIndex === sourceIndex) return;
+      liveRegion.announce(
+        `You've moved ${item.title} from position ${
+          itemIndexInStartColumn + 1
+        } to position ${finishPosition} in the ${
+          destinationColumn.title
+        } column.`
+      );
 
-          setLocalColumns(() =>
-            baseColumns.map((col) => {
-              if (col.id !== sourceColumn.id) return col;
-              return {
-                ...col,
-                cards: arrayMove(col.cards, sourceIndex, adjustedIndex),
-              };
-            })
-          );
-          return;
-        }
+      entry.focusTarget.focus();
+      return;
+    }
+  }, [lastOperation, registry]);
 
-        const movedCard = sourceColumn.cards.find(
-          (card) => card.id === dragData.cardId
-        );
-        if (!movedCard) return;
-
-        setLocalColumns(() =>
-          baseColumns.map((col) => {
-            if (col.id === sourceColumn.id) {
-              return {
-                ...col,
-                cards: col.cards.filter((card) => card.id !== dragData.cardId),
-              };
-            }
-            if (col.id === destinationColumn.id) {
-              const nextCards = [...col.cards];
-              const safeIndex = Math.min(
-                Math.max(insertIndex, 0),
-                nextCards.length
-              );
-              nextCards.splice(safeIndex, 0, movedCard);
-              return { ...col, cards: nextCards };
-            }
-            return col;
-          })
-        );
-      },
-      onDrop: ({ source, location }) => {
-        const dragData = source.data as Record<string, unknown>;
-        setIsDraggingCard(false);
-        setDraggingCardId(null);
-        setDraggingColumnId(null);
-
-        const dropTargets = location.current.dropTargets;
-        if (!dropTargets.length) {
-          if (dragSnapshotRef.current) {
-            setLocalColumns(dragSnapshotRef.current);
-          }
-          dragSnapshotRef.current = null;
-          return;
-        }
-
-        const cardTarget = dropTargets.find((target) =>
-          isCardDragData(target.data)
-        );
-        const columnTarget = dropTargets.find((target) =>
-          isColumnDragData(target.data)
-        );
-        const cardTargetData =
-          cardTarget && isCardDragData(cardTarget.data)
-            ? cardTarget.data
-            : null;
-        const columnTargetData =
-          columnTarget && isColumnDragData(columnTarget.data)
-            ? columnTarget.data
-            : null;
-        const effectiveColumnTarget =
-          columnTarget ?? (cardTarget ? cardTarget : null);
-        const effectiveColumnTargetData =
-          columnTargetData ??
-          (cardTargetData
-            ? {
-                type: "column" as const,
-                columnId: cardTargetData.columnId,
-                index: -1,
-              }
-            : null);
-
-        if (isColumnDragData(dragData)) {
-          if (!effectiveColumnTargetData || !effectiveColumnTarget) return;
-
-          const currentColumns =
-            dragSnapshotRef.current ?? latestStateRef.current.columns;
-          const sourceIndex = currentColumns.findIndex(
-            (col) => col.id === dragData.columnId
-          );
-          const destinationIndex = currentColumns.findIndex(
-            (col) => col.id === effectiveColumnTargetData.columnId
-          );
-
-          if (sourceIndex === -1 || destinationIndex === -1) return;
-
-          const columnRect = (
-            effectiveColumnTarget.element as HTMLElement
-          ).getBoundingClientRect();
-          const isAfter =
-            location.current.input.clientX >
-            columnRect.left + columnRect.width / 2;
-          let insertIndex = destinationIndex + (isAfter ? 1 : 0);
-          if (insertIndex > sourceIndex) {
-            insertIndex -= 1;
-          }
-
-          if (insertIndex === sourceIndex) return;
-
-          const previousColumns = cloneColumns(currentColumns);
-          const reordered = arrayMove(currentColumns, sourceIndex, insertIndex);
-          setLocalColumns(reordered);
-          dragSnapshotRef.current = null;
-
-          const token = latestStateRef.current.token;
-          const currentStages = latestStateRef.current.stages;
-          if (token) {
-            const stageMap = currentStages
-              ? new Map(currentStages.map((s) => [s.id, s]))
-              : null;
-            const updatePromises = reordered.map((col, index) => {
-              const stage = stageMap?.get(col.id) ?? null;
-              if (!stage || stage.order !== index + 1) {
-                return patchPropertyListingAcquisitionStage(
-                  token,
-                  col.id as string,
-                  {
-                    order: index + 1,
-                  }
-                );
-              }
-              return Promise.resolve();
-            });
-
-            Promise.all(updatePromises)
-              .then(() => {
-                clearPropertyListingAcquisitionsStagesCache();
-                return mutateRef.current();
-              })
-              .catch((error) => {
-                console.error("Erro ao atualizar ordem das colunas:", error);
-                setLocalColumns(previousColumns);
-                alert("Erro ao atualizar ordem das colunas. Tente novamente.");
-              });
-          }
-          return;
-        }
-
-        if (!isCardDragData(dragData)) {
-          dragSnapshotRef.current = null;
-          return;
-        }
-
-        const currentColumns =
-          dragSnapshotRef.current ?? latestStateRef.current.columns;
-        const sourceColumn = findColumnByCardId(
-          currentColumns,
-          dragData.cardId
-        );
-        if (!sourceColumn) return;
-
-        const destinationColumnId = cardTargetData
-          ? cardTargetData.columnId
-          : columnTargetData
-          ? columnTargetData.columnId
-          : undefined;
-
-        if (!destinationColumnId) return;
-
-        const destinationColumn = currentColumns.find(
-          (col) => col.id === destinationColumnId
-        );
-        if (!destinationColumn) return;
-
-        const sourceIndex = sourceColumn.cards.findIndex(
-          (card) => card.id === dragData.cardId
-        );
-        if (sourceIndex === -1) return;
-
-        let insertIndex = destinationColumn.cards.length;
-        if (cardTarget && cardTargetData) {
-          const overIndex = destinationColumn.cards.findIndex(
-            (card) => card.id === cardTargetData.cardId
-          );
-          if (overIndex !== -1) {
-            const cardRect = (
-              cardTarget.element as HTMLElement
-            ).getBoundingClientRect();
-            const isAfter =
-              location.current.input.clientY >
-              cardRect.top + cardRect.height / 2;
-            insertIndex = overIndex + (isAfter ? 1 : 0);
-          }
-        }
-
-        if (sourceColumn.id === destinationColumn.id) {
-          let adjustedIndex = insertIndex;
-          if (adjustedIndex > sourceIndex) {
-            adjustedIndex -= 1;
-          }
-          if (adjustedIndex === sourceIndex) return;
-
-          setLocalColumns(() =>
-            currentColumns.map((col) => {
-              if (col.id !== sourceColumn.id) return col;
-              const nextCards = arrayMove(
-                col.cards,
-                sourceIndex,
-                adjustedIndex
-              );
-              return { ...col, cards: nextCards };
-            })
-          );
-          dragSnapshotRef.current = null;
-          return;
-        }
-
-        const movedCard = sourceColumn.cards.find(
-          (card) => card.id === dragData.cardId
-        );
-        if (!movedCard) return;
-
-        const previousColumns = cloneColumns(currentColumns);
-        setLocalColumns(() =>
-          currentColumns.map((col) => {
-            if (col.id === sourceColumn.id) {
-              return {
-                ...col,
-                cards: col.cards.filter((card) => card.id !== dragData.cardId),
-              };
-            }
-            if (col.id === destinationColumn.id) {
-              const nextCards = [...col.cards];
-              const safeIndex = Math.min(
-                Math.max(insertIndex, 0),
-                nextCards.length
-              );
-              nextCards.splice(safeIndex, 0, movedCard);
-              return { ...col, cards: nextCards };
-            }
-            return col;
-          })
-        );
-
-        latestStateRef.current.onCardMove?.(
-          dragData.cardId,
-          sourceColumn.id,
-          destinationColumn.id
-        );
-        const token = latestStateRef.current.token;
-        if (token) {
-          patchPropertyListingAcquisition(dragData.cardId, token, {
-            stageId: destinationColumn.id as string,
-          })
-            .then(() => {
-              clearPropertyListingAcquisitionsStagesCache();
-              return mutateRef.current();
-            })
-            .catch((error) => {
-              console.error("Erro ao mover captação:", error);
-              setLocalColumns(previousColumns);
-              alert("Erro ao mover captação. Tente novamente.");
-            });
-        }
-        dragSnapshotRef.current = null;
-      },
-    });
+  useEffect(() => {
+    return liveRegion.cleanup();
   }, []);
+
+  const reorderColumn = useCallback(
+    ({
+      startIndex,
+      finishIndex,
+      trigger = "keyboard",
+    }: {
+      startIndex: number;
+      finishIndex: number;
+      trigger?: Trigger;
+    }) => {
+      const currentColumns = stableColumnsRef.current;
+      const sourceColumn = currentColumns[startIndex];
+      if (!sourceColumn) {
+        return;
+      }
+      const reordered = reorder({
+        list: currentColumns,
+        startIndex,
+        finishIndex,
+      });
+      const previousColumns = cloneColumns(currentColumns);
+
+      const outcome: Outcome = {
+        type: "column-reorder",
+        columnId: sourceColumn.id as string,
+        startIndex,
+        finishIndex,
+      };
+
+      setBoardState((prev) => ({
+        ...prev,
+        columns: reordered,
+        lastOperation: {
+          outcome,
+          trigger,
+        },
+      }));
+
+      const token = latestStateRef.current.token;
+      const currentStages = latestStateRef.current.stages;
+      if (token) {
+        const stageMap = currentStages
+          ? new Map(currentStages.map((s) => [s.id, s]))
+          : null;
+        const updatePromises = reordered.map((col, index) => {
+          const stage = stageMap?.get(col.id) ?? null;
+          if (!stage || stage.order !== index + 1) {
+            return patchPropertyListingAcquisitionStage(
+              token,
+              col.id as string,
+              {
+                order: index + 1,
+              }
+            );
+          }
+          return Promise.resolve();
+        });
+
+        Promise.all(updatePromises)
+          .then(() => {
+            clearPropertyListingAcquisitionsStagesCache();
+            return mutateRef.current();
+          })
+          .catch((error) => {
+            console.error("Erro ao atualizar ordem das colunas:", error);
+            setBoardState((prev) => ({ ...prev, columns: previousColumns }));
+            alert("Erro ao atualizar ordem das colunas. Tente novamente.");
+          });
+      }
+    },
+    []
+  );
+
+  const reorderCard = useCallback(
+    ({
+      columnId,
+      startIndex,
+      finishIndex,
+      trigger = "keyboard",
+    }: {
+      columnId: string;
+      startIndex: number;
+      finishIndex: number;
+      trigger?: Trigger;
+    }) => {
+      const currentColumns = stableColumnsRef.current;
+      const sourceColumn = currentColumns.find((col) => col.id === columnId);
+      if (!sourceColumn) {
+        return;
+      }
+
+      const updatedItems = reorder({
+        list: sourceColumn.cards,
+        startIndex,
+        finishIndex,
+      });
+
+      const updatedColumns = currentColumns.map((col) => {
+        if (col.id !== columnId) {
+          return col;
+        }
+        return {
+          ...col,
+          cards: updatedItems,
+        };
+      });
+
+      const outcome: Outcome = {
+        type: "card-reorder",
+        columnId,
+        startIndex,
+        finishIndex,
+      };
+
+      setBoardState((prev) => ({
+        ...prev,
+        columns: updatedColumns,
+        lastOperation: {
+          trigger,
+          outcome,
+        },
+      }));
+    },
+    []
+  );
+
+  const moveCard = useCallback(
+    ({
+      startColumnId,
+      finishColumnId,
+      itemIndexInStartColumn,
+      itemIndexInFinishColumn,
+      trigger = "keyboard",
+    }: {
+      startColumnId: string;
+      finishColumnId: string;
+      itemIndexInStartColumn: number;
+      itemIndexInFinishColumn?: number;
+      trigger?: Trigger;
+    }) => {
+      if (startColumnId === finishColumnId) {
+        return;
+      }
+
+      const currentColumns = stableColumnsRef.current;
+      const sourceColumn = currentColumns.find(
+        (col) => col.id === startColumnId
+      );
+      const destinationColumn = currentColumns.find(
+        (col) => col.id === finishColumnId
+      );
+      if (!sourceColumn || !destinationColumn) {
+        return;
+      }
+      const item = sourceColumn.cards[itemIndexInStartColumn];
+      if (!item) {
+        return;
+      }
+
+      const destinationItems = Array.from(destinationColumn.cards);
+      const newIndexInDestination = itemIndexInFinishColumn ?? 0;
+      destinationItems.splice(newIndexInDestination, 0, item);
+
+      const updatedColumns = currentColumns.map((col) => {
+        if (col.id === startColumnId) {
+          return {
+            ...col,
+            cards: col.cards.filter((card) => card.id !== item.id),
+          };
+        }
+        if (col.id === finishColumnId) {
+          return {
+            ...col,
+            cards: destinationItems,
+          };
+        }
+        return col;
+      });
+
+      const previousColumns = cloneColumns(currentColumns);
+
+      const outcome: Outcome = {
+        type: "card-move",
+        finishColumnId,
+        itemIndexInStartColumn,
+        itemIndexInFinishColumn: newIndexInDestination,
+      };
+
+      setBoardState((prev) => ({
+        ...prev,
+        columns: updatedColumns,
+        lastOperation: {
+          outcome,
+          trigger,
+        },
+      }));
+
+      latestStateRef.current.onCardMove?.(
+        item.id,
+        startColumnId,
+        finishColumnId
+      );
+      const token = latestStateRef.current.token;
+      if (token) {
+        patchPropertyListingAcquisition(item.id, token, {
+          stageId: finishColumnId as string,
+        })
+          .then(() => {
+            clearPropertyListingAcquisitionsStagesCache();
+            return mutateRef.current();
+          })
+          .catch((error) => {
+            console.error("Erro ao mover captação:", error);
+            setBoardState((prev) => ({ ...prev, columns: previousColumns }));
+            alert("Erro ao mover captação. Tente novamente.");
+          });
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    return combine(
+      monitorForElements({
+        canMonitor({ source }) {
+          return source.data.instanceId === instanceId;
+        },
+        onDragStart: ({ source }) => {
+          const data = source.data as Record<string, unknown>;
+          if (isCardDragData(data)) {
+            setIsDraggingCard(true);
+            setDraggingCardId(data.itemId);
+          }
+          if (isColumnDragData(data)) {
+            setDraggingColumnId(data.columnId);
+          }
+        },
+        onDrop({ location, source }) {
+          setIsDraggingCard(false);
+          setDraggingCardId(null);
+          setDraggingColumnId(null);
+
+          if (!location.current.dropTargets.length) {
+            return;
+          }
+
+          const data = stableColumnsRef.current;
+
+          if (source.data.type === "column") {
+            const startIndex = data.findIndex(
+              (column) => column.id === source.data.columnId
+            );
+
+            const target = location.current.dropTargets[0];
+            const indexOfTarget = data.findIndex(
+              (column) => column.id === target.data.columnId
+            );
+            if (startIndex === -1 || indexOfTarget === -1) {
+              return;
+            }
+            const closestEdgeOfTarget: Edge | null = extractClosestEdge(
+              target.data
+            );
+
+            const finishIndex = getReorderDestinationIndex({
+              startIndex,
+              indexOfTarget,
+              closestEdgeOfTarget,
+              axis: "horizontal",
+            });
+
+            reorderColumn({ startIndex, finishIndex, trigger: "pointer" });
+          }
+
+          if (source.data.type === "card") {
+            const itemId = source.data.itemId;
+            invariant(typeof itemId === "string", "Missing card id");
+            const [, startColumnRecord] = location.initial.dropTargets;
+            const sourceId = startColumnRecord?.data.columnId;
+            invariant(typeof sourceId === "string", "Missing column id");
+            const sourceColumn = data.find((column) => column.id === sourceId);
+            invariant(sourceColumn, "Missing source column");
+            const itemIndex = sourceColumn.cards.findIndex(
+              (item) => item.id === itemId
+            );
+            if (itemIndex === -1) {
+              return;
+            }
+
+            if (location.current.dropTargets.length === 1) {
+              const [destinationColumnRecord] = location.current.dropTargets;
+              const destinationId = destinationColumnRecord.data.columnId;
+              invariant(
+                typeof destinationId === "string",
+                "Missing destination"
+              );
+              const destinationColumn = data.find(
+                (column) => column.id === destinationId
+              );
+              invariant(destinationColumn, "Missing destination column");
+
+              if (sourceColumn === destinationColumn) {
+                const destinationIndex = getReorderDestinationIndex({
+                  startIndex: itemIndex,
+                  indexOfTarget: sourceColumn.cards.length - 1,
+                  closestEdgeOfTarget: null,
+                  axis: "vertical",
+                });
+                reorderCard({
+                  columnId: sourceColumn.id as string,
+                  startIndex: itemIndex,
+                  finishIndex: destinationIndex,
+                  trigger: "pointer",
+                });
+                return;
+              }
+
+              moveCard({
+                itemIndexInStartColumn: itemIndex,
+                startColumnId: sourceColumn.id as string,
+                finishColumnId: destinationColumn.id as string,
+                trigger: "pointer",
+              });
+              return;
+            }
+
+            if (location.current.dropTargets.length === 2) {
+              const [destinationCardRecord, destinationColumnRecord] =
+                location.current.dropTargets;
+              const destinationColumnId = destinationColumnRecord.data.columnId;
+              invariant(
+                typeof destinationColumnId === "string",
+                "Missing destination column id"
+              );
+              const destinationColumn = data.find(
+                (column) => column.id === destinationColumnId
+              );
+              invariant(destinationColumn, "Missing destination column");
+
+              const indexOfTarget = destinationColumn.cards.findIndex(
+                (item) => item.id === destinationCardRecord.data.itemId
+              );
+              const closestEdgeOfTarget: Edge | null = extractClosestEdge(
+                destinationCardRecord.data
+              );
+
+              if (sourceColumn === destinationColumn) {
+                const destinationIndex = getReorderDestinationIndex({
+                  startIndex: itemIndex,
+                  indexOfTarget: indexOfTarget ?? -1,
+                  closestEdgeOfTarget,
+                  axis: "vertical",
+                });
+                reorderCard({
+                  columnId: sourceColumn.id as string,
+                  startIndex: itemIndex,
+                  finishIndex: destinationIndex,
+                  trigger: "pointer",
+                });
+                return;
+              }
+
+              const destinationIndex =
+                closestEdgeOfTarget === "bottom"
+                  ? (indexOfTarget ?? 0) + 1
+                  : indexOfTarget ?? 0;
+
+              moveCard({
+                itemIndexInStartColumn: itemIndex,
+                startColumnId: sourceColumn.id as string,
+                finishColumnId: destinationColumnId,
+                itemIndexInFinishColumn: destinationIndex,
+                trigger: "pointer",
+              });
+            }
+          }
+        },
+      })
+    );
+  }, [instanceId, moveCard, reorderCard, reorderColumn]);
 
   const handleCardDelete = (cardId: string, columnId: ColumnId) => {
     // Abrir dialog de confirmação
@@ -1252,11 +1560,13 @@ export function Kanban({
           gap: 2,
           overflowX: "auto",
           overflowY: "hidden",
+          alignItems: "stretch",
           height: "100%",
           width: "100%",
           px: 2,
           py: 2,
-          backgroundColor: theme.palette.background.paper,
+          backgroundColor: theme.palette.grey[50],
+          minHeight: 0,
           boxSizing: "border-box",
         }}
       >
@@ -1264,27 +1574,32 @@ export function Kanban({
           <SortableColumnWrapper
             key={column.id}
             column={column}
-            columnIndex={index}
             onCardDelete={handleCardDelete}
             onCardClick={onCardClick}
             onMenuOpen={handleMenuOpen}
             isDraggingCard={isDraggingCard}
             draggingCardId={draggingCardId}
             isDraggingColumn={draggingColumnId === column.id}
+            registerColumn={registry.registerColumn}
+            registerCard={registry.registerCard}
+            instanceId={instanceId}
+            isLast={index === localColumns.length - 1}
           />
         ))}
 
         {/* Botão de adicionar coluna */}
         <Box
           sx={{
-            minWidth: 300,
+            minWidth: COLUMN_WIDTH,
             display: "flex",
+            flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
             cursor: "pointer",
             borderRadius: 2,
             border: `2px dashed ${theme.palette.divider}`,
             transition: "all 0.2s ease",
+            gap: 1,
             "&:hover": {
               borderColor: theme.palette.primary.main,
               backgroundColor: theme.palette.action.hover,
@@ -1303,6 +1618,12 @@ export function Kanban({
           >
             <Add sx={{ fontSize: 40 }} />
           </IconButton>
+          <Typography
+            variant="body2"
+            sx={{ color: theme.palette.text.secondary }}
+          >
+            Adicionar coluna
+          </Typography>
         </Box>
       </Box>
 
