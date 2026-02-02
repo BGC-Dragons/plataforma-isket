@@ -247,6 +247,7 @@ export function MapComponent({
     avgUsablePricePerArea: number | null;
   } | null>(null);
   const [statisticsLoading, setStatisticsLoading] = useState(false);
+  const statisticsTouchHandledRef = useRef(false);
   const tokenRef = useRef<string | undefined>(token);
   const fetchMapDataRef = useRef<
     | ((bounds: google.maps.LatLngBounds, zoomLevel: number) => Promise<void>)
@@ -752,7 +753,24 @@ export function MapComponent({
   }, [statisticsAnchorEl, token, filters, cityToCodeMap, defaultCity]);
 
   const handleStatisticsClick = (event: React.MouseEvent<HTMLElement>) => {
-    setStatisticsAnchorEl(event.currentTarget);
+    if (statisticsTouchHandledRef.current) {
+      statisticsTouchHandledRef.current = false;
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    setStatisticsAnchorEl((prev) =>
+      prev ? null : (event.currentTarget as HTMLElement)
+    );
+  };
+
+  const handleStatisticsTouchEnd = (event: React.TouchEvent<HTMLElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    statisticsTouchHandledRef.current = true;
+    setStatisticsAnchorEl((prev) =>
+      prev ? null : (event.currentTarget as HTMLElement)
+    );
   };
 
   const formatStatCurrency = (value: number | null) => {
@@ -3540,15 +3558,17 @@ export function MapComponent({
         </Box>
       )}
 
-      {/* Botão Estatísticas - centralizado no topo */}
+      {/* Botão Estatísticas - centralizado no topo (desktop); à direita com 20px no mobile */}
       {useMapSearch && token && (
         <Box
           sx={{
             position: "absolute",
             top: 10,
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: 1000,
+            right: 60,
+            left: "auto",
+            transform: "none",
+            zIndex: 2000,
+            pointerEvents: "auto",
           }}
         >
           <Paper
@@ -3558,10 +3578,15 @@ export function MapComponent({
               overflow: "hidden",
               backgroundColor: theme.palette.common.white,
               border: `1px solid ${theme.palette.divider}`,
+              pointerEvents: "auto",
             }}
           >
             <IconButton
               onClick={handleStatisticsClick}
+              onTouchStart={(e) => {
+                e.stopPropagation();
+              }}
+              onTouchEnd={handleStatisticsTouchEnd}
               title="Ver estatísticas dos imóveis filtrados"
               aria-label="Estatísticas"
               sx={{
@@ -3569,6 +3594,8 @@ export function MapComponent({
                 height: 40,
                 color: theme.palette.text.primary,
                 backgroundColor: theme.palette.common.white,
+                pointerEvents: "auto",
+                touchAction: "manipulation",
                 "&:hover": {
                   backgroundColor: theme.palette.action.hover,
                   color: theme.palette.primary.main,
@@ -3781,7 +3808,7 @@ export function MapComponent({
         </Paper>
       </Box>
 
-      {/* Popover de estatísticas (hover no botão) */}
+      {/* Popover de estatísticas - z-index acima do modal do mapa em telas touch */}
       <Popover
         open={Boolean(statisticsAnchorEl)}
         anchorEl={statisticsAnchorEl}
@@ -3789,6 +3816,11 @@ export function MapComponent({
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
         transformOrigin={{ vertical: "top", horizontal: "right" }}
         disableRestoreFocus
+        slotProps={{
+          root: {
+            sx: { zIndex: theme.zIndex.modal + 20 },
+          },
+        }}
       >
         <Box sx={{ pointerEvents: "auto", p: 2, minWidth: 220 }}>
           <Typography
