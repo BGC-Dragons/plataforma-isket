@@ -1370,11 +1370,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
             options={availableFeatures.filter(
               (f) => !filters.propertyFeatures.includes(f.key)
             )}
-            getOptionLabel={(option) =>
-              option.count > 0
-                ? `${option.key} (${option.count.toLocaleString("pt-BR")})`
-                : option.key
-            }
+            getOptionLabel={(option) => option.key}
             isOptionEqualToValue={(option, value) => option.key === value.key}
             value={filters.propertyFeatures.map((key) => {
               const found = availableFeatures.find((f) => f.key === key);

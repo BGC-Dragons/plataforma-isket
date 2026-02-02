@@ -345,9 +345,10 @@ export const mapFiltersToApi = (
     request.requireAreaInfo = false;
   }
 
-  // Removido: status, propertyStatus, requireAreaInfo e requireCoordinates
-  // Esses campos não devem ser enviados automaticamente
-  // Se necessário, devem ser adicionados explicitamente onde necessário
+  // Opcionais (propertyFeatures)
+  if (filters.propertyFeatures && filters.propertyFeatures.length > 0) {
+    request.propertyFeatures = filters.propertyFeatures;
+  }
 
   return request;
 };
