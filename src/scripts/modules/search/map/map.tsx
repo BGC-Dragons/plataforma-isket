@@ -107,6 +107,8 @@ interface MapProps {
   refreshKey?: number; // Força atualização do mapa ao retornar dos detalhes
   /** Cidade padrão do plano (mesma lógica da listagem para montar o payload de estatísticas) */
   defaultCity?: string;
+  /** Se true, o mapa está aberto no modal "Abrir mapa"; botão e popover de estatísticas usam z-index alto. Se false, ficam abaixo de outros modais (ex.: Gerar relatório). */
+  openInModal?: boolean;
 }
 
 // Configurações do mapa
@@ -165,6 +167,7 @@ export function MapComponent({
   heatmapData,
   refreshKey,
   defaultCity,
+  openInModal = false,
 }: MapProps) {
   // Fallback: pegar token do localStorage se não foi passado via props
   const token =
@@ -3558,7 +3561,7 @@ export function MapComponent({
         </Box>
       )}
 
-      {/* Botão Estatísticas - centralizado no topo (desktop); à direita com 20px no mobile */}
+      {/* Botão Estatísticas - z-index alto só quando mapa está no modal; senão fica abaixo de outros modais (ex.: Gerar relatório) */}
       {useMapSearch && token && (
         <Box
           sx={{
@@ -3567,7 +3570,7 @@ export function MapComponent({
             right: 60,
             left: "auto",
             transform: "none",
-            zIndex: 2000,
+            zIndex: openInModal ? theme.zIndex.modal + 20 : 1000,
             pointerEvents: "auto",
           }}
         >
@@ -3808,7 +3811,7 @@ export function MapComponent({
         </Paper>
       </Box>
 
-      {/* Popover de estatísticas - z-index acima do modal do mapa em telas touch */}
+      {/* Popover de estatísticas - z-index alto só quando mapa está no modal; senão fica abaixo de outros modais */}
       <Popover
         open={Boolean(statisticsAnchorEl)}
         anchorEl={statisticsAnchorEl}
@@ -3818,7 +3821,9 @@ export function MapComponent({
         disableRestoreFocus
         slotProps={{
           root: {
-            sx: { zIndex: theme.zIndex.modal + 20 },
+            sx: {
+              zIndex: openInModal ? theme.zIndex.modal + 20 : 1000,
+            },
           },
         }}
       >

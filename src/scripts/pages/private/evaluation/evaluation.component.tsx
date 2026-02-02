@@ -2294,6 +2294,7 @@ export function EvaluationComponent() {
                 undefined
               }
               useMapSearch={true}
+              openInModal={false}
               onNeighborhoodClick={handleNeighborhoodClick}
             />
           </Box>
@@ -2420,6 +2421,7 @@ export function EvaluationComponent() {
                   undefined
                 }
                 useMapSearch={true}
+                openInModal={true}
                 onNeighborhoodClick={handleNeighborhoodClick}
               />
             </Box>

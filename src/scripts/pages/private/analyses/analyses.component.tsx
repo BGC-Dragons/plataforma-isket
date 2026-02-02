@@ -1208,6 +1208,7 @@ export function AnalysesComponent() {
                 undefined
               }
               useMapSearch={false}
+              openInModal={false}
               onNeighborhoodClick={handleNeighborhoodClick}
               heatmapData={heatmapData}
             />
@@ -1334,6 +1335,7 @@ export function AnalysesComponent() {
                   undefined
                 }
                 useMapSearch={false}
+                openInModal={true}
                 onNeighborhoodClick={handleNeighborhoodClick}
                 heatmapData={heatmapData}
               />

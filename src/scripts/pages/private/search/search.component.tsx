@@ -2276,6 +2276,7 @@ export function SearchComponent() {
                 undefined
               }
               useMapSearch={true}
+              openInModal={false}
               onNeighborhoodClick={handleNeighborhoodClick}
             />
           </Box>
@@ -2434,6 +2435,7 @@ export function SearchComponent() {
                   undefined
                 }
                 useMapSearch={true}
+                openInModal={true}
                 onNeighborhoodClick={handleNeighborhoodClick}
               />
             </Box>
