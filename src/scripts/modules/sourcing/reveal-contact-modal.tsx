@@ -11,7 +11,7 @@ import {
 } from "@mui/material";
 import { Close } from "@mui/icons-material";
 import { useAuth } from "../access-manager/auth.hook";
-import { useGetPurchases } from "../../../services/get-purchases.service";
+import { useEffectiveCredits } from "../../library/hooks/use-effective-credits";
 import { postPropertyListingAcquisitionContactHistory } from "../../../services/post-property-listing-acquisition-contact-history.service";
 import { getPropertyOwnerFinderByNationalId } from "../../../services/get-property-owner-finder-by-national-id.service";
 import type { IPropertyOwner } from "../../../services/get-property-owner-finder-by-address.service";
@@ -33,25 +33,13 @@ export function RevealContactModal({
 }: RevealContactModalProps) {
   const theme = useTheme();
   const auth = useAuth();
-  const { data: purchases } = useGetPurchases();
   const [isRevealing, setIsRevealing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fullOwnerData, setFullOwnerData] = useState<IPropertyOwner | null>(owner);
 
-  // Calcular créditos restantes de RESIDENT_SEARCH
-  const getRemainingCredits = (): number => {
-    if (!purchases || purchases.length === 0) return 0;
-
-    // Pegar a primeira compra ativa
-    const purchase = purchases[0];
-    const residentSearchUnit = purchase.remainingUnits.find(
-      (unit) => unit.type === "RESIDENT_SEARCH"
-    );
-
-    return residentSearchUnit?.unitsRemaining || 0;
-  };
-
-  const remainingCredits = getRemainingCredits();
+  // Créditos efetivos (respeita limites individuais)
+  const residentSearchCredits = useEffectiveCredits("RESIDENT_SEARCH");
+  const remainingCredits = residentSearchCredits.remaining;
 
   const formatCPF = (cpf: string) => {
     // Formatar CPF: 000.000.000-00
@@ -315,9 +303,18 @@ export function RevealContactModal({
               color: theme.palette.text.secondary,
             }}
           >
-            Você possui <strong>{remainingCredits}</strong>{" "}
-            {remainingCredits === 1 ? "crédito" : "créditos"} restante
-            {remainingCredits !== 1 ? "s" : ""} para pesquisa de moradores.
+            {residentSearchCredits.hasIndividualLimit ? (
+              <>
+                Usados <strong>{residentSearchCredits.consumed}/{residentSearchCredits.total}</strong>{" "}
+                créditos para pesquisa de moradores.
+              </>
+            ) : (
+              <>
+                Você possui <strong>{remainingCredits}</strong>{" "}
+                {remainingCredits === 1 ? "crédito" : "créditos"} restante
+                {remainingCredits !== 1 ? "s" : ""} para pesquisa de moradores.
+              </>
+            )}
           </Typography>
 
           {/* Erro */}

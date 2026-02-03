@@ -55,7 +55,7 @@ import type {
   IPropertyListingAcquisitionContactHistory,
   ContactStatus,
 } from "../../../services/get-property-listing-acquisitions-contact-history.service";
-import { useGetPurchases } from "../../../services/get-purchases.service";
+import { useEffectiveCredits } from "../../library/hooks/use-effective-credits";
 
 interface PropertySourcingDetailsProps {
   open: boolean;
@@ -80,7 +80,6 @@ export function PropertySourcingDetails({
 }: PropertySourcingDetailsProps) {
   const theme = useTheme();
   const auth = useAuth();
-  const { data: purchases } = useGetPurchases();
   const [currentStatus, setCurrentStatus] = useState<
     "IN_ACQUISITION" | "DECLINED" | "ACQUIRED"
   >(acquisitionStatus || "IN_ACQUISITION");
@@ -270,20 +269,9 @@ export function PropertySourcingDetails({
     return nationalId;
   };
 
-  // Calcular créditos restantes de RESIDENT_SEARCH
-  const getRemainingResidentSearchCredits = (): number => {
-    if (!purchases || purchases.length === 0) return 0;
-
-    // Pegar a primeira compra ativa
-    const purchase = purchases[0];
-    const residentSearchUnit = purchase.remainingUnits.find(
-      (unit) => unit.type === "RESIDENT_SEARCH",
-    );
-
-    return residentSearchUnit?.unitsRemaining || 0;
-  };
-
-  const remainingResidentSearchCredits = getRemainingResidentSearchCredits();
+  // Créditos efetivos (respeita limites individuais)
+  const residentSearchCredits = useEffectiveCredits("RESIDENT_SEARCH");
+  const remainingResidentSearchCredits = residentSearchCredits.remaining;
 
   // Função para normalizar texto (remover acentos e espaços extras)
   const normalizeText = (text: string): string => {
@@ -971,9 +959,19 @@ export function PropertySourcingDetails({
                     textAlign: "center",
                   }}
                 >
-                  Você possui <strong>{remainingResidentSearchCredits}</strong>{" "}
-                  <strong>créditos disponíveis</strong> para revelar
-                  proprietários.
+                  {residentSearchCredits.hasIndividualLimit ? (
+                    <>
+                      Usados <strong>{residentSearchCredits.consumed}/{residentSearchCredits.total}</strong>{" "}
+                      <strong>créditos</strong> para revelar
+                      proprietários.
+                    </>
+                  ) : (
+                    <>
+                      Você possui <strong>{remainingResidentSearchCredits}</strong>{" "}
+                      <strong>créditos disponíveis</strong> para revelar
+                      proprietários.
+                    </>
+                  )}
                 </Typography>
                 <Box
                   sx={{
@@ -999,7 +997,7 @@ export function PropertySourcingDetails({
                 variant="contained"
                 fullWidth
                 onClick={handleRevealOwners}
-                disabled={isLoadingOwners || !data.address || !data.number}
+                disabled={isLoadingOwners || !data.address || !data.number || remainingResidentSearchCredits <= 0}
                 sx={{
                   backgroundColor: "#1976d2",
                   textTransform: "none",

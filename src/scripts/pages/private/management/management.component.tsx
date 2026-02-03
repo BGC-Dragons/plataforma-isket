@@ -69,6 +69,9 @@ export function ManagementComponent() {
   const isBusinessPlan =
     purchases.length > 0 && purchases[0].product.accountType === "BUSINESS";
 
+  // Verificar se o usuário é MEMBER (colaborador sem permissões administrativas)
+  const isMemberRole = profileInfo?.roles?.[0]?.role === "MEMBER";
+
   // Detectar parâmetro da URL para definir seção inicial
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
@@ -87,6 +90,20 @@ export function ManagementComponent() {
       setSelectedSection(sectionParam as ManagementSection);
     }
   }, [location.search]);
+
+  // Redirecionar MEMBER para profile se estiver em seção restrita
+  useEffect(() => {
+    if (
+      isMemberRole &&
+      (selectedSection === "subscription" ||
+        selectedSection === "upgrade" ||
+        selectedSection === "company" ||
+        selectedSection === "collaborators")
+    ) {
+      setSelectedSection("profile");
+      navigate("/configuracoes", { replace: true });
+    }
+  }, [isMemberRole, selectedSection, navigate]);
 
   // Data via SWR
   const { data: meData } = useGetAuthMe();
@@ -114,8 +131,8 @@ export function ManagementComponent() {
     },
   ];
 
-  // Seção EMPRESA
-  const businessMenuItems = isBusinessPlan
+  // Seção EMPRESA (oculta para MEMBER)
+  const businessMenuItems = isBusinessPlan && !isMemberRole
     ? [
         {
           id: "company" as ManagementSection,
@@ -132,21 +149,23 @@ export function ManagementComponent() {
       ]
     : [];
 
-  // Seção FATURAMENTO
-  const billingMenuItems = [
-    {
-      id: "subscription" as ManagementSection,
-      label: "Meu Plano",
-      icon: <CardMembership />,
-      description: "Gerencie sua assinatura e pagamentos",
-    },
-    {
-      id: "upgrade" as ManagementSection,
-      label: "Upgrade",
-      icon: <Upgrade />,
-      description: "Faça upgrade do seu plano",
-    },
-  ];
+  // Seção FATURAMENTO (oculta para MEMBER)
+  const billingMenuItems = !isMemberRole
+    ? [
+        {
+          id: "subscription" as ManagementSection,
+          label: "Meu Plano",
+          icon: <CardMembership />,
+          description: "Gerencie sua assinatura e pagamentos",
+        },
+        {
+          id: "upgrade" as ManagementSection,
+          label: "Upgrade",
+          icon: <Upgrade />,
+          description: "Faça upgrade do seu plano",
+        },
+      ]
+    : [];
 
   const handleGoToUpgrade = () => {
     setSelectedSection("upgrade");
@@ -162,6 +181,15 @@ export function ManagementComponent() {
       !isBusinessPlan
     ) {
       // Redirecionar para o perfil se não tiver plano empresarial
+      setSelectedSection("profile");
+    } else if (
+      // Verificar se MEMBER está tentando acessar seções restritas
+      isMemberRole &&
+      (section === "subscription" ||
+        section === "upgrade" ||
+        section === "company" ||
+        section === "collaborators")
+    ) {
       setSelectedSection("profile");
     } else {
       setSelectedSection(section);
@@ -186,6 +214,10 @@ export function ManagementComponent() {
       case "security":
         return <SecuritySection />;
       case "subscription":
+        // Verificar se MEMBER está tentando acessar
+        if (isMemberRole) {
+          return <ProfileSection />;
+        }
         return <SubscriptionSection />;
       case "company":
         // Verificar se o usuário tem plano empresarial
@@ -198,8 +230,17 @@ export function ManagementComponent() {
         if (!isBusinessPlan) {
           return <ProfileSection />;
         }
-        return <CollaboratorsSection />;
+        return (
+          <CollaboratorsSection
+            userRole={profileInfo?.roles?.[0]?.role || "MEMBER"}
+            purchases={purchases}
+          />
+        );
       case "upgrade":
+        // Verificar se MEMBER está tentando acessar
+        if (isMemberRole) {
+          return <ProfileSection />;
+        }
         return <UpgradeSection />;
       default:
         return <ProfileSection />;
@@ -251,6 +292,9 @@ export function ManagementComponent() {
               }}
             >
               {profileInfo?.profile?.email ||
+                profileInfo?.authMethods?.find(
+                  (m) => m.method === "EMAIL"
+                )?.value ||
                 store.user?.email ||
                 "email@exemplo.com"}
             </Typography>
@@ -349,8 +393,8 @@ export function ManagementComponent() {
             </ListItem>
           ))}
 
-          {/* Separador para seção empresa */}
-          {isBusinessPlan && (
+          {/* Separador para seção empresa (oculta para MEMBER) */}
+          {isBusinessPlan && !isMemberRole && (
             <>
               <Box sx={{ my: 2 }}>
                 <Divider />
@@ -444,96 +488,100 @@ export function ManagementComponent() {
             </ListItem>
           ))}
 
-          {/* Separador para seção faturamento */}
-          <Box sx={{ my: 2 }}>
-            <Divider />
-          </Box>
-          <Typography
-            variant="caption"
-            sx={{
-              color: theme.palette.text.secondary,
-              fontWeight: 600,
-              textTransform: "uppercase",
-              letterSpacing: 0.5,
-              px: 2,
-              py: 1,
-              display: "block",
-            }}
-          >
-            Faturamento
-          </Typography>
-
-          {/* Seção FATURAMENTO */}
-          {billingMenuItems.map((item) => (
-            <ListItem key={item.id} disablePadding sx={{ mb: 1 }}>
-              <ListItemButton
-                onClick={() => handleSectionChange(item.id)}
-                selected={selectedSection === item.id}
+          {/* Separador para seção faturamento (oculta para MEMBER) */}
+          {!isMemberRole && (
+            <>
+              <Box sx={{ my: 2 }}>
+                <Divider />
+              </Box>
+              <Typography
+                variant="caption"
                 sx={{
-                  borderRadius: 2,
-                  py: 1.5,
+                  color: theme.palette.text.secondary,
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.5,
                   px: 2,
-                  backgroundColor:
-                    selectedSection === item.id
-                      ? theme.palette.primary.main + "12"
-                      : "transparent",
-                  border:
-                    selectedSection === item.id
-                      ? `1px solid ${theme.palette.primary.main}30`
-                      : "1px solid transparent",
-                  "&:hover": {
-                    backgroundColor:
-                      selectedSection === item.id
-                        ? theme.palette.primary.main + "20"
-                        : theme.palette.action.hover,
-                    borderColor:
-                      selectedSection === item.id
-                        ? theme.palette.primary.main + "50"
-                        : theme.palette.divider,
-                  },
-                  "&.Mui-selected": {
-                    backgroundColor: theme.palette.primary.main + "12",
-                    borderColor: theme.palette.primary.main + "30",
-                    "&:hover": {
-                      backgroundColor: theme.palette.primary.main + "20",
-                      borderColor: theme.palette.primary.main + "50",
-                    },
-                  },
-                  transition: "all 0.3s ease",
+                  py: 1,
+                  display: "block",
                 }}
               >
-                <ListItemIcon
-                  sx={{
-                    color:
-                      selectedSection === item.id
-                        ? theme.palette.primary.main
-                        : theme.palette.text.secondary,
-                    minWidth: 44,
-                    mr: 1,
-                  }}
-                >
-                  {item.icon}
-                </ListItemIcon>
-                <ListItemText
-                  primary={item.label}
-                  secondary={item.description}
-                  primaryTypographyProps={{
-                    fontWeight: selectedSection === item.id ? 600 : 500,
-                    color:
-                      selectedSection === item.id
-                        ? theme.palette.primary.main
-                        : theme.palette.text.primary,
-                    fontSize: "0.9rem",
-                  }}
-                  secondaryTypographyProps={{
-                    fontSize: "0.75rem",
-                    color: theme.palette.text.secondary,
-                    lineHeight: 1.3,
-                  }}
-                />
-              </ListItemButton>
-            </ListItem>
-          ))}
+                Faturamento
+              </Typography>
+
+              {/* Seção FATURAMENTO */}
+              {billingMenuItems.map((item) => (
+                <ListItem key={item.id} disablePadding sx={{ mb: 1 }}>
+                  <ListItemButton
+                    onClick={() => handleSectionChange(item.id)}
+                    selected={selectedSection === item.id}
+                    sx={{
+                      borderRadius: 2,
+                      py: 1.5,
+                      px: 2,
+                      backgroundColor:
+                        selectedSection === item.id
+                          ? theme.palette.primary.main + "12"
+                          : "transparent",
+                      border:
+                        selectedSection === item.id
+                          ? `1px solid ${theme.palette.primary.main}30`
+                          : "1px solid transparent",
+                      "&:hover": {
+                        backgroundColor:
+                          selectedSection === item.id
+                            ? theme.palette.primary.main + "20"
+                            : theme.palette.action.hover,
+                        borderColor:
+                          selectedSection === item.id
+                            ? theme.palette.primary.main + "50"
+                            : theme.palette.divider,
+                      },
+                      "&.Mui-selected": {
+                        backgroundColor: theme.palette.primary.main + "12",
+                        borderColor: theme.palette.primary.main + "30",
+                        "&:hover": {
+                          backgroundColor: theme.palette.primary.main + "20",
+                          borderColor: theme.palette.primary.main + "50",
+                        },
+                      },
+                      transition: "all 0.3s ease",
+                    }}
+                  >
+                    <ListItemIcon
+                      sx={{
+                        color:
+                          selectedSection === item.id
+                            ? theme.palette.primary.main
+                            : theme.palette.text.secondary,
+                        minWidth: 44,
+                        mr: 1,
+                      }}
+                    >
+                      {item.icon}
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={item.label}
+                      secondary={item.description}
+                      primaryTypographyProps={{
+                        fontWeight: selectedSection === item.id ? 600 : 500,
+                        color:
+                          selectedSection === item.id
+                            ? theme.palette.primary.main
+                            : theme.palette.text.primary,
+                        fontSize: "0.9rem",
+                      }}
+                      secondaryTypographyProps={{
+                        fontSize: "0.75rem",
+                        color: theme.palette.text.secondary,
+                        lineHeight: 1.3,
+                      }}
+                    />
+                  </ListItemButton>
+                </ListItem>
+              ))}
+            </>
+          )}
         </List>
       </Box>
     </Box>
@@ -583,23 +631,25 @@ export function ManagementComponent() {
           </Typography>
         </Box>
 
-        <Button
-          variant="contained"
-          onClick={handleGoToUpgrade}
-          sx={{
-            backgroundColor: theme.palette.primary.main,
-            "&:hover": {
-              backgroundColor: theme.palette.primary.dark,
-            },
-            px: { xs: 2, sm: 3 },
-            borderRadius: 2,
-            textTransform: "none",
-            fontWeight: 600,
-            fontSize: { xs: "0.875rem", sm: "1rem" },
-          }}
-        >
-          {isMobile ? "Assinar" : "Assinar Plano"}
-        </Button>
+        {!isMemberRole && (
+          <Button
+            variant="contained"
+            onClick={handleGoToUpgrade}
+            sx={{
+              backgroundColor: theme.palette.primary.main,
+              "&:hover": {
+                backgroundColor: theme.palette.primary.dark,
+              },
+              px: { xs: 2, sm: 3 },
+              borderRadius: 2,
+              textTransform: "none",
+              fontWeight: 600,
+              fontSize: { xs: "0.875rem", sm: "1rem" },
+            }}
+          >
+            {isMobile ? "Assinar" : "Assinar Plano"}
+          </Button>
+        )}
       </Box>
 
       <Box

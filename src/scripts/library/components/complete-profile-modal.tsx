@@ -73,11 +73,11 @@ export function CompleteProfileModal() {
         profileData.personalId ? formatCPF(profileData.personalId) : ""
       );
       setPhone(
-        profileData.profile.phoneNumber
+        profileData.profile?.phoneNumber
           ? formatPhone(profileData.profile.phoneNumber)
           : ""
       );
-      setAddress(profileData.profile.formattedAddress || "");
+      setAddress(profileData.profile?.formattedAddress || "");
     }
   }, [profileData]);
 
@@ -122,10 +122,10 @@ export function CompleteProfileModal() {
       // Sempre enviar telefone e endereço juntos no patch para não sobrescrever um com vazio
       const profileUpdate: IPatchProfileRequest["profile"] = {
         phoneNumber: hasPhone
-          ? (profileData.profile.phoneNumber ?? "")
+          ? (profileData.profile?.phoneNumber ?? "")
           : phoneDigits,
         formattedAddress: hasAddress
-          ? (profileData.profile.formattedAddress ?? "")
+          ? (profileData.profile?.formattedAddress ?? "")
           : addressTrim,
       };
       await patchProfile(store.token, { profile: profileUpdate });

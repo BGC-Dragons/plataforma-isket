@@ -403,6 +403,9 @@ export function SidebarMenu() {
                       }}
                     >
                       {profileInfo?.profile?.email ||
+                        profileInfo?.authMethods?.find(
+                          (m) => m.method === "EMAIL"
+                        )?.value ||
                         store.user?.email ||
                         "email@exemplo.com"}
                     </Typography>
@@ -424,7 +427,11 @@ export function SidebarMenu() {
                           fontWeight: 500,
                         }}
                       >
-                        {store.user?.sub ? "Conta Google" : "Dono da conta"}
+                        {profileInfo?.roles?.[0]?.role === "OWNER"
+                          ? "Dono da conta"
+                          : profileInfo?.roles?.[0]?.role === "ADMIN"
+                            ? "Administrador"
+                            : "Membro"}
                       </Typography>
                       <Typography
                         variant="caption"
@@ -432,7 +439,9 @@ export function SidebarMenu() {
                           color: theme.palette.text.secondary,
                         }}
                       >
-                        {store.user?.sub
+                        {profileInfo?.authMethods?.some(
+                          (m) => m.method === "GOOGLE"
+                        )
                           ? "Conectado via Google"
                           : "Conta criada localmente"}
                       </Typography>

@@ -38,6 +38,7 @@ import {
   useGetPurchases,
   type IGetPurchasesResponseSuccess,
 } from "../../../services/get-purchases.service";
+import { useAllEffectiveCredits } from "../hooks/use-effective-credits";
 import isketLogo from "../../../assets/simbolo-isket.svg";
 
 export function FloatingTopMenu() {
@@ -131,21 +132,20 @@ export function FloatingTopMenu() {
     purchases.length > 0 &&
     purchases[0].product.productType !== "TRIAL_PLAN";
 
-  // Função para obter unidades restantes
-  const getRemainingUnits = () => {
-    if (purchases.length === 0)
-      return { propertyValuation: 0, residentSearch: 0 };
+  // Hook para obter créditos efetivos (respeita limites individuais)
+  const { propertyValuation, residentSearch } = useAllEffectiveCredits();
 
-    const purchase = purchases[0]; // Assumindo que há apenas uma compra ativa
-    const propertyValuation =
-      purchase.remainingUnits.find((unit) => unit.type === "PROPERTY_VALUATION")
-        ?.unitsRemaining || 0;
-
-    const residentSearch =
-      purchase.remainingUnits.find((unit) => unit.type === "RESIDENT_SEARCH")
-        ?.unitsRemaining || 0;
-
-    return { propertyValuation, residentSearch };
+  // Formata a exibição de créditos
+  const formatCredits = (credits: {
+    consumed: number;
+    total: number;
+    remaining: number;
+    hasIndividualLimit: boolean;
+  }) => {
+    if (credits.hasIndividualLimit) {
+      return `${credits.consumed}/${credits.total}`;
+    }
+    return `${credits.remaining}`;
   };
 
   const handleIconHover = (
@@ -405,7 +405,7 @@ export function FloatingTopMenu() {
                               color: theme.palette.text.secondary,
                             }}
                           >
-                            Restam {getRemainingUnits().propertyValuation}
+                            Usados {formatCredits(propertyValuation)}
                           </Typography>
                         </Box>
                       </Paper>
@@ -478,7 +478,7 @@ export function FloatingTopMenu() {
                               color: theme.palette.text.secondary,
                             }}
                           >
-                            Restam {getRemainingUnits().residentSearch}
+                            Usados {formatCredits(residentSearch)}
                           </Typography>
                         </Box>
                       </Paper>
@@ -668,6 +668,9 @@ export function FloatingTopMenu() {
                         }}
                       >
                         {profileInfo?.profile?.email ||
+                          profileInfo?.authMethods?.find(
+                            (m) => m.method === "EMAIL"
+                          )?.value ||
                           store.user?.email ||
                           "email@exemplo.com"}
                       </Typography>
@@ -690,7 +693,11 @@ export function FloatingTopMenu() {
                         fontWeight: 500,
                       }}
                     >
-                      {store.user?.sub ? "Conta Google" : "Dono da conta"}
+                      {profileInfo?.roles?.[0]?.role === "OWNER"
+                        ? "Dono da conta"
+                        : profileInfo?.roles?.[0]?.role === "ADMIN"
+                          ? "Administrador"
+                          : "Membro"}
                     </Typography>
                     <Typography
                       variant="caption"
@@ -698,7 +705,9 @@ export function FloatingTopMenu() {
                         color: theme.palette.text.secondary,
                       }}
                     >
-                      {store.user?.sub
+                      {profileInfo?.authMethods?.some(
+                        (m) => m.method === "GOOGLE"
+                      )
                         ? "Conectado via Google"
                         : "Conta criada localmente"}
                     </Typography>

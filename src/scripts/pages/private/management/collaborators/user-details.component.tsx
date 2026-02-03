@@ -23,7 +23,6 @@ import {
   ArrowBack,
   Email,
   Phone,
-  Business,
   Assessment,
   Search,
   LocationOn,
@@ -31,6 +30,7 @@ import {
   Warning,
   CheckCircle,
   TrendingDown,
+  Tune,
 } from "@mui/icons-material";
 import { useAuth } from "../../../../modules/access-manager/auth.hook";
 import {
@@ -47,10 +47,16 @@ import {
   patchUser,
   type IPatchUserRequest,
 } from "../../../../../services/patch-user.service";
+import {
+  useGetUserCreditLimits,
+  type IUserCreditLimit,
+} from "../../../../../services/get-user-credit-limits.service";
+import { CreditLimitDialog } from "./credit-limit-dialog.component";
 
 interface UserDetailsProps {
   userId: string;
   onBack: () => void;
+  userRole: string;
 }
 
 interface UserStats {
@@ -72,7 +78,7 @@ interface UserStats {
   cities: string[];
 }
 
-export function UserDetailsComponent({ userId, onBack }: UserDetailsProps) {
+export function UserDetailsComponent({ userId, onBack, userRole }: UserDetailsProps) {
   const theme = useTheme();
   const { store } = useAuth();
 
@@ -88,6 +94,11 @@ export function UserDetailsComponent({ userId, onBack }: UserDetailsProps) {
     name: "",
     personalId: "",
   });
+  const [limitDialogOpen, setLimitDialogOpen] = useState(false);
+  const [limitDialogUnitType, setLimitDialogUnitType] = useState<
+    "PROPERTY_VALUATION" | "RESIDENT_SEARCH" | "RADARS"
+  >("PROPERTY_VALUATION");
+  const [limitDialogLabel, setLimitDialogLabel] = useState("");
 
   // Data via SWR
   const {
@@ -100,6 +111,7 @@ export function UserDetailsComponent({ userId, onBack }: UserDetailsProps) {
     error: dashboardError,
     isLoading: isLoadingDashboard,
   } = useGetDashboardUser(userId);
+  const { data: creditLimits } = useGetUserCreditLimits(userId);
 
   // Processar dados do usuário quando disponível
   useEffect(() => {
@@ -281,6 +293,25 @@ export function UserDetailsComponent({ userId, onBack }: UserDetailsProps) {
     }
   };
 
+  const getUserLimit = (
+    unitType: "PROPERTY_VALUATION" | "RESIDENT_SEARCH" | "RADARS"
+  ): IUserCreditLimit | undefined => {
+    return creditLimits?.find((l) => l.unitType === unitType);
+  };
+
+  const isOwner = userRole === "OWNER";
+  const isViewingNonOwner =
+    user?.roles?.[0]?.role !== "OWNER";
+
+  const openLimitDialog = (
+    unitType: "PROPERTY_VALUATION" | "RESIDENT_SEARCH" | "RADARS",
+    label: string
+  ) => {
+    setLimitDialogUnitType(unitType);
+    setLimitDialogLabel(label);
+    setLimitDialogOpen(true);
+  };
+
   if (isLoading) {
     return (
       <Box
@@ -458,13 +489,17 @@ export function UserDetailsComponent({ userId, onBack }: UserDetailsProps) {
                 <Typography
                   variant="body2"
                   color={
-                    user.profile?.email ? "text.secondary" : "text.disabled"
+                    (user.profile?.email || user.authMethods?.find(m => m.method === "EMAIL")?.value)
+                      ? "text.secondary"
+                      : "text.disabled"
                   }
                   sx={{
-                    fontStyle: user.profile?.email ? "normal" : "italic",
+                    fontStyle: (user.profile?.email || user.authMethods?.find(m => m.method === "EMAIL")?.value)
+                      ? "normal"
+                      : "italic",
                   }}
                 >
-                  {user.profile?.email || "Email não informado"}
+                  {user.profile?.email || user.authMethods?.find(m => m.method === "EMAIL")?.value || "Email não informado"}
                 </Typography>
               </Box>
 
@@ -484,13 +519,6 @@ export function UserDetailsComponent({ userId, onBack }: UserDetailsProps) {
                   {user.profile?.phoneNumber
                     ? formatPhoneNumber(user.profile.phoneNumber)
                     : "Telefone não informado"}
-                </Typography>
-              </Box>
-
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Business sx={{ fontSize: 16, color: "text.secondary" }} />
-                <Typography variant="body2" color="text.secondary">
-                  {user.account?.company?.name || "Empresa não informada"}
                 </Typography>
               </Box>
             </Box>
@@ -704,6 +732,74 @@ export function UserDetailsComponent({ userId, onBack }: UserDetailsProps) {
                   <Typography variant="caption">Créditos baixos</Typography>
                 </Alert>
               )}
+
+              {/* Limite individual */}
+              {(() => {
+                const limit = getUserLimit("PROPERTY_VALUATION");
+                return (
+                  <Box
+                    sx={{
+                      mt: 1.5,
+                      pt: 1.5,
+                      borderTop: `1px solid ${theme.palette.divider}`,
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Typography variant="caption" color="text.secondary">
+                        {limit
+                          ? `Limite individual: ${limit.totalConsumed}/${limit.limitAmount}`
+                          : "Sem limite individual"}
+                      </Typography>
+                      {isOwner && isViewingNonOwner && (
+                        <IconButton
+                          size="small"
+                          onClick={() =>
+                            openLimitDialog(
+                              "PROPERTY_VALUATION",
+                              "Avaliações de Imóveis"
+                            )
+                          }
+                          sx={{ p: 0.5 }}
+                        >
+                          <Tune sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      )}
+                    </Box>
+                    {limit && (
+                      <LinearProgress
+                        variant="determinate"
+                        value={
+                          limit.limitAmount > 0
+                            ? Math.min(
+                                (limit.totalConsumed / limit.limitAmount) * 100,
+                                100
+                              )
+                            : 0
+                        }
+                        sx={{
+                          height: 4,
+                          borderRadius: 2,
+                          mt: 0.5,
+                          backgroundColor: `${theme.palette.warning.main}20`,
+                          "& .MuiLinearProgress-bar": {
+                            backgroundColor:
+                              limit.totalConsumed >= limit.limitAmount
+                                ? theme.palette.error.main
+                                : theme.palette.warning.main,
+                            borderRadius: 2,
+                          },
+                        }}
+                      />
+                    )}
+                  </Box>
+                );
+              })()}
             </Card>
           </Fade>
 
@@ -872,6 +968,74 @@ export function UserDetailsComponent({ userId, onBack }: UserDetailsProps) {
                   <Typography variant="caption">Créditos baixos</Typography>
                 </Alert>
               )}
+
+              {/* Limite individual */}
+              {(() => {
+                const limit = getUserLimit("RESIDENT_SEARCH");
+                return (
+                  <Box
+                    sx={{
+                      mt: 1.5,
+                      pt: 1.5,
+                      borderTop: `1px solid ${theme.palette.divider}`,
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Typography variant="caption" color="text.secondary">
+                        {limit
+                          ? `Limite individual: ${limit.totalConsumed}/${limit.limitAmount}`
+                          : "Sem limite individual"}
+                      </Typography>
+                      {isOwner && isViewingNonOwner && (
+                        <IconButton
+                          size="small"
+                          onClick={() =>
+                            openLimitDialog(
+                              "RESIDENT_SEARCH",
+                              "Buscas de Morador"
+                            )
+                          }
+                          sx={{ p: 0.5 }}
+                        >
+                          <Tune sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      )}
+                    </Box>
+                    {limit && (
+                      <LinearProgress
+                        variant="determinate"
+                        value={
+                          limit.limitAmount > 0
+                            ? Math.min(
+                                (limit.totalConsumed / limit.limitAmount) * 100,
+                                100
+                              )
+                            : 0
+                        }
+                        sx={{
+                          height: 4,
+                          borderRadius: 2,
+                          mt: 0.5,
+                          backgroundColor: `${theme.palette.warning.main}20`,
+                          "& .MuiLinearProgress-bar": {
+                            backgroundColor:
+                              limit.totalConsumed >= limit.limitAmount
+                                ? theme.palette.error.main
+                                : theme.palette.warning.main,
+                            borderRadius: 2,
+                          },
+                        }}
+                      />
+                    )}
+                  </Box>
+                );
+              })()}
             </Card>
           </Fade>
 
@@ -1037,6 +1201,71 @@ export function UserDetailsComponent({ userId, onBack }: UserDetailsProps) {
                   <Typography variant="caption">Créditos baixos</Typography>
                 </Alert>
               )}
+
+              {/* Limite individual */}
+              {(() => {
+                const limit = getUserLimit("RADARS");
+                return (
+                  <Box
+                    sx={{
+                      mt: 1.5,
+                      pt: 1.5,
+                      borderTop: `1px solid ${theme.palette.divider}`,
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Typography variant="caption" color="text.secondary">
+                        {limit
+                          ? `Limite individual: ${limit.totalConsumed}/${limit.limitAmount}`
+                          : "Sem limite individual"}
+                      </Typography>
+                      {isOwner && isViewingNonOwner && (
+                        <IconButton
+                          size="small"
+                          onClick={() =>
+                            openLimitDialog("RADARS", "Radares")
+                          }
+                          sx={{ p: 0.5 }}
+                        >
+                          <Tune sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      )}
+                    </Box>
+                    {limit && (
+                      <LinearProgress
+                        variant="determinate"
+                        value={
+                          limit.limitAmount > 0
+                            ? Math.min(
+                                (limit.totalConsumed / limit.limitAmount) * 100,
+                                100
+                              )
+                            : 0
+                        }
+                        sx={{
+                          height: 4,
+                          borderRadius: 2,
+                          mt: 0.5,
+                          backgroundColor: `${theme.palette.warning.main}20`,
+                          "& .MuiLinearProgress-bar": {
+                            backgroundColor:
+                              limit.totalConsumed >= limit.limitAmount
+                                ? theme.palette.error.main
+                                : theme.palette.warning.main,
+                            borderRadius: 2,
+                          },
+                        }}
+                      />
+                    )}
+                  </Box>
+                );
+              })()}
             </Card>
           </Fade>
         </Box>
@@ -1135,6 +1364,24 @@ export function UserDetailsComponent({ userId, onBack }: UserDetailsProps) {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Dialog de Limite de Crédito */}
+      {user && (
+        <CreditLimitDialog
+          open={limitDialogOpen}
+          onClose={() => setLimitDialogOpen(false)}
+          userId={userId}
+          userName={user.name}
+          unitType={limitDialogUnitType}
+          unitTypeLabel={limitDialogLabel}
+          currentLimit={
+            getUserLimit(limitDialogUnitType)?.limitAmount ?? null
+          }
+          currentConsumed={
+            getUserLimit(limitDialogUnitType)?.totalConsumed ?? 0
+          }
+        />
+      )}
     </Box>
   );
 }

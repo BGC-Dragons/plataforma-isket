@@ -6,6 +6,7 @@ import { CompleteProfile } from "../../pages/public/CompleteProfile";
 import { EmailVerification } from "../../pages/public/EmailVerification";
 import { CompleteSignUp } from "../../pages/public/CompleteSignUp";
 import { ResetPassword } from "../../pages/public/ResetPassword";
+import { InviteAccept } from "../../pages/public/InviteAccept";
 import { Error404 } from "../../pages/public/Error404";
 import { AccessManager } from "../../modules/access-manager/access-manager.component";
 import { AuthProvider } from "../../modules/access-manager/auth.context";
@@ -73,6 +74,7 @@ export function AppRouter() {
               <Route path="/email-verification" element={<EmailVerification />} />
               <Route path="/complete-signup" element={<CompleteSignUp />} />
               <Route path="/reset-password/:token" element={<ResetPassword />} />
+              <Route path="/invite/:token" element={<InviteAccept />} />
 
               {/* Rotas Privadas */}
               <Route

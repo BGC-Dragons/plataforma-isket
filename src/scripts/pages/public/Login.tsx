@@ -100,6 +100,16 @@ export function Login() {
       if (response.data.accessToken && response.data.refreshToken) {
         try {
           const userResponse = await getAuthMe(response.data.accessToken);
+
+          if (userResponse.data.inactive) {
+            setError(
+              "Sua conta foi desativada. Entre em contato com o administrador."
+            );
+            setShowError(true);
+            setLoading(false);
+            return;
+          }
+
           const user = {
             id: userResponse.data.id,
             name: userResponse.data.name,

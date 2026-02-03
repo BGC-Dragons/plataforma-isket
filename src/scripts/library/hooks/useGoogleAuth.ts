@@ -9,7 +9,7 @@ interface UseGoogleAuthReturn {
 }
 
 export const useGoogleAuth = (
-  onSuccess: (response: { code: string }) => void,
+  onSuccess: (response: { code: string }) => void | Promise<void>,
   onError?: (error: string) => void
 ): UseGoogleAuthReturn => {
   const [isLoading, setIsLoading] = useState(false);
@@ -26,12 +26,19 @@ export const useGoogleAuth = (
         setError(null);
 
         // Chamar callback de sucesso com o code
-        onSuccess(response);
+        await onSuccess(response);
       } catch (err) {
-        const errorMessage =
+        let errorMessage =
           err instanceof Error
             ? err.message
             : "Erro na autenticação com Google";
+
+        // Traduzir erro de usuário inativo
+        if (errorMessage === "INACTIVE_USER") {
+          errorMessage =
+            "Sua conta foi desativada. Entre em contato com o administrador.";
+        }
+
         setError(errorMessage);
         onError?.(errorMessage);
       } finally {

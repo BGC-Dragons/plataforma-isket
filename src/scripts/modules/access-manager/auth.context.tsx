@@ -51,11 +51,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const response = await getAuthMe(token);
       const userData = response.data;
 
+      if (userData.inactive) {
+        console.warn("Usuário inativo tentou acessar");
+        return null;
+      }
+
       const user: IAuthUser = {
         id: userData.id,
         name: userData.name,
-        email: userData.profile.email,
-        picture: userData.profile.imageURL || undefined,
+        email: userData.profile?.email || "",
+        picture: userData.profile?.imageURL || undefined,
         sub: undefined,
       };
 
@@ -158,11 +163,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             const userResponse = await getAuthMe(accessToken);
             const userData = userResponse.data;
 
+            if (userData.inactive) {
+              throw new Error("INACTIVE_USER");
+            }
+
             const user: IAuthUser = {
               id: userData.id,
               name: userData.name,
-              email: userData.profile.email,
-              picture: userData.profile.imageURL || undefined,
+              email: userData.profile?.email || "",
+              picture: userData.profile?.imageURL || undefined,
               sub: authResponse.user?.sub,
             };
 
@@ -171,6 +180,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               user
             );
           } catch (userError: unknown) {
+            // Verificar se é usuário inativo
+            if (
+              userError instanceof Error &&
+              userError.message === "INACTIVE_USER"
+            ) {
+              throw new Error("INACTIVE_USER");
+            }
+
             const axiosError = userError as {
               response?: {
                 data?: {

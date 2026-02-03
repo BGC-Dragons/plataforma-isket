@@ -48,7 +48,7 @@ import { patchPropertyListingAcquisitionContactHistory } from "../../../services
 import { CreateContactModal } from "./create-contact-modal";
 import { getPropertyListingAcquisitionContacts } from "../../../services/get-property-listing-acquisition-contacts.service";
 import type { IPropertyListingAcquisitionContact } from "../../../services/post-property-listing-acquisition-contact.service";
-import { useGetPurchases } from "../../../services/get-purchases.service";
+import { useEffectiveCredits } from "../../library/hooks/use-effective-credits";
 import { CreatePropertyCaptureModal } from "./create-property-capture-modal";
 
 interface ContactSourcingDetailsProps {
@@ -72,7 +72,6 @@ export function ContactSourcingDetails({
 }: ContactSourcingDetailsProps) {
   const theme = useTheme();
   const auth = useAuth();
-  const { data: purchases } = useGetPurchases();
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(data.title);
   const [isRevealingProperties, setIsRevealingProperties] = useState(false);
@@ -240,20 +239,9 @@ export function ContactSourcingDetails({
     }
   }, [acquisitionProcessId, auth.store.token, loadContactHistory]);
 
-  // Calcular créditos restantes de RESIDENT_SEARCH
-  const getRemainingResidentSearchCredits = (): number => {
-    if (!purchases || purchases.length === 0) return 0;
-
-    // Pegar a primeira compra ativa
-    const purchase = purchases[0];
-    const residentSearchUnit = purchase.remainingUnits.find(
-      (unit) => unit.type === "RESIDENT_SEARCH",
-    );
-
-    return residentSearchUnit?.unitsRemaining || 0;
-  };
-
-  const remainingResidentSearchCredits = getRemainingResidentSearchCredits();
+  // Créditos efetivos (respeita limites individuais)
+  const residentSearchCredits = useEffectiveCredits("RESIDENT_SEARCH");
+  const remainingResidentSearchCredits = residentSearchCredits.remaining;
 
   const handleRevealProperties = async () => {
     if (!auth.store.token || !data.cpf) {
@@ -1490,9 +1478,19 @@ export function ContactSourcingDetails({
                     textAlign: "center",
                   }}
                 >
-                  Você possui <strong>{remainingResidentSearchCredits}</strong>{" "}
-                  <strong>créditos disponíveis</strong> para revelar e/ou
-                  atualizar imóveis.
+                  {residentSearchCredits.hasIndividualLimit ? (
+                    <>
+                      Usados <strong>{residentSearchCredits.consumed}/{residentSearchCredits.total}</strong>{" "}
+                      <strong>créditos</strong> para revelar e/ou
+                      atualizar imóveis.
+                    </>
+                  ) : (
+                    <>
+                      Você possui <strong>{remainingResidentSearchCredits}</strong>{" "}
+                      <strong>créditos disponíveis</strong> para revelar e/ou
+                      atualizar imóveis.
+                    </>
+                  )}
                 </Typography>
                 <Box
                   sx={{
@@ -1524,7 +1522,7 @@ export function ContactSourcingDetails({
                 variant="contained"
                 fullWidth
                 onClick={handleRevealProperties}
-                disabled={isRevealingProperties}
+                disabled={isRevealingProperties || remainingResidentSearchCredits <= 0}
                 sx={{
                   backgroundColor: "#1976d2",
                   textTransform: "none",
