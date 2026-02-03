@@ -1589,7 +1589,15 @@ export function Kanban({
     } finally {
       setIsCreating(false);
     }
-  }, [newColumnTitle, auth.store.token, stages, mutate]);
+  }, [
+    newColumnTitle,
+    newColumnColor,
+    newColumnFontColor,
+    newColumnIcon,
+    auth.store.token,
+    stages,
+    mutate,
+  ]);
 
   // Loading state
   if (isLoading) {
