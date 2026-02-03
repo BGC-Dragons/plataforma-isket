@@ -7,7 +7,6 @@ import {
   useTheme,
   CircularProgress,
   Chip,
-  Grid,
 } from "@mui/material";
 import { ExpandMore, Circle } from "@mui/icons-material";
 import { useMemo } from "react";
@@ -37,7 +36,10 @@ const calculateOpportunities = (
   demandData: Array<{ neighborhood: string; count: number }>,
   supplyData: Array<{ neighborhood: string; count: number }>
 ): OpportunityData[] => {
-  const merged = new Map<string, { demand: number; supply: number; originalName: string }>();
+  const merged = new Map<
+    string,
+    { demand: number; supply: number; originalName: string }
+  >();
 
   // Process demand data
   demandData.forEach((d) => {
@@ -46,7 +48,11 @@ const calculateOpportunities = (
     if (existing) {
       existing.demand += d.count;
     } else {
-      merged.set(normalized, { demand: d.count, supply: 0, originalName: d.neighborhood });
+      merged.set(normalized, {
+        demand: d.count,
+        supply: 0,
+        originalName: d.neighborhood,
+      });
     }
   });
 
@@ -57,7 +63,11 @@ const calculateOpportunities = (
     if (existing) {
       existing.supply += s.count;
     } else {
-      merged.set(normalized, { demand: 0, supply: s.count, originalName: s.neighborhood });
+      merged.set(normalized, {
+        demand: 0,
+        supply: s.count,
+        originalName: s.neighborhood,
+      });
     }
   });
 
@@ -101,18 +111,22 @@ const calculateOpportunities = (
   // Sort by opportunity level (high first), then by ratio
   return result.sort((a, b) => {
     const priorityOrder = { high: 0, medium: 1, low: 2 };
-    const priorityDiff = priorityOrder[a.opportunity] - priorityOrder[b.opportunity];
+    const priorityDiff =
+      priorityOrder[a.opportunity] - priorityOrder[b.opportunity];
     if (priorityDiff !== 0) return priorityDiff;
 
     // Within same priority, sort by ratio (higher ratio = more opportunity)
-    if (a.ratio === Infinity && b.ratio === Infinity) return b.demandCount - a.demandCount;
+    if (a.ratio === Infinity && b.ratio === Infinity)
+      return b.demandCount - a.demandCount;
     if (a.ratio === Infinity) return -1;
     if (b.ratio === Infinity) return 1;
     return b.ratio - a.ratio;
   });
 };
 
-const getOpportunityColor = (opportunity: "high" | "medium" | "low"): string => {
+const getOpportunityColor = (
+  opportunity: "high" | "medium" | "low"
+): string => {
   switch (opportunity) {
     case "high":
       return "#4caf50"; // Green
@@ -120,17 +134,6 @@ const getOpportunityColor = (opportunity: "high" | "medium" | "low"): string => 
       return "#ff9800"; // Orange
     case "low":
       return "#f44336"; // Red
-  }
-};
-
-const getOpportunityLabel = (opportunity: "high" | "medium" | "low"): string => {
-  switch (opportunity) {
-    case "high":
-      return "Alta oportunidade";
-    case "medium":
-      return "Equilibrado";
-    case "low":
-      return "Saturado";
   }
 };
 
@@ -148,8 +151,12 @@ export function OpportunityInsightsAccordion({
     [demandData, supplyData]
   );
 
-  const highOpportunities = opportunities.filter((o) => o.opportunity === "high");
-  const mediumOpportunities = opportunities.filter((o) => o.opportunity === "medium");
+  const highOpportunities = opportunities.filter(
+    (o) => o.opportunity === "high"
+  );
+  const mediumOpportunities = opportunities.filter(
+    (o) => o.opportunity === "medium"
+  );
   const lowOpportunities = opportunities.filter((o) => o.opportunity === "low");
 
   return (
@@ -191,7 +198,8 @@ export function OpportunityInsightsAccordion({
         ) : (
           <Box>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Regiões com alta demanda e baixa oferta são ótimas oportunidades para captação de imóveis.
+              Regiões com alta demanda e baixa oferta são ótimas oportunidades
+              para captação de imóveis.
             </Typography>
 
             {/* High Opportunities */}
@@ -199,45 +207,59 @@ export function OpportunityInsightsAccordion({
               <Box sx={{ mb: 2 }}>
                 <Typography
                   variant="subtitle2"
-                  sx={{ mb: 1, color: getOpportunityColor("high"), fontWeight: 600 }}
+                  sx={{
+                    mb: 1,
+                    color: getOpportunityColor("high"),
+                    fontWeight: 600,
+                  }}
                 >
                   Alta Oportunidade ({highOpportunities.length})
                 </Typography>
-                <Grid container spacing={1}>
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" },
+                    gap: 1,
+                  }}
+                >
                   {highOpportunities.slice(0, 10).map((item, index) => (
-                    <Grid item xs={12} sm={6} key={index}>
-                      <Box
+                    <Box
+                      key={index}
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1,
+                        p: 1,
+                        backgroundColor: "rgba(76, 175, 80, 0.08)",
+                        borderRadius: 1,
+                        border: `1px solid rgba(76, 175, 80, 0.2)`,
+                      }}
+                    >
+                      <Circle
                         sx={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 1,
-                          p: 1,
-                          backgroundColor: "rgba(76, 175, 80, 0.08)",
-                          borderRadius: 1,
-                          border: `1px solid rgba(76, 175, 80, 0.2)`,
+                          fontSize: 8,
+                          color: getOpportunityColor("high"),
                         }}
-                      >
-                        <Circle sx={{ fontSize: 8, color: getOpportunityColor("high") }} />
-                        <Box sx={{ flex: 1, minWidth: 0 }}>
-                          <Typography
-                            variant="body2"
-                            fontWeight={500}
-                            sx={{
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            {item.neighborhood.split(" - ")[0]}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {item.demandCount} buscas • {item.supplyCount} imóveis
-                          </Typography>
-                        </Box>
+                      />
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography
+                          variant="body2"
+                          fontWeight={500}
+                          sx={{
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {item.neighborhood.split(" - ")[0]}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {item.demandCount} buscas • {item.supplyCount} imóveis
+                        </Typography>
                       </Box>
-                    </Grid>
+                    </Box>
                   ))}
-                </Grid>
+                </Box>
               </Box>
             )}
 
@@ -246,45 +268,59 @@ export function OpportunityInsightsAccordion({
               <Box sx={{ mb: 2 }}>
                 <Typography
                   variant="subtitle2"
-                  sx={{ mb: 1, color: getOpportunityColor("medium"), fontWeight: 600 }}
+                  sx={{
+                    mb: 1,
+                    color: getOpportunityColor("medium"),
+                    fontWeight: 600,
+                  }}
                 >
                   Mercado Equilibrado ({mediumOpportunities.length})
                 </Typography>
-                <Grid container spacing={1}>
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" },
+                    gap: 1,
+                  }}
+                >
                   {mediumOpportunities.slice(0, 6).map((item, index) => (
-                    <Grid item xs={12} sm={6} key={index}>
-                      <Box
+                    <Box
+                      key={index}
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1,
+                        p: 1,
+                        backgroundColor: "rgba(255, 152, 0, 0.08)",
+                        borderRadius: 1,
+                        border: `1px solid rgba(255, 152, 0, 0.2)`,
+                      }}
+                    >
+                      <Circle
                         sx={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 1,
-                          p: 1,
-                          backgroundColor: "rgba(255, 152, 0, 0.08)",
-                          borderRadius: 1,
-                          border: `1px solid rgba(255, 152, 0, 0.2)`,
+                          fontSize: 8,
+                          color: getOpportunityColor("medium"),
                         }}
-                      >
-                        <Circle sx={{ fontSize: 8, color: getOpportunityColor("medium") }} />
-                        <Box sx={{ flex: 1, minWidth: 0 }}>
-                          <Typography
-                            variant="body2"
-                            fontWeight={500}
-                            sx={{
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            {item.neighborhood.split(" - ")[0]}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {item.demandCount} buscas • {item.supplyCount} imóveis
-                          </Typography>
-                        </Box>
+                      />
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography
+                          variant="body2"
+                          fontWeight={500}
+                          sx={{
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {item.neighborhood.split(" - ")[0]}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {item.demandCount} buscas • {item.supplyCount} imóveis
+                        </Typography>
                       </Box>
-                    </Grid>
+                    </Box>
                   ))}
-                </Grid>
+                </Box>
               </Box>
             )}
 
@@ -293,45 +329,59 @@ export function OpportunityInsightsAccordion({
               <Box>
                 <Typography
                   variant="subtitle2"
-                  sx={{ mb: 1, color: getOpportunityColor("low"), fontWeight: 600 }}
+                  sx={{
+                    mb: 1,
+                    color: getOpportunityColor("low"),
+                    fontWeight: 600,
+                  }}
                 >
                   Mercado Saturado ({lowOpportunities.length})
                 </Typography>
-                <Grid container spacing={1}>
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" },
+                    gap: 1,
+                  }}
+                >
                   {lowOpportunities.slice(0, 4).map((item, index) => (
-                    <Grid item xs={12} sm={6} key={index}>
-                      <Box
+                    <Box
+                      key={index}
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1,
+                        p: 1,
+                        backgroundColor: "rgba(244, 67, 54, 0.08)",
+                        borderRadius: 1,
+                        border: `1px solid rgba(244, 67, 54, 0.2)`,
+                      }}
+                    >
+                      <Circle
                         sx={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 1,
-                          p: 1,
-                          backgroundColor: "rgba(244, 67, 54, 0.08)",
-                          borderRadius: 1,
-                          border: `1px solid rgba(244, 67, 54, 0.2)`,
+                          fontSize: 8,
+                          color: getOpportunityColor("low"),
                         }}
-                      >
-                        <Circle sx={{ fontSize: 8, color: getOpportunityColor("low") }} />
-                        <Box sx={{ flex: 1, minWidth: 0 }}>
-                          <Typography
-                            variant="body2"
-                            fontWeight={500}
-                            sx={{
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            {item.neighborhood.split(" - ")[0]}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {item.demandCount} buscas • {item.supplyCount} imóveis
-                          </Typography>
-                        </Box>
+                      />
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography
+                          variant="body2"
+                          fontWeight={500}
+                          sx={{
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {item.neighborhood.split(" - ")[0]}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {item.demandCount} buscas • {item.supplyCount} imóveis
+                        </Typography>
                       </Box>
-                    </Grid>
+                    </Box>
                   ))}
-                </Grid>
+                </Box>
               </Box>
             )}
 
@@ -348,21 +398,42 @@ export function OpportunityInsightsAccordion({
             >
               <Chip
                 size="small"
-                icon={<Circle sx={{ fontSize: "8px !important", color: getOpportunityColor("high") }} />}
+                icon={
+                  <Circle
+                    sx={{
+                      fontSize: "8px !important",
+                      color: getOpportunityColor("high"),
+                    }}
+                  />
+                }
                 label="Alta demanda, baixa oferta"
                 variant="outlined"
                 sx={{ borderColor: getOpportunityColor("high") }}
               />
               <Chip
                 size="small"
-                icon={<Circle sx={{ fontSize: "8px !important", color: getOpportunityColor("medium") }} />}
+                icon={
+                  <Circle
+                    sx={{
+                      fontSize: "8px !important",
+                      color: getOpportunityColor("medium"),
+                    }}
+                  />
+                }
                 label="Demanda equilibrada"
                 variant="outlined"
                 sx={{ borderColor: getOpportunityColor("medium") }}
               />
               <Chip
                 size="small"
-                icon={<Circle sx={{ fontSize: "8px !important", color: getOpportunityColor("low") }} />}
+                icon={
+                  <Circle
+                    sx={{
+                      fontSize: "8px !important",
+                      color: getOpportunityColor("low"),
+                    }}
+                  />
+                }
                 label="Muita oferta, pouca demanda"
                 variant="outlined"
                 sx={{ borderColor: getOpportunityColor("low") }}
