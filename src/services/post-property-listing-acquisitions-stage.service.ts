@@ -5,12 +5,18 @@ import { getHeader } from "./helpers/get-header-function";
 export interface IPostPropertyListingAcquisitionStageRequest {
   title: string;
   order: number;
+  color?: string | null;
+  fontColor?: string | null;
+  icon?: string | null;
 }
 
 export interface IPostPropertyListingAcquisitionStageResponse {
   id: string;
   title: string;
   order: number;
+  color?: string | null;
+  fontColor?: string | null;
+  icon?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -34,4 +40,3 @@ export const postPropertyListingAcquisitionStage = (
     }
   );
 };
-

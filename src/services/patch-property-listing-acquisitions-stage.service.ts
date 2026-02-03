@@ -5,19 +5,24 @@ import { getHeader } from "./helpers/get-header-function";
 export interface IPatchPropertyListingAcquisitionStageRequest {
   title?: string;
   order?: number;
+  color?: string | null;
+  fontColor?: string | null;
+  icon?: string | null;
 }
 
 export interface IPatchPropertyListingAcquisitionStageResponse {
   id: string;
   title: string;
   order: number;
+  color?: string | null;
+  fontColor?: string | null;
+  icon?: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
-export const patchPropertyListingAcquisitionStagePATH = (
-  id: string
-) => `/property-listing-acquisitions/stages/${id}`;
+export const patchPropertyListingAcquisitionStagePATH = (id: string) =>
+  `/property-listing-acquisitions/stages/${id}`;
 
 /**
  * Atualiza um estágio de captação de imóveis
@@ -36,4 +41,3 @@ export const patchPropertyListingAcquisitionStage = (
     }
   );
 };
-

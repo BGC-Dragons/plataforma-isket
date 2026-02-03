@@ -17,6 +17,9 @@ export interface IPropertyListingAcquisitionStage {
   id: string;
   title: string;
   order: number;
+  color?: string | null;
+  fontColor?: string | null;
+  icon?: string | null;
   listings: IPropertyListing[];
   createdAt: string;
   updatedAt: string;
@@ -64,8 +67,6 @@ export const useGetPropertyListingAcquisitionsStages = () => {
 export const clearPropertyListingAcquisitionsStagesCache = () => {
   mutate(
     (key) =>
-      Array.isArray(key) &&
-      key[0] === getPropertyListingAcquisitionsStagesPATH
+      Array.isArray(key) && key[0] === getPropertyListingAcquisitionsStagesPATH
   );
 };
-

@@ -71,6 +71,7 @@ export interface KanbanColumn {
   title: string;
   icon: React.ReactNode;
   color: string;
+  fontColor?: string | null;
   cards: KanbanCardData[];
 }
 
@@ -475,6 +476,7 @@ function SortableColumn({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              color: column.fontColor ?? theme.palette.text.primary,
             }}
           >
             {column.icon}
@@ -483,7 +485,7 @@ function SortableColumn({
             variant="subtitle2"
             sx={{
               fontWeight: 600,
-              color: theme.palette.text.primary,
+              color: column.fontColor ?? theme.palette.text.primary,
               fontSize: "0.9rem",
             }}
           >
@@ -494,7 +496,7 @@ function SortableColumn({
         <Typography
           variant="caption"
           sx={{
-            color: theme.palette.text.secondary,
+            color: column.fontColor ?? theme.palette.text.secondary,
             fontSize: "0.75rem",
           }}
         >
@@ -752,15 +754,24 @@ function mapStageToColumn(
     "#E1BEE7",
     "#FFF9C4",
   ];
-  const icons = [<Home />, <Person />, <TrendingUp />, <LocationOn />];
+  const iconMap: Record<string, React.ReactNode> = {
+    home: <Home />,
+    person: <Person />,
+    trending: <TrendingUp />,
+    location: <LocationOn />,
+  };
+  const icons = Object.values(iconMap);
   const iconIndex = (stage.order - 1) % icons.length;
   const colorIndex = (stage.order - 1) % defaultColors.length;
+  const resolvedIcon =
+    stage.icon && iconMap[stage.icon] ? iconMap[stage.icon] : icons[iconIndex];
 
   return {
     id: stage.id,
     title: stage.title,
-    icon: icons[iconIndex],
-    color: defaultColors[colorIndex],
+    icon: resolvedIcon,
+    color: stage.color ?? defaultColors[colorIndex],
+    fontColor: stage.fontColor ?? null,
     cards: stage.listings.map(mapListingToCard),
   };
 }
@@ -1558,6 +1569,9 @@ export function Kanban({
       await postPropertyListingAcquisitionStage(auth.store.token, {
         title: newColumnTitle.trim(),
         order: maxOrder,
+        color: newColumnColor,
+        fontColor: newColumnFontColor,
+        icon: newColumnIcon,
       });
 
       clearPropertyListingAcquisitionsStagesCache();
