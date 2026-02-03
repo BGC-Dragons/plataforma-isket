@@ -15,10 +15,16 @@ import { FilterBar } from "../../../modules/search/filter/filter-bar";
 import { MapComponent } from "../../../modules/search/map/map";
 import { RankingDemandAccordion } from "../../../modules/analyses/ranking-demand-accordion";
 import { SupplyByTypeAccordion } from "../../../modules/analyses/supply-by-type-accordion";
-// import { AgencyRankingAccordion } from "../../../modules/analyses/agency-ranking-accordion";
+import { RankingSupplyAccordion } from "../../../modules/analyses/ranking-supply-accordion";
+import { AnalyticsTabs, type AnalyticsTabType } from "../../../modules/analyses/analytics-tabs";
+import { HeatmapToggle, type HeatmapMode } from "../../../modules/analyses/heatmap-toggle";
+import { HeatmapLegend } from "../../../modules/analyses/heatmap-legend";
+import { OpportunityInsightsAccordion } from "../../../modules/analyses/opportunity-insights-accordion";
 import { postAnalyticsSearchDemandNeighborhoodRanking } from "../../../../services/post-analytics-search-demand-neighborhood-ranking.service";
 import { postAnalyticsSupplyByPropertyType } from "../../../../services/post-analytics-supply-by-property-type.service";
 import { postAnalyticsSearchDemandHeatMap } from "../../../../services/post-analytics-search-demand-heatmap.service";
+import { postAnalyticsSupplyHeatMap } from "../../../../services/post-analytics-supply-heatmap.service";
+import { postAnalyticsSupplyNeighborhoodRanking } from "../../../../services/post-analytics-supply-neighborhood-ranking.service";
 // import { postAnalyticsAgencyRanking } from "../../../../services/post-analytics-agency-ranking.service";
 import { mapFiltersToApi } from "../../../../services/helpers/map-filters-to-api.helper";
 import { useAuth } from "../../../modules/access-manager/auth.hook";
@@ -187,10 +193,21 @@ export function AnalysesComponent() {
   const [loadingSupplyByType, setLoadingSupplyByType] = useState(false);
   // const [loadingAgencyRanking, setLoadingAgencyRanking] = useState(false);
   const [heatmapData, setHeatmapData] = useState<number[][]>([]);
+  const [supplyHeatmapData, setSupplyHeatmapData] = useState<number[][]>([]);
+  const [supplyNeighborhoodRanking, setSupplyNeighborhoodRanking] = useState<
+    Array<{ neighborhood: string; count: number }>
+  >([]);
+  const [loadingSupplyNeighborhoodRanking, setLoadingSupplyNeighborhoodRanking] = useState(false);
+
+  // Estados das tabs e heatmap mode
+  const [activeTab, setActiveTab] = useState<AnalyticsTabType>("demanda");
+  const [heatmapMode, setHeatmapMode] = useState<HeatmapMode>("demand");
 
   // Estados dos accordions
-  const [rankingExpanded, setRankingExpanded] = useState(false);
+  const [rankingExpanded, setRankingExpanded] = useState(true);
   const [supplyExpanded, setSupplyExpanded] = useState(true);
+  const [supplyRankingExpanded, setSupplyRankingExpanded] = useState(true);
+  const [opportunityExpanded, setOpportunityExpanded] = useState(true);
   // const [agencyExpanded, setAgencyExpanded] = useState(false);
 
   // Estados do mapa
@@ -391,6 +408,33 @@ export function AnalysesComponent() {
       } catch (error) {
         console.error("Erro ao buscar heatmap de demanda:", error);
         setHeatmapData([]);
+      }
+
+      try {
+        // Buscar heatmap de oferta
+        const supplyHeatmapResponse = await postAnalyticsSupplyHeatMap(
+          basePayload,
+          auth.store.token
+        );
+        setSupplyHeatmapData(supplyHeatmapResponse.data.data || []);
+      } catch (error) {
+        console.error("Erro ao buscar heatmap de oferta:", error);
+        setSupplyHeatmapData([]);
+      }
+
+      try {
+        // Buscar ranking de oferta por bairro
+        setLoadingSupplyNeighborhoodRanking(true);
+        const supplyNeighborhoodResponse = await postAnalyticsSupplyNeighborhoodRanking(
+          basePayload,
+          auth.store.token
+        );
+        setSupplyNeighborhoodRanking(supplyNeighborhoodResponse.data.data || []);
+      } catch (error) {
+        console.error("Erro ao buscar ranking de oferta por bairro:", error);
+        setSupplyNeighborhoodRanking([]);
+      } finally {
+        setLoadingSupplyNeighborhoodRanking(false);
       }
 
       // try {
@@ -700,6 +744,16 @@ export function AnalysesComponent() {
       return;
     }
   }, [currentFilters?.addressCoordinates, currentFilters?.addressZoom]);
+
+  // Sincronizar tab com heatmap mode
+  useEffect(() => {
+    if (activeTab === "demanda") {
+      setHeatmapMode("demand");
+    } else if (activeTab === "oferta") {
+      setHeatmapMode("supply");
+    }
+    // Para "oportunidades", mantém a seleção manual do toggle
+  }, [activeTab]);
 
   // Calcular se é busca apenas por cidade (sem bairros específicos)
   const isCityOnlySearch = useMemo(() => {
@@ -1165,28 +1219,78 @@ export function AnalysesComponent() {
               />
             </Box>
 
-            {/* Accordions */}
+            {/* Tabs de navegação */}
+            <AnalyticsTabs activeTab={activeTab} onChange={setActiveTab} />
+
+            {/* Conteúdo das tabs */}
             <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              <RankingDemandAccordion
-                data={neighborhoodRanking}
-                selectedNeighborhoods={currentFilters?.neighborhoods || []}
-                loading={loadingNeighborhoodRanking}
-                expanded={rankingExpanded}
-                onChange={setRankingExpanded}
-              />
-              <SupplyByTypeAccordion
-                data={supplyByType}
-                loading={loadingSupplyByType}
-                expanded={supplyExpanded}
-                onChange={setSupplyExpanded}
-              />
-              {/* <AgencyRankingAccordion
-                data={agencyRanking}
-                neighborhoods={currentFilters?.neighborhoods || []}
-                loading={loadingAgencyRanking}
-                expanded={agencyExpanded}
-                onChange={setAgencyExpanded}
-              /> */}
+              {activeTab === "demanda" && (
+                <>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 1 }}
+                  >
+                    Onde os usuários estão buscando imóveis (baseado em
+                    visualizações de anúncios)
+                  </Typography>
+                  <RankingDemandAccordion
+                    data={neighborhoodRanking}
+                    selectedNeighborhoods={currentFilters?.neighborhoods || []}
+                    loading={loadingNeighborhoodRanking}
+                    expanded={rankingExpanded}
+                    onChange={setRankingExpanded}
+                  />
+                </>
+              )}
+
+              {activeTab === "oferta" && (
+                <>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 1 }}
+                  >
+                    Quantidade de imóveis disponíveis no mercado
+                  </Typography>
+                  <RankingSupplyAccordion
+                    data={supplyNeighborhoodRanking}
+                    selectedNeighborhoods={currentFilters?.neighborhoods || []}
+                    loading={loadingSupplyNeighborhoodRanking}
+                    expanded={supplyRankingExpanded}
+                    onChange={setSupplyRankingExpanded}
+                  />
+                  <SupplyByTypeAccordion
+                    data={supplyByType}
+                    loading={loadingSupplyByType}
+                    expanded={supplyExpanded}
+                    onChange={setSupplyExpanded}
+                  />
+                </>
+              )}
+
+              {activeTab === "oportunidades" && (
+                <>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 1 }}
+                  >
+                    Regiões com alta demanda e baixa oferta são ótimas
+                    oportunidades para captação de imóveis
+                  </Typography>
+                  <OpportunityInsightsAccordion
+                    demandData={neighborhoodRanking}
+                    supplyData={supplyNeighborhoodRanking}
+                    loading={
+                      loadingNeighborhoodRanking ||
+                      loadingSupplyNeighborhoodRanking
+                    }
+                    expanded={opportunityExpanded}
+                    onChange={setOpportunityExpanded}
+                  />
+                </>
+              )}
             </Box>
           </Box>
 
@@ -1195,36 +1299,48 @@ export function AnalysesComponent() {
             sx={{
               flex: 1,
               minWidth: 0,
-              display: { xs: "none", md: "block" }, // Esconde em telas menores que 900px
+              display: { xs: "none", md: "flex" }, // Esconde em telas menores que 900px
+              flexDirection: "column",
             }}
           >
-            <MapComponent
-              height="100%"
-              center={mapCenter}
-              zoom={mapZoom}
-              onDrawingComplete={handleDrawingComplete}
-              onClearFilters={handleClearFilters}
-              neighborhoods={neighborhoodsData}
-              selectedNeighborhoodNames={currentFilters?.neighborhoods || []}
-              cities={citiesData}
-              selectedCityCodes={
-                currentFilters?.cities
-                  .map((city) => cityToCodeMap[city])
-                  .filter((code): code is string => Boolean(code)) || []
-              }
-              allNeighborhoodsForCityBounds={allNeighborhoodsForBounds}
-              filters={currentFilters}
-              cityToCodeMap={cityToCodeMap}
-              token={
-                auth.store.token ||
-                localStorage.getItem("auth_token") ||
-                undefined
-              }
-              useMapSearch={false}
-              openInModal={false}
-              onNeighborhoodClick={handleNeighborhoodClick}
-              heatmapData={heatmapData}
-            />
+            {/* Toggle de Heat Map */}
+            <HeatmapToggle value={heatmapMode} onChange={setHeatmapMode} />
+
+            {/* Mapa com legenda */}
+            <Box sx={{ flex: 1, position: "relative" }}>
+              <MapComponent
+                height="100%"
+                center={mapCenter}
+                zoom={mapZoom}
+                onDrawingComplete={handleDrawingComplete}
+                onClearFilters={handleClearFilters}
+                neighborhoods={neighborhoodsData}
+                selectedNeighborhoodNames={currentFilters?.neighborhoods || []}
+                cities={citiesData}
+                selectedCityCodes={
+                  currentFilters?.cities
+                    .map((city) => cityToCodeMap[city])
+                    .filter((code): code is string => Boolean(code)) || []
+                }
+                allNeighborhoodsForCityBounds={allNeighborhoodsForBounds}
+                filters={currentFilters}
+                cityToCodeMap={cityToCodeMap}
+                token={
+                  auth.store.token ||
+                  localStorage.getItem("auth_token") ||
+                  undefined
+                }
+                useMapSearch={false}
+                openInModal={false}
+                onNeighborhoodClick={handleNeighborhoodClick}
+                heatmapData={
+                  heatmapMode === "demand" ? heatmapData : supplyHeatmapData
+                }
+                heatmapMode={heatmapMode}
+              />
+              {/* Legenda do Heat Map */}
+              <HeatmapLegend mode={heatmapMode} />
+            </Box>
           </Box>
         </Box>
       </Container>
@@ -1322,10 +1438,15 @@ export function AnalysesComponent() {
               </IconButton>
             </Box>
 
+            {/* Toggle de Heat Map */}
+            <Box sx={{ p: 1, borderBottom: `1px solid ${theme.palette.divider}` }}>
+              <HeatmapToggle value={heatmapMode} onChange={setHeatmapMode} />
+            </Box>
+
             {/* Mapa */}
             <Box sx={{ flex: 1, position: "relative", overflow: "hidden" }}>
               <MapComponent
-                key={`map-modal-${mapModalOpen}-${citiesData.length}-${heatmapData.length}`}
+                key={`map-modal-${mapModalOpen}-${citiesData.length}-${heatmapData.length}-${heatmapMode}`}
                 height="100%"
                 center={mapCenter}
                 zoom={mapZoom}
@@ -1350,8 +1471,13 @@ export function AnalysesComponent() {
                 useMapSearch={false}
                 openInModal={true}
                 onNeighborhoodClick={handleNeighborhoodClick}
-                heatmapData={heatmapData}
+                heatmapData={
+                  heatmapMode === "demand" ? heatmapData : supplyHeatmapData
+                }
+                heatmapMode={heatmapMode}
               />
+              {/* Legenda do Heat Map */}
+              <HeatmapLegend mode={heatmapMode} />
             </Box>
           </Box>
         </Modal>

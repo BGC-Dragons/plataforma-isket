@@ -104,6 +104,7 @@ interface MapProps {
   useMapSearch?: boolean; // Se true, usa busca do mapa ao invés de properties
   onNeighborhoodClick?: (neighborhood: INeighborhoodFull) => void; // Callback quando um bairro é clicado
   heatmapData?: number[][]; // Array de [longitude, latitude] para heatmap
+  heatmapMode?: "demand" | "supply"; // Modo do heatmap para escolher gradiente
   refreshKey?: number; // Força atualização do mapa ao retornar dos detalhes
   /** Cidade padrão do plano (mesma lógica da listagem para montar o payload de estatísticas) */
   defaultCity?: string;
@@ -165,6 +166,7 @@ export function MapComponent({
   useMapSearch = true, // Por padrão usa busca do mapa
   onNeighborhoodClick,
   heatmapData,
+  heatmapMode = "demand",
   refreshKey,
   defaultCity,
   openInModal = false,
@@ -2027,35 +2029,58 @@ export function MapComponent({
       return;
     }
 
-    // Se já existe um heatmap layer, atualizar os dados
+    // Gradientes para demanda (azul/ciano → vermelho) e oferta (verde → laranja)
+    const demandGradient = [
+      "rgba(0, 255, 255, 0)",
+      "rgba(0, 255, 255, 1)",
+      "rgba(0, 191, 255, 1)",
+      "rgba(0, 127, 255, 1)",
+      "rgba(0, 63, 255, 1)",
+      "rgba(0, 0, 255, 1)",
+      "rgba(0, 0, 223, 1)",
+      "rgba(0, 0, 191, 1)",
+      "rgba(0, 0, 159, 1)",
+      "rgba(0, 0, 127, 1)",
+      "rgba(63, 0, 91, 1)",
+      "rgba(127, 0, 63, 1)",
+      "rgba(191, 0, 31, 1)",
+      "rgba(255, 0, 0, 1)",
+    ];
+
+    const supplyGradient = [
+      "rgba(144, 238, 144, 0)",
+      "rgba(144, 238, 144, 1)",
+      "rgba(124, 218, 124, 1)",
+      "rgba(100, 200, 100, 1)",
+      "rgba(50, 205, 50, 1)",
+      "rgba(34, 180, 34, 1)",
+      "rgba(34, 139, 34, 1)",
+      "rgba(85, 150, 34, 1)",
+      "rgba(180, 180, 0, 1)",
+      "rgba(255, 215, 0, 1)",
+      "rgba(255, 190, 0, 1)",
+      "rgba(255, 165, 0, 1)",
+      "rgba(255, 140, 0, 1)",
+      "rgba(255, 120, 0, 1)",
+    ];
+
+    const gradient = heatmapMode === "supply" ? supplyGradient : demandGradient;
+
+    // Sempre recriar o layer quando o modo mudar para aplicar o novo gradiente
     if (heatmapLayerRef.current) {
-      heatmapLayerRef.current.setData(heatmapPoints);
-    } else {
-      // Criar novo heatmap layer
-      const newHeatmapLayer = new google.maps.visualization.HeatmapLayer({
-        data: heatmapPoints,
-        map: map,
-        radius: 20,
-        opacity: 0.6,
-        gradient: [
-          "rgba(0, 255, 255, 0)",
-          "rgba(0, 255, 255, 1)",
-          "rgba(0, 191, 255, 1)",
-          "rgba(0, 127, 255, 1)",
-          "rgba(0, 63, 255, 1)",
-          "rgba(0, 0, 255, 1)",
-          "rgba(0, 0, 223, 1)",
-          "rgba(0, 0, 191, 1)",
-          "rgba(0, 0, 159, 1)",
-          "rgba(0, 0, 127, 1)",
-          "rgba(63, 0, 91, 1)",
-          "rgba(127, 0, 63, 1)",
-          "rgba(191, 0, 31, 1)",
-          "rgba(255, 0, 0, 1)",
-        ],
-      });
-      heatmapLayerRef.current = newHeatmapLayer;
+      heatmapLayerRef.current.setMap(null);
+      heatmapLayerRef.current = null;
     }
+
+    // Criar novo heatmap layer
+    const newHeatmapLayer = new google.maps.visualization.HeatmapLayer({
+      data: heatmapPoints,
+      map: map,
+      radius: 20,
+      opacity: 0.6,
+      gradient: gradient,
+    });
+    heatmapLayerRef.current = newHeatmapLayer;
 
     // Cleanup: remover heatmap quando componente desmontar ou dados mudarem
     return () => {
@@ -2064,7 +2089,7 @@ export function MapComponent({
         heatmapLayerRef.current = null;
       }
     };
-  }, [map, heatmapData, isLoaded]);
+  }, [map, heatmapData, heatmapMode, isLoaded]);
 
   // Limpar estados de endereço quando não há mais busca por endereço nos filtros
   useEffect(() => {
