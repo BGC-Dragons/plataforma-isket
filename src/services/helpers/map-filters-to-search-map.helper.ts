@@ -237,6 +237,11 @@ export const mapFiltersToSearchMap = (
     request.status = ["NEW_LISTING"];
   }
 
+  // Opcionais (propertyFeatures)
+  if (filters.propertyFeatures && filters.propertyFeatures.length > 0) {
+    request.propertyFeatures = filters.propertyFeatures;
+  }
+
   // Geometrias dos desenhos (quando há desenhos no mapa)
   if (filters.drawingGeometries && filters.drawingGeometries.length > 0) {
     request.geometry = filters.drawingGeometries.map((geom) => {

@@ -16,8 +16,14 @@ import { MapComponent } from "../../../modules/search/map/map";
 import { RankingDemandAccordion } from "../../../modules/analyses/ranking-demand-accordion";
 import { SupplyByTypeAccordion } from "../../../modules/analyses/supply-by-type-accordion";
 import { RankingSupplyAccordion } from "../../../modules/analyses/ranking-supply-accordion";
-import { AnalyticsTabs, type AnalyticsTabType } from "../../../modules/analyses/analytics-tabs";
-import { HeatmapToggle, type HeatmapMode } from "../../../modules/analyses/heatmap-toggle";
+import {
+  AnalyticsTabs,
+  type AnalyticsTabType,
+} from "../../../modules/analyses/analytics-tabs";
+import {
+  HeatmapToggle,
+  type HeatmapMode,
+} from "../../../modules/analyses/heatmap-toggle";
 import { HeatmapLegend } from "../../../modules/analyses/heatmap-legend";
 import { OpportunityInsightsAccordion } from "../../../modules/analyses/opportunity-insights-accordion";
 import { postAnalyticsSearchDemandNeighborhoodRanking } from "../../../../services/post-analytics-search-demand-neighborhood-ranking.service";
@@ -197,7 +203,10 @@ export function AnalysesComponent() {
   const [supplyNeighborhoodRanking, setSupplyNeighborhoodRanking] = useState<
     Array<{ neighborhood: string; count: number }>
   >([]);
-  const [loadingSupplyNeighborhoodRanking, setLoadingSupplyNeighborhoodRanking] = useState(false);
+  const [
+    loadingSupplyNeighborhoodRanking,
+    setLoadingSupplyNeighborhoodRanking,
+  ] = useState(false);
 
   // Estados das tabs e heatmap mode
   const [activeTab, setActiveTab] = useState<AnalyticsTabType>("demanda");
@@ -340,7 +349,7 @@ export function AnalysesComponent() {
         "asc"
       );
 
-      // Calcular bounds: priorizar bairros selecionados, depois cidades
+      // Calcular bounds: priorizar bairros selecionados, depois cidades (para heatmap/mapa)
       const neighborhoodsToUse = neighborhoodsForBounds || neighborhoodsData;
       const citiesToUse = citiesForBounds || citiesData;
 
@@ -353,7 +362,7 @@ export function AnalysesComponent() {
         cityBounds = calculateCityBoundsFromCities(citiesToUse);
       }
 
-      // Incluir cityBounds no payload se disponível
+      // Payload para heatmaps e oferta por tipo (usa bounds da seleção atual)
       const basePayload = {
         ...apiFilters,
         startDate: period.startDate,
@@ -361,13 +370,30 @@ export function AnalysesComponent() {
         ...(cityBounds && { cityBounds }),
       };
 
+      // Payload para rankings: sempre usar bounds da cidade inteira, para que os dados
+      // do ranking estejam sempre disponíveis; o accordion filtra por bairros selecionados no mapa
+      const cityOnlyBounds =
+        citiesToUse.length > 0
+          ? calculateCityBoundsFromCities(citiesToUse)
+          : undefined;
+      const rankingPayload = {
+        ...apiFilters,
+        startDate: period.startDate,
+        endDate: period.endDate,
+        ...(cityOnlyBounds && { cityBounds: cityOnlyBounds }),
+      };
+      // Alguns endpoints de ranking não suportam filtro de bairros; remover para evitar resposta vazia
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const rankingPayloadNoNeighborhoods = (({ neighborhoods, ...rest }) =>
+        rest)(rankingPayload);
+
       try {
-        // Buscar ranking de demanda
+        // Buscar ranking de demanda (sempre com dados da cidade inteira; filtro por bairro é no accordion)
         setLoadingNeighborhoodRanking(true);
         const demandResponse =
           await postAnalyticsSearchDemandNeighborhoodRanking(
             {
-              ...basePayload,
+              ...rankingPayload,
               refAuthType: "PUBLIC",
             },
             auth.store.token
@@ -423,13 +449,16 @@ export function AnalysesComponent() {
       }
 
       try {
-        // Buscar ranking de oferta por bairro
+        // Buscar ranking de oferta por bairro (sempre com dados da cidade inteira; filtro por bairro é no accordion)
         setLoadingSupplyNeighborhoodRanking(true);
-        const supplyNeighborhoodResponse = await postAnalyticsSupplyNeighborhoodRanking(
-          basePayload,
-          auth.store.token
+        const supplyNeighborhoodResponse =
+          await postAnalyticsSupplyNeighborhoodRanking(
+            rankingPayloadNoNeighborhoods,
+            auth.store.token
+          );
+        setSupplyNeighborhoodRanking(
+          supplyNeighborhoodResponse.data.data || []
         );
-        setSupplyNeighborhoodRanking(supplyNeighborhoodResponse.data.data || []);
       } catch (error) {
         console.error("Erro ao buscar ranking de oferta por bairro:", error);
         setSupplyNeighborhoodRanking([]);
@@ -610,6 +639,18 @@ export function AnalysesComponent() {
       // Sinalizar que applyFilters já está tratando a chamada de loadAnalyticsData
       // para evitar que o useEffect de neighborhoodsData/citiesData dispare duplicado
       skipNextAnalyticsReloadRef.current = true;
+      const fetchedNeighborhoodsKey = fetchedNeighborhoods
+        .map((n) => n.name || "")
+        .sort()
+        .join(",");
+      const fetchedCitiesKey = fetchedCities
+        .map((c) => c.cityStateCode || "")
+        .sort()
+        .join(",");
+      suppressNextAnalyticsReloadRef.current = {
+        neighborhoodsKey: fetchedNeighborhoodsKey,
+        citiesKey: fetchedCitiesKey,
+      };
 
       // Buscar dados de análises com bounds corretos
       await loadAnalyticsData(
@@ -695,6 +736,10 @@ export function AnalysesComponent() {
 
   // Ref para evitar que o useEffect abaixo dispare logo após applyFilters já ter chamado loadAnalyticsData
   const skipNextAnalyticsReloadRef = useRef(false);
+  const suppressNextAnalyticsReloadRef = useRef<{
+    neighborhoodsKey: string;
+    citiesKey: string;
+  } | null>(null);
 
   // Efeito para recarregar dados de análises quando neighborhoodsData ou citiesData mudarem
   // Isso garante que cityBounds seja recalculado corretamente quando bairros são selecionados
@@ -722,6 +767,19 @@ export function AnalysesComponent() {
       lastNeighborhoodsKeyRef.current !== neighborhoodsKey ||
       lastCitiesKeyRef.current !== citiesKey
     ) {
+      // Se applyFilters já buscou com estes mesmos bounds, não recarregar de novo
+      if (
+        suppressNextAnalyticsReloadRef.current &&
+        suppressNextAnalyticsReloadRef.current.neighborhoodsKey ===
+          neighborhoodsKey &&
+        suppressNextAnalyticsReloadRef.current.citiesKey === citiesKey
+      ) {
+        suppressNextAnalyticsReloadRef.current = null;
+        lastNeighborhoodsKeyRef.current = neighborhoodsKey;
+        lastCitiesKeyRef.current = citiesKey;
+        return;
+      }
+
       lastNeighborhoodsKeyRef.current = neighborhoodsKey;
       lastCitiesKeyRef.current = citiesKey;
 
@@ -1439,7 +1497,9 @@ export function AnalysesComponent() {
             </Box>
 
             {/* Toggle de Heat Map */}
-            <Box sx={{ p: 1, borderBottom: `1px solid ${theme.palette.divider}` }}>
+            <Box
+              sx={{ p: 1, borderBottom: `1px solid ${theme.palette.divider}` }}
+            >
               <HeatmapToggle value={heatmapMode} onChange={setHeatmapMode} />
             </Box>
 

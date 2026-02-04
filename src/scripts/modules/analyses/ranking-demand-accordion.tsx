@@ -31,18 +31,43 @@ export function RankingDemandAccordion({
   const navigate = useNavigate();
 
   // Filtrar dados para mostrar apenas bairros selecionados (ou todos se nenhum selecionado)
-  // Usar comparação case-insensitive e trim para garantir matching correto
-  const normalizeName = (name: string) => name.trim().toLowerCase();
+  // Normalizar nomes para reduzir divergências (case, acentos, sufixos)
+  const normalizeStrict = (name: string) =>
+    name
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  const normalizeLoose = (name: string) =>
+    normalizeStrict(name).split(" - ")[0].split("-")[0].trim();
 
-  const filteredData =
-    selectedNeighborhoods.length > 0
-      ? data.filter((item) => {
-          const normalizedItemName = normalizeName(item.neighborhood);
-          return selectedNeighborhoods.some(
-            (selected) => normalizeName(selected) === normalizedItemName
-          );
-        })
-      : data;
+  const filteredData = (() => {
+    if (selectedNeighborhoods.length === 0) return data;
+
+    const selectedStrict = new Set(
+      selectedNeighborhoods.map((name) => normalizeStrict(name))
+    );
+    const strictMatches = data.filter((item) =>
+      selectedStrict.has(normalizeStrict(item.neighborhood))
+    );
+    if (strictMatches.length > 0) return strictMatches;
+
+    // Fallback: matching mais tolerante, agregando por bairro selecionado
+    const selectedLoose = new Map(
+      selectedNeighborhoods.map((name) => [
+        normalizeLoose(name),
+        { neighborhood: name, count: 0 },
+      ])
+    );
+    data.forEach((item) => {
+      const key = normalizeLoose(item.neighborhood);
+      const entry = selectedLoose.get(key);
+      if (entry) {
+        entry.count += item.count;
+      }
+    });
+    return Array.from(selectedLoose.values()).filter((item) => item.count > 0);
+  })();
 
   // Ordenar por count (maior para menor)
   const sortedData = [...filteredData].sort((a, b) => b.count - a.count);
