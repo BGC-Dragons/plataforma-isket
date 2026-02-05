@@ -131,8 +131,8 @@ export function RankingSupplyAccordion({
               icon={<Home sx={{ fontSize: "1rem !important" }} />}
               label={`${formatCount(totalSupply)} imóveis`}
               sx={{
-                backgroundColor: theme.palette.success.light,
-                color: theme.palette.success.contrastText,
+                backgroundColor: theme.palette.primary.main,
+                color: theme.palette.primary.contrastText,
                 fontWeight: 500,
               }}
             />
@@ -191,7 +191,7 @@ export function RankingSupplyAccordion({
                     variant="h6"
                     sx={{
                       fontWeight: 600,
-                      color: theme.palette.success.main,
+                      color: theme.palette.primary.main,
                       minWidth: { xs: 25, sm: 30 },
                       flexShrink: 0,
                       fontSize: { xs: "0.9rem", sm: "1.25rem" },
@@ -222,12 +222,12 @@ export function RankingSupplyAccordion({
                   </Box>
                 </Box>
                 <Button
-                  variant="outlined"
+                  variant="contained"
                   size="small"
                   onClick={() => handleViewClick(item.neighborhood)}
                   sx={{
-                    borderColor: theme.palette.success.main,
-                    color: theme.palette.success.main,
+                    backgroundColor: theme.palette.primary.main,
+                    color: theme.palette.primary.contrastText,
                     textTransform: "none",
                     fontWeight: 600,
                     px: { xs: 1.5, sm: 2 },
@@ -236,8 +236,7 @@ export function RankingSupplyAccordion({
                     fontSize: { xs: "0.75rem", sm: "0.875rem" },
                     whiteSpace: "nowrap",
                     "&:hover": {
-                      backgroundColor: theme.palette.success.light,
-                      borderColor: theme.palette.success.main,
+                      backgroundColor: theme.palette.primary.dark,
                     },
                   }}
                 >
