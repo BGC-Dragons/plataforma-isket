@@ -25,7 +25,6 @@ import {
   type HeatmapMode,
 } from "../../../modules/analyses/heatmap-toggle";
 import { HeatmapLegend } from "../../../modules/analyses/heatmap-legend";
-import { OpportunityInsightsAccordion } from "../../../modules/analyses/opportunity-insights-accordion";
 import { postAnalyticsSearchDemandNeighborhoodRanking } from "../../../../services/post-analytics-search-demand-neighborhood-ranking.service";
 import { postAnalyticsSupplyByPropertyType } from "../../../../services/post-analytics-supply-by-property-type.service";
 import { postAnalyticsSearchDemandHeatMap } from "../../../../services/post-analytics-search-demand-heatmap.service";
@@ -216,7 +215,6 @@ export function AnalysesComponent() {
   const [rankingExpanded, setRankingExpanded] = useState(true);
   const [supplyExpanded, setSupplyExpanded] = useState(true);
   const [supplyRankingExpanded, setSupplyRankingExpanded] = useState(true);
-  const [opportunityExpanded, setOpportunityExpanded] = useState(true);
   // const [agencyExpanded, setAgencyExpanded] = useState(false);
 
   // Estados do mapa
@@ -382,11 +380,6 @@ export function AnalysesComponent() {
         endDate: period.endDate,
         ...(cityOnlyBounds && { cityBounds: cityOnlyBounds }),
       };
-      // Alguns endpoints de ranking não suportam filtro de bairros; remover para evitar resposta vazia
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const rankingPayloadNoNeighborhoods = (({ neighborhoods, ...rest }) =>
-        rest)(rankingPayload);
-
       try {
         // Buscar ranking de demanda (sempre com dados da cidade inteira; filtro por bairro é no accordion)
         setLoadingNeighborhoodRanking(true);
@@ -453,7 +446,7 @@ export function AnalysesComponent() {
         setLoadingSupplyNeighborhoodRanking(true);
         const supplyNeighborhoodResponse =
           await postAnalyticsSupplyNeighborhoodRanking(
-            rankingPayloadNoNeighborhoods,
+            rankingPayload,
             auth.store.token
           );
         setSupplyNeighborhoodRanking(
@@ -810,7 +803,6 @@ export function AnalysesComponent() {
     } else if (activeTab === "oferta") {
       setHeatmapMode("supply");
     }
-    // Para "oportunidades", mantém a seleção manual do toggle
   }, [activeTab]);
 
   // Calcular se é busca apenas por cidade (sem bairros específicos)
@@ -1327,28 +1319,6 @@ export function AnalysesComponent() {
                 </>
               )}
 
-              {activeTab === "oportunidades" && (
-                <>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ mb: 1 }}
-                  >
-                    Regiões com alta demanda e baixa oferta são ótimas
-                    oportunidades para captação de imóveis
-                  </Typography>
-                  <OpportunityInsightsAccordion
-                    demandData={neighborhoodRanking}
-                    supplyData={supplyNeighborhoodRanking}
-                    loading={
-                      loadingNeighborhoodRanking ||
-                      loadingSupplyNeighborhoodRanking
-                    }
-                    expanded={opportunityExpanded}
-                    onChange={setOpportunityExpanded}
-                  />
-                </>
-              )}
             </Box>
           </Box>
 

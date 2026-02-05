@@ -1,7 +1,7 @@
 import { Tabs, Tab, Box, useTheme, useMediaQuery } from "@mui/material";
-import { TrendingUp, Inventory, Lightbulb } from "@mui/icons-material";
+import { TrendingUp, Inventory } from "@mui/icons-material";
 
-export type AnalyticsTabType = "demanda" | "oferta" | "oportunidades";
+export type AnalyticsTabType = "demanda" | "oferta";
 
 interface AnalyticsTabsProps {
   activeTab: AnalyticsTabType;
@@ -49,13 +49,6 @@ export function AnalyticsTabs({ activeTab, onChange }: AnalyticsTabsProps) {
           label="Oferta"
           value="oferta"
           icon={<Inventory sx={{ fontSize: "1.1rem" }} />}
-          iconPosition="start"
-          sx={{ gap: 0.5 }}
-        />
-        <Tab
-          label="Oportunidades"
-          value="oportunidades"
-          icon={<Lightbulb sx={{ fontSize: "1.1rem" }} />}
           iconPosition="start"
           sx={{ gap: 0.5 }}
         />
