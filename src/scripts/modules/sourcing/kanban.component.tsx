@@ -7,6 +7,9 @@ import {
   IconButton,
   Menu,
   MenuItem,
+  ListItemIcon,
+  ListItemText,
+  Divider,
   useTheme,
   Dialog,
   DialogTitle,
@@ -28,6 +31,8 @@ import {
   MoreVert,
   Add,
   Close,
+  Edit,
+  DeleteOutlined,
 } from "@mui/icons-material";
 import { KanbanCard, type KanbanCardData } from "./kanban-cards.component";
 import { useAuth } from "../access-manager/auth.hook";
@@ -821,8 +826,17 @@ export function Kanban({
     columnId: ColumnId;
   } | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editStageId, setEditStageId] = useState<ColumnId | null>(null);
+  const [editColumnTitle, setEditColumnTitle] = useState("");
+  const [editColumnColor, setEditColumnColor] = useState("#C8E6C9");
+  const [editColumnFontColor, setEditColumnFontColor] = useState("#000000");
+  const [editColumnIcon, setEditColumnIcon] = useState<
+    "home" | "person" | "trending" | "location"
+  >("home");
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const [deleteConfirmDialog, setDeleteConfirmDialog] = useState<{
     open: boolean;
     cardId: string | null;
@@ -1523,6 +1537,61 @@ export function Kanban({
     setMenuAnchor(null);
   };
 
+  const handleEditStageClick = useCallback(() => {
+    if (!menuAnchor) return;
+
+    const columnId = menuAnchor.columnId;
+    const column = localColumns.find((col) => col.id === columnId);
+    const stage = stages?.find((s) => s.id === columnId);
+
+    if (!column) return;
+
+    setEditStageId(columnId);
+    setEditColumnTitle(column.title);
+    setEditColumnColor(column.color);
+    setEditColumnFontColor(column.fontColor ?? "#000000");
+    setEditColumnIcon(
+      (stage?.icon as "home" | "person" | "trending" | "location") ?? "home"
+    );
+    setIsEditModalOpen(true);
+    handleMenuClose();
+  }, [menuAnchor, localColumns, stages]);
+
+  const handleSaveEditStage = useCallback(async () => {
+    if (!editStageId || !auth.store.token || !editColumnTitle.trim()) return;
+
+    setIsUpdating(true);
+    try {
+      await patchPropertyListingAcquisitionStage(
+        auth.store.token,
+        editStageId as string,
+        {
+          title: editColumnTitle.trim(),
+          color: editColumnColor,
+          fontColor: editColumnFontColor,
+          icon: editColumnIcon,
+        }
+      );
+      clearPropertyListingAcquisitionsStagesCache();
+      await mutate();
+      setEditStageId(null);
+      setIsEditModalOpen(false);
+    } catch (error) {
+      console.error("Erro ao editar etapa:", error);
+      alert("Erro ao editar etapa. Tente novamente.");
+    } finally {
+      setIsUpdating(false);
+    }
+  }, [
+    editStageId,
+    editColumnTitle,
+    editColumnColor,
+    editColumnFontColor,
+    editColumnIcon,
+    auth.store.token,
+    mutate,
+  ]);
+
   const handleDeleteStage = useCallback(async () => {
     if (!menuAnchor) return;
 
@@ -1707,11 +1776,217 @@ export function Kanban({
         anchorEl={menuAnchor?.element}
         open={Boolean(menuAnchor)}
         onClose={handleMenuClose}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+        slotProps={{
+          paper: {
+            elevation: 8,
+            sx: {
+              mt: 1,
+              minWidth: 160,
+              borderRadius: 1.5,
+              py: 0.25,
+              boxShadow:
+                "0 4px 20px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.06)",
+            },
+          },
+        }}
       >
-        <MenuItem onClick={handleDeleteStage} disabled={isDeleting}>
-          {isDeleting ? "Excluindo..." : "Excluir etapa"}
+        <MenuItem
+          onClick={handleEditStageClick}
+          sx={{
+            py: 0.75,
+            px: 1.5,
+            gap: 1,
+            "&:hover": {
+              backgroundColor: "action.hover",
+            },
+          }}
+        >
+          <ListItemIcon sx={{ minWidth: 32, color: "primary.main" }}>
+            <Edit fontSize="small" />
+          </ListItemIcon>
+          <ListItemText
+            primary="Editar etapa"
+            primaryTypographyProps={{
+              variant: "body2",
+              fontWeight: 500,
+            }}
+          />
+        </MenuItem>
+        <Divider sx={{ my: 0.25 }} />
+        <MenuItem
+          onClick={handleDeleteStage}
+          disabled={isDeleting}
+          sx={{
+            py: 0.75,
+            px: 1.5,
+            gap: 1,
+            "&:hover:not(.Mui-disabled)": {
+              backgroundColor: "rgba(211, 47, 47, 0.08)",
+            },
+            "&.Mui-disabled": {
+              opacity: 0.8,
+            },
+          }}
+        >
+          <ListItemIcon
+            sx={{
+              minWidth: 32,
+              color: isDeleting ? "action.disabled" : "error.main",
+            }}
+          >
+            <DeleteOutlined fontSize="small" />
+          </ListItemIcon>
+          <ListItemText
+            primary={isDeleting ? "Excluindo..." : "Excluir etapa"}
+            primaryTypographyProps={{
+              variant: "body2",
+              fontWeight: 500,
+              color: isDeleting ? "text.disabled" : "error.main",
+            }}
+          />
         </MenuItem>
       </Menu>
+
+      {/* Modal de editar etapa */}
+      <Dialog
+        open={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+            Editar etapa
+          </Typography>
+          <IconButton
+            size="small"
+            onClick={() => setIsEditModalOpen(false)}
+            sx={{ color: theme.palette.text.secondary }}
+          >
+            <Close />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent>
+          <Typography
+            variant="body2"
+            sx={{ color: theme.palette.text.secondary, mb: 3 }}
+          >
+            Altere o título, cor e ícone da etapa.
+          </Typography>
+
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            <TextField
+              fullWidth
+              label="Título"
+              value={editColumnTitle}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setEditColumnTitle(e.target.value)
+              }
+              placeholder="Digite o título da etapa"
+            />
+
+            <Box sx={{ display: "flex", gap: 2 }}>
+              <FormControl fullWidth>
+                <InputLabel>Selecione a cor da coluna</InputLabel>
+                <Select
+                  value={editColumnColor}
+                  onChange={(e) => setEditColumnColor(e.target.value)}
+                  label="Selecione a cor da coluna"
+                >
+                  <MenuItem value="#C8E6C9">Verde claro</MenuItem>
+                  <MenuItem value="#BBDEFB">Azul claro</MenuItem>
+                  <MenuItem value="#F8BBD0">Rosa claro</MenuItem>
+                  <MenuItem value="#FFE0B2">Laranja claro</MenuItem>
+                  <MenuItem value="#E1BEE7">Roxo claro</MenuItem>
+                  <MenuItem value="#FFF9C4">Amarelo claro</MenuItem>
+                </Select>
+              </FormControl>
+
+              <FormControl fullWidth>
+                <InputLabel>Selecione a cor da fonte</InputLabel>
+                <Select
+                  value={editColumnFontColor}
+                  onChange={(e) => setEditColumnFontColor(e.target.value)}
+                  label="Selecione a cor da fonte"
+                >
+                  <MenuItem value="#000000">Preto</MenuItem>
+                  <MenuItem value="#FFFFFF">Branco</MenuItem>
+                  <MenuItem value="#333333">Cinza escuro</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+
+            <FormControl fullWidth>
+              <InputLabel>Selecione um ícone</InputLabel>
+              <Select
+                value={editColumnIcon}
+                onChange={(e) =>
+                  setEditColumnIcon(
+                    e.target.value as
+                      | "home"
+                      | "person"
+                      | "trending"
+                      | "location"
+                  )
+                }
+                label="Selecione um ícone"
+              >
+                <MenuItem value="home">
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <Home />
+                    <Typography>Casa</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="person">
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <Person />
+                    <Typography>Pessoa</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="trending">
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <TrendingUp />
+                    <Typography>Tendência</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="location">
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <LocationOn />
+                    <Typography>Localização</Typography>
+                  </Box>
+                </MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+        </DialogContent>
+
+        <DialogActions sx={{ p: 2, gap: 1 }}>
+          <Button
+            onClick={() => setIsEditModalOpen(false)}
+            variant="outlined"
+            sx={{ textTransform: "none" }}
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleSaveEditStage}
+            variant="contained"
+            disabled={!editColumnTitle.trim() || isUpdating}
+            sx={{ textTransform: "none" }}
+          >
+            {isUpdating ? "Salvando..." : "Salvar"}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Modal de criar etapa */}
       <Dialog
