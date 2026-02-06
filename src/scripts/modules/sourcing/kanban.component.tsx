@@ -33,6 +33,13 @@ import {
   Close,
   Edit,
   DeleteOutlined,
+  Phone,
+  CalendarMonth,
+  Description,
+  Handshake,
+  CheckCircle,
+  Business,
+  Star,
 } from "@mui/icons-material";
 import { KanbanCard, type KanbanCardData } from "./kanban-cards.component";
 import { useAuth } from "../access-manager/auth.hook";
@@ -747,29 +754,53 @@ function mapListingToCard(
   };
 }
 
+// Ícones e cores disponíveis para etapas do Kanban (captação imobiliária)
+const STAGE_ICON_MAP: Record<
+  string,
+  { icon: React.ReactNode; label: string }
+> = {
+  home: { icon: <Home />, label: "Casa" },
+  person: { icon: <Person />, label: "Pessoa" },
+  trending: { icon: <TrendingUp />, label: "Tendência" },
+  location: { icon: <LocationOn />, label: "Localização" },
+  phone: { icon: <Phone />, label: "Telefone" },
+  calendar: { icon: <CalendarMonth />, label: "Agendamento" },
+  description: { icon: <Description />, label: "Documento" },
+  handshake: { icon: <Handshake />, label: "Negociação" },
+  check: { icon: <CheckCircle />, label: "Concluído" },
+  business: { icon: <Business />, label: "Empresa" },
+  star: { icon: <Star />, label: "Destaque" },
+};
+type StageIconKey = keyof typeof STAGE_ICON_MAP;
+
+const STAGE_COLORS = [
+  { value: "#C8E6C9", label: "Verde claro" },
+  { value: "#BBDEFB", label: "Azul claro" },
+  { value: "#F8BBD0", label: "Rosa claro" },
+  { value: "#FFE0B2", label: "Laranja claro" },
+  { value: "#E1BEE7", label: "Roxo claro" },
+  { value: "#FFF9C4", label: "Amarelo claro" },
+  { value: "#B2DFDB", label: "Teal claro" },
+  { value: "#D7CCC8", label: "Bege" },
+  { value: "#CFD8DC", label: "Cinza azulado" },
+  { value: "#C5CAE9", label: "Índigo claro" },
+] as const;
+
 // Função para mapear stage da API para KanbanColumn
 function mapStageToColumn(
   stage: IPropertyListingAcquisitionStage,
 ): KanbanColumn {
-  const defaultColors = [
-    "#C8E6C9",
-    "#BBDEFB",
-    "#F8BBD0",
-    "#FFE0B2",
-    "#E1BEE7",
-    "#FFF9C4",
-  ];
-  const iconMap: Record<string, React.ReactNode> = {
-    home: <Home />,
-    person: <Person />,
-    trending: <TrendingUp />,
-    location: <LocationOn />,
-  };
-  const icons = Object.values(iconMap);
+  const defaultColors = STAGE_COLORS.map((c) => c.value);
+  const iconMapNodes: Record<string, React.ReactNode> = Object.fromEntries(
+    Object.entries(STAGE_ICON_MAP).map(([k, v]) => [k, v.icon]),
+  );
+  const icons = Object.values(iconMapNodes);
   const iconIndex = (stage.order - 1) % icons.length;
   const colorIndex = (stage.order - 1) % defaultColors.length;
   const resolvedIcon =
-    stage.icon && iconMap[stage.icon] ? iconMap[stage.icon] : icons[iconIndex];
+    stage.icon && iconMapNodes[stage.icon]
+      ? iconMapNodes[stage.icon]
+      : icons[iconIndex];
 
   return {
     id: stage.id,
@@ -831,9 +862,7 @@ export function Kanban({
   const [editColumnTitle, setEditColumnTitle] = useState("");
   const [editColumnColor, setEditColumnColor] = useState("#C8E6C9");
   const [editColumnFontColor, setEditColumnFontColor] = useState("#000000");
-  const [editColumnIcon, setEditColumnIcon] = useState<
-    "home" | "person" | "trending" | "location"
-  >("home");
+  const [editColumnIcon, setEditColumnIcon] = useState<StageIconKey>("home");
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -850,9 +879,7 @@ export function Kanban({
   const [newColumnTitle, setNewColumnTitle] = useState("");
   const [newColumnColor, setNewColumnColor] = useState("#C8E6C9");
   const [newColumnFontColor, setNewColumnFontColor] = useState("#000000");
-  const [newColumnIcon, setNewColumnIcon] = useState<
-    "home" | "person" | "trending" | "location"
-  >("home");
+  const [newColumnIcon, setNewColumnIcon] = useState<StageIconKey>("home");
   const latestStateRef = useRef<{
     columns: KanbanColumn[];
     stages: typeof stages | undefined;
@@ -1551,7 +1578,9 @@ export function Kanban({
     setEditColumnColor(column.color);
     setEditColumnFontColor(column.fontColor ?? "#000000");
     setEditColumnIcon(
-      (stage?.icon as "home" | "person" | "trending" | "location") ?? "home",
+      (stage?.icon && stage.icon in STAGE_ICON_MAP
+        ? stage.icon
+        : "home") as StageIconKey,
     );
     setIsEditModalOpen(true);
     handleMenuClose();
@@ -1902,12 +1931,30 @@ export function Kanban({
                   onChange={(e) => setEditColumnColor(e.target.value)}
                   label="Selecione a cor da coluna"
                 >
-                  <MenuItem value="#C8E6C9">Verde claro</MenuItem>
-                  <MenuItem value="#BBDEFB">Azul claro</MenuItem>
-                  <MenuItem value="#F8BBD0">Rosa claro</MenuItem>
-                  <MenuItem value="#FFE0B2">Laranja claro</MenuItem>
-                  <MenuItem value="#E1BEE7">Roxo claro</MenuItem>
-                  <MenuItem value="#FFF9C4">Amarelo claro</MenuItem>
+                  {STAGE_COLORS.map((c) => (
+                    <MenuItem key={c.value} value={c.value}>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1,
+                          width: "100%",
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            width: 20,
+                            height: 20,
+                            borderRadius: 1,
+                            backgroundColor: c.value,
+                            border: "1px solid",
+                            borderColor: "divider",
+                          }}
+                        />
+                        <Typography>{c.label}</Typography>
+                      </Box>
+                    </MenuItem>
+                  ))}
                 </Select>
               </FormControl>
 
@@ -1930,40 +1977,20 @@ export function Kanban({
               <Select
                 value={editColumnIcon}
                 onChange={(e) =>
-                  setEditColumnIcon(
-                    e.target.value as
-                      | "home"
-                      | "person"
-                      | "trending"
-                      | "location",
-                  )
+                  setEditColumnIcon(e.target.value as StageIconKey)
                 }
                 label="Selecione um ícone"
               >
-                <MenuItem value="home">
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <Home />
-                    <Typography>Casa</Typography>
-                  </Box>
-                </MenuItem>
-                <MenuItem value="person">
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <Person />
-                    <Typography>Pessoa</Typography>
-                  </Box>
-                </MenuItem>
-                <MenuItem value="trending">
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <TrendingUp />
-                    <Typography>Tendência</Typography>
-                  </Box>
-                </MenuItem>
-                <MenuItem value="location">
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <LocationOn />
-                    <Typography>Localização</Typography>
-                  </Box>
-                </MenuItem>
+                {Object.entries(STAGE_ICON_MAP).map(([key, { icon, label }]) => (
+                  <MenuItem key={key} value={key}>
+                    <Box
+                      sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                    >
+                      {icon}
+                      <Typography>{label}</Typography>
+                    </Box>
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
           </Box>
@@ -2043,12 +2070,30 @@ export function Kanban({
                   onChange={(e) => setNewColumnColor(e.target.value)}
                   label="Selecione a cor da coluna"
                 >
-                  <MenuItem value="#C8E6C9">Verde claro</MenuItem>
-                  <MenuItem value="#BBDEFB">Azul claro</MenuItem>
-                  <MenuItem value="#F8BBD0">Rosa claro</MenuItem>
-                  <MenuItem value="#FFE0B2">Laranja claro</MenuItem>
-                  <MenuItem value="#E1BEE7">Roxo claro</MenuItem>
-                  <MenuItem value="#FFF9C4">Amarelo claro</MenuItem>
+                  {STAGE_COLORS.map((c) => (
+                    <MenuItem key={c.value} value={c.value}>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1,
+                          width: "100%",
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            width: 20,
+                            height: 20,
+                            borderRadius: 1,
+                            backgroundColor: c.value,
+                            border: "1px solid",
+                            borderColor: "divider",
+                          }}
+                        />
+                        <Typography>{c.label}</Typography>
+                      </Box>
+                    </MenuItem>
+                  ))}
                 </Select>
               </FormControl>
 
@@ -2072,40 +2117,20 @@ export function Kanban({
               <Select
                 value={newColumnIcon}
                 onChange={(e) =>
-                  setNewColumnIcon(
-                    e.target.value as
-                      | "home"
-                      | "person"
-                      | "trending"
-                      | "location",
-                  )
+                  setNewColumnIcon(e.target.value as StageIconKey)
                 }
                 label="Selecione um ícone"
               >
-                <MenuItem value="home">
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <Home />
-                    <Typography>Casa</Typography>
-                  </Box>
-                </MenuItem>
-                <MenuItem value="person">
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <Person />
-                    <Typography>Pessoa</Typography>
-                  </Box>
-                </MenuItem>
-                <MenuItem value="trending">
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <TrendingUp />
-                    <Typography>Tendência</Typography>
-                  </Box>
-                </MenuItem>
-                <MenuItem value="location">
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <LocationOn />
-                    <Typography>Localização</Typography>
-                  </Box>
-                </MenuItem>
+                {Object.entries(STAGE_ICON_MAP).map(([key, { icon, label }]) => (
+                  <MenuItem key={key} value={key}>
+                    <Box
+                      sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                    >
+                      {icon}
+                      <Typography>{label}</Typography>
+                    </Box>
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
           </Box>
