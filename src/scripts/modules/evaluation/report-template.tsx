@@ -129,7 +129,27 @@ export function ReportTemplate({ reportData }: ReportTemplateProps) {
             )}
         </Box>
 
-        {/* Informações da empresa */}
+        {/* Autor e Data (em cima) */}
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            mt: 2,
+            pt: 2,
+            borderTop: `1px solid ${reportData.styling.secondaryColor}`,
+          }}
+        >
+          {reportData.author && (
+            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+              Autor: {reportData.author}
+            </Typography>
+          )}
+          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+            Data: {formatDate(reportData.date)}
+          </Typography>
+        </Box>
+
+        {/* Telefone, e-mail, endereço, site (embaixo) */}
         {reportData.styling.showCompanyInfo && (
           <Box
             sx={{
@@ -141,16 +161,6 @@ export function ReportTemplate({ reportData }: ReportTemplateProps) {
               borderTop: `1px solid ${reportData.styling.secondaryColor}`,
             }}
           >
-            {reportData.company.address && (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                <LocationOn
-                  sx={{ fontSize: 16, color: reportData.styling.primaryColor }}
-                />
-                <Typography variant="body2">
-                  {reportData.company.address}
-                </Typography>
-              </Box>
-            )}
             {reportData.company.phone && (
               <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                 <Phone
@@ -171,6 +181,16 @@ export function ReportTemplate({ reportData }: ReportTemplateProps) {
                 </Typography>
               </Box>
             )}
+            {reportData.company.address && (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                <LocationOn
+                  sx={{ fontSize: 16, color: reportData.styling.primaryColor }}
+                />
+                <Typography variant="body2">
+                  {reportData.company.address}
+                </Typography>
+              </Box>
+            )}
             {reportData.company.website && (
               <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                 <Language
@@ -183,26 +203,6 @@ export function ReportTemplate({ reportData }: ReportTemplateProps) {
             )}
           </Box>
         )}
-
-        {/* Autor e Data */}
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            mt: 2,
-            pt: 2,
-            borderTop: `1px solid ${reportData.styling.secondaryColor}`,
-          }}
-        >
-          {reportData.author && (
-            <Typography variant="body2" sx={{ fontWeight: 500 }}>
-              Autor: {reportData.author}
-            </Typography>
-          )}
-          <Typography variant="body2" sx={{ fontWeight: 500 }}>
-            Data: {formatDate(reportData.date)}
-          </Typography>
-        </Box>
       </Box>
 
       {/* Descrição */}

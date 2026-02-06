@@ -99,11 +99,23 @@ export function formatCurrency(value: number): string {
 }
 
 /**
- * Formata data para exibição
+ * Formata data para exibição.
+ * Datas no formato YYYY-MM-DD (campo date) são tratadas como data local para evitar
+ * off-by-one quando o fuso é negativo (ex.: Brasil): new Date("2026-02-07") = UTC 00:00 = dia anterior local.
  */
 export function formatDate(dateString: string): string {
   if (!dateString) return "";
   try {
+    const dateOnlyMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (dateOnlyMatch) {
+      const [, y, m, d] = dateOnlyMatch;
+      const date = new Date(Number(y), Number(m) - 1, Number(d));
+      return date.toLocaleDateString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      });
+    }
     const date = new Date(dateString);
     return date.toLocaleDateString("pt-BR", {
       day: "2-digit",
@@ -807,17 +819,18 @@ function generatePrintableHTML(reportData: ReportData): string {
             : ""
         }
       </div>
+      <div class="header-footer">
+        ${
+          reportData.author
+            ? `<div>Autor: ${escapeHtml(reportData.author)}</div>`
+            : ""
+        }
+        <div>Data: ${formatDate(reportData.date)}</div>
+      </div>
       ${
         reportData.styling.showCompanyInfo
           ? `
         <div class="company-info">
-          ${
-            reportData.company.address
-              ? `<div class="company-info-item">📍 ${escapeHtml(
-                  reportData.company.address
-                )}</div>`
-              : ""
-          }
           ${
             reportData.company.phone
               ? `<div class="company-info-item">📞 ${escapeHtml(
@@ -833,6 +846,13 @@ function generatePrintableHTML(reportData: ReportData): string {
               : ""
           }
           ${
+            reportData.company.address
+              ? `<div class="company-info-item">📍 ${escapeHtml(
+                  reportData.company.address
+                )}</div>`
+              : ""
+          }
+          ${
             reportData.company.website
               ? `<div class="company-info-item">🌐 ${escapeHtml(
                   reportData.company.website
@@ -843,14 +863,6 @@ function generatePrintableHTML(reportData: ReportData): string {
         `
           : ""
       }
-      <div class="header-footer">
-        ${
-          reportData.author
-            ? `<div>Autor: ${escapeHtml(reportData.author)}</div>`
-            : ""
-        }
-        <div>Data: ${formatDate(reportData.date)}</div>
-      </div>
     </div>
   `;
 
