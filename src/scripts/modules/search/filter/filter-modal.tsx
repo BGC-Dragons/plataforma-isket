@@ -72,7 +72,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
     apartamento_triplex: false,
     apartamento_cobertura: false,
     apartamento_garden: false,
-  // Comerciais
+    // Comerciais
     comercial_sala: false,
     comercial_casa: false,
     comercial_ponto: false,
@@ -126,9 +126,13 @@ export const FilterModal: React.FC<FilterModalProps> = ({
   const prevInitialFiltersRef = useRef<string>("");
 
   // Features da API para o autocomplete de Opcionais
-  const [availableFeatures, setAvailableFeatures] = useState<IPropertyFeature[]>([]);
+  const [availableFeatures, setAvailableFeatures] = useState<
+    IPropertyFeature[]
+  >([]);
   const [featuresLoading, setFeaturesLoading] = useState(false);
-  const featuresDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const featuresDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   // Buscar features com filtros ativos (debounced)
   const fetchFeatures = useCallback(
@@ -156,11 +160,12 @@ export const FilterModal: React.FC<FilterModalProps> = ({
         cancelled = true;
       };
     },
-    [cityToCodeMap]
+    [cityToCodeMap],
   );
 
   // Gerar chave dos filtros (excluindo propertyFeatures) para detectar mudanças
   const getFiltersKeyForFeatures = useCallback((f: FilterState): string => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { propertyFeatures: _pf, ...rest } = f;
     return JSON.stringify(rest);
   }, []);
@@ -283,7 +288,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
 
   const handleComodoChange = (
     comodoType: "quartos" | "banheiros" | "suites" | "garagem",
-    value: number | null
+    value: number | null,
   ) => {
     setFilters((prev) => ({
       ...prev,
@@ -294,7 +299,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
   const handleSliderChange = (
     sliderType: "area" | "preco",
     value: number[],
-    setValue: (value: number[]) => void
+    setValue: (value: number[]) => void,
   ) => {
     setValue(value);
     if (sliderType === "area") {
@@ -348,8 +353,8 @@ export const FilterModal: React.FC<FilterModalProps> = ({
         filters.cities.length > 0
           ? filters.cities
           : initialFilters?.cities && initialFilters.cities.length > 0
-          ? initialFilters.cities
-          : [],
+            ? initialFilters.cities
+            : [],
       // Preservar drawingGeometries e addressCoordinates dos filtros iniciais
       drawingGeometries: initialFilters?.drawingGeometries,
       addressCoordinates: initialFilters?.addressCoordinates,
@@ -388,9 +393,9 @@ export const FilterModal: React.FC<FilterModalProps> = ({
       apartamento_studio: false,
       apartamento_duplex: false,
       apartamento_triplex: false,
-    apartamento_cobertura: false,
-    apartamento_garden: false,
-  // Comerciais
+      apartamento_cobertura: false,
+      apartamento_garden: false,
+      // Comerciais
       comercial_sala: false,
       comercial_casa: false,
       comercial_ponto: false,
@@ -464,9 +469,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
         </IconButton>
       </DialogTitle>
 
-      <DialogContent
-        sx={{}}
-      >
+      <DialogContent sx={{}}>
         <FormControl component="fieldset" sx={{ mb: 4, width: "100%", mt: 2 }}>
           <FormLabel component="legend" sx={{ mb: 1, fontWeight: 600 }}>
             Negócio
@@ -1130,7 +1133,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
                     const unformattedValue = unformatArea(e.target.value);
                     const value = Math.max(
                       0,
-                      Math.min(1000000, unformattedValue)
+                      Math.min(1000000, unformattedValue),
                     );
                     const newRange = [value, Math.max(value, areaRange[1])];
                     setAreaRange(newRange);
@@ -1144,7 +1147,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
                     const unformattedValue = unformatArea(e.target.value);
                     const value = Math.max(
                       0,
-                      Math.min(1000000, unformattedValue)
+                      Math.min(1000000, unformattedValue),
                     );
                     const newRange = [value, Math.max(value, areaRange[1])];
                     setAreaRange(newRange);
@@ -1172,7 +1175,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
                     const unformattedValue = unformatArea(e.target.value);
                     const value = Math.max(
                       0,
-                      Math.min(1000000, unformattedValue)
+                      Math.min(1000000, unformattedValue),
                     );
                     const newRange = [Math.min(value, areaRange[0]), value];
                     setAreaRange(newRange);
@@ -1186,7 +1189,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
                     const unformattedValue = unformatArea(e.target.value);
                     const value = Math.max(
                       0,
-                      Math.min(1000000, unformattedValue)
+                      Math.min(1000000, unformattedValue),
                     );
                     const newRange = [Math.min(value, areaRange[0]), value];
                     setAreaRange(newRange);
@@ -1223,7 +1226,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
                   handleSliderChange(
                     "preco",
                     newValue as number[],
-                    setPrecoRange
+                    setPrecoRange,
                   )
                 }
                 valueLabelDisplay="auto"
@@ -1241,7 +1244,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
                     const unformattedValue = unformatPrice(e.target.value);
                     const value = Math.max(
                       0,
-                      Math.min(100000000, unformattedValue)
+                      Math.min(100000000, unformattedValue),
                     );
                     const newRange = [value, Math.max(value, precoRange[1])];
                     setPrecoRange(newRange);
@@ -1255,7 +1258,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
                     const unformattedValue = unformatPrice(e.target.value);
                     const value = Math.max(
                       0,
-                      Math.min(100000000, unformattedValue)
+                      Math.min(100000000, unformattedValue),
                     );
                     const newRange = [value, Math.max(value, precoRange[1])];
                     setPrecoRange(newRange);
@@ -1278,7 +1281,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
                     const unformattedValue = unformatPrice(e.target.value);
                     const value = Math.max(
                       0,
-                      Math.min(100000000, unformattedValue)
+                      Math.min(100000000, unformattedValue),
                     );
                     const newRange = [Math.min(value, precoRange[0]), value];
                     setPrecoRange(newRange);
@@ -1292,7 +1295,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
                     const unformattedValue = unformatPrice(e.target.value);
                     const value = Math.max(
                       0,
-                      Math.min(100000000, unformattedValue)
+                      Math.min(100000000, unformattedValue),
                     );
                     const newRange = [Math.min(value, precoRange[0]), value];
                     setPrecoRange(newRange);
@@ -1368,7 +1371,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
           <Autocomplete
             multiple
             options={availableFeatures.filter(
-              (f) => !filters.propertyFeatures.includes(f.key)
+              (f) => !filters.propertyFeatures.includes(f.key),
             )}
             getOptionLabel={(option) => option.key}
             isOptionEqualToValue={(option, value) => option.key === value.key}
@@ -1439,6 +1442,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
               "&:hover": {
                 borderColor: "text.primary",
                 backgroundColor: "action.hover",
+                color: "error.main",
               },
             }}
           >

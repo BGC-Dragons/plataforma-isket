@@ -85,7 +85,7 @@ interface KanbanProps {
   onCardMove?: (
     cardId: string,
     sourceColumnId: ColumnId,
-    destinationColumnId: ColumnId
+    destinationColumnId: ColumnId,
   ) => void;
   onCardDelete?: (cardId: string, columnId: ColumnId) => void;
   onCardClick?: (card: KanbanCardData) => void;
@@ -140,7 +140,7 @@ type DragItemData =
     };
 
 const isCardDragData = (
-  data: Record<string, unknown>
+  data: Record<string, unknown>,
 ): data is Extract<DragItemData, { type: "card" }> =>
   data.type === "card" &&
   typeof data.itemId === "string" &&
@@ -148,7 +148,7 @@ const isCardDragData = (
   typeof data.instanceId === "symbol";
 
 const isColumnDragData = (
-  data: Record<string, unknown>
+  data: Record<string, unknown>,
 ): data is Extract<DragItemData, { type: "column" }> =>
   data.type === "column" &&
   typeof data.columnId === "string" &&
@@ -265,7 +265,7 @@ function SortableColumnWrapper({
   onCardClick?: (card: KanbanCardData) => void;
   onMenuOpen?: (
     event: React.MouseEvent<HTMLElement>,
-    columnId: ColumnId
+    columnId: ColumnId,
   ) => void;
   isDraggingCard?: boolean;
   isDraggingColumn?: boolean;
@@ -317,7 +317,7 @@ function SortableColumnWrapper({
               input,
               element,
               allowedEdges: ["left", "right"],
-            }
+            },
           ),
         onDragEnter: (args) => {
           setClosestEdge(extractClosestEdge(args.self.data));
@@ -331,7 +331,7 @@ function SortableColumnWrapper({
         onDrop: () => {
           setClosestEdge(null);
         },
-      })
+      }),
     );
   }, [column.id, column, instanceId]);
 
@@ -402,7 +402,7 @@ function SortableColumn({
   onCardClick?: (card: KanbanCardData) => void;
   onMenuOpen?: (
     event: React.MouseEvent<HTMLElement>,
-    columnId: ColumnId
+    columnId: ColumnId,
   ) => void;
   headerRef?: React.Ref<HTMLDivElement>;
   isDraggingCard?: boolean;
@@ -597,7 +597,7 @@ function SortableCard({
               root.render(
                 <Box sx={{ width: COLUMN_WIDTH }}>
                   <KanbanCard card={card} />
-                </Box>
+                </Box>,
               );
               return () => root.unmount();
             },
@@ -618,7 +618,7 @@ function SortableCard({
               input,
               element,
               allowedEdges: ["top", "bottom"],
-            }
+            },
           ),
         canDrop: ({ source }) => {
           return isCardDragData(source.data);
@@ -635,7 +635,7 @@ function SortableCard({
         onDrop: () => {
           setClosestEdge(null);
         },
-      })
+      }),
     );
   }, [card, columnId, instanceId]);
 
@@ -715,7 +715,7 @@ function ColumnPreview({ column }: { column: KanbanColumn }) {
 // Função auxiliar para calcular total
 function getTotalLabel(column: KanbanColumn) {
   const propertyCount = column.cards.filter(
-    (c) => c.type === "property"
+    (c) => c.type === "property",
   ).length;
   const contactCount = column.cards.filter((c) => c.type === "contact").length;
 
@@ -736,7 +736,7 @@ function getTotalLabel(column: KanbanColumn) {
 
 // Função para mapear listing da API para KanbanCardData
 function mapListingToCard(
-  listing: IPropertyListingAcquisitionStage["listings"][0]
+  listing: IPropertyListingAcquisitionStage["listings"][0],
 ): KanbanCardData {
   return {
     id: listing.id,
@@ -749,7 +749,7 @@ function mapListingToCard(
 
 // Função para mapear stage da API para KanbanColumn
 function mapStageToColumn(
-  stage: IPropertyListingAcquisitionStage
+  stage: IPropertyListingAcquisitionStage,
 ): KanbanColumn {
   const defaultColors = [
     "#C8E6C9",
@@ -783,7 +783,7 @@ function mapStageToColumn(
 
 // Função para mapear array de stages para array de columns
 function mapStagesToColumns(
-  stages: IPropertyListingAcquisitionStage[]
+  stages: IPropertyListingAcquisitionStage[],
 ): KanbanColumn[] {
   // Ordenar por order antes de mapear
   const sortedStages = [...stages].sort((a, b) => a.order - b.order);
@@ -819,7 +819,7 @@ export function Kanban({
   const [isDraggingCard, setIsDraggingCard] = useState(false);
   const [draggingCardId, setDraggingCardId] = useState<string | null>(null);
   const [draggingColumnId, setDraggingColumnId] = useState<ColumnId | null>(
-    null
+    null,
   );
   const [menuAnchor, setMenuAnchor] = useState<{
     element: HTMLElement;
@@ -967,7 +967,7 @@ export function Kanban({
       liveRegion.announce(
         `You've moved ${sourceColumn.title} from position ${
           startIndex + 1
-        } to position ${finishIndex + 1} of ${columns.length}.`
+        } to position ${finishIndex + 1} of ${columns.length}.`,
       );
       return;
     }
@@ -975,7 +975,7 @@ export function Kanban({
     if (outcome.type === "card-reorder") {
       const { columnId, startIndex, finishIndex } = outcome;
       const column = stableColumnsRef.current.find(
-        (col) => col.id === columnId
+        (col) => col.id === columnId,
       );
       if (!column) {
         return;
@@ -997,7 +997,7 @@ export function Kanban({
           startIndex + 1
         } to position ${finishIndex + 1} of ${column.cards.length} in the ${
           column.title
-        } column.`
+        } column.`,
       );
       return;
     }
@@ -1009,7 +1009,7 @@ export function Kanban({
         itemIndexInFinishColumn,
       } = outcome;
       const destinationColumn = stableColumnsRef.current.find(
-        (col) => col.id === finishColumnId
+        (col) => col.id === finishColumnId,
       );
       if (!destinationColumn) {
         return;
@@ -1036,7 +1036,7 @@ export function Kanban({
           itemIndexInStartColumn + 1
         } to position ${finishPosition} in the ${
           destinationColumn.title
-        } column.`
+        } column.`,
       );
 
       entry.focusTarget.focus();
@@ -1100,7 +1100,7 @@ export function Kanban({
               col.id as string,
               {
                 order: index + 1,
-              }
+              },
             );
           }
           return Promise.resolve();
@@ -1118,7 +1118,7 @@ export function Kanban({
           });
       }
     },
-    []
+    [],
   );
 
   const reorderCard = useCallback(
@@ -1171,7 +1171,7 @@ export function Kanban({
         },
       }));
     },
-    []
+    [],
   );
 
   const moveCard = useCallback(
@@ -1194,10 +1194,10 @@ export function Kanban({
 
       const currentColumns = stableColumnsRef.current;
       const sourceColumn = currentColumns.find(
-        (col) => col.id === startColumnId
+        (col) => col.id === startColumnId,
       );
       const destinationColumn = currentColumns.find(
-        (col) => col.id === finishColumnId
+        (col) => col.id === finishColumnId,
       );
       if (!sourceColumn || !destinationColumn) {
         return;
@@ -1248,7 +1248,7 @@ export function Kanban({
       latestStateRef.current.onCardMove?.(
         item.id,
         startColumnId,
-        finishColumnId
+        finishColumnId,
       );
       const token = latestStateRef.current.token;
       if (token) {
@@ -1266,7 +1266,7 @@ export function Kanban({
           });
       }
     },
-    []
+    [],
   );
 
   useEffect(() => {
@@ -1340,18 +1340,18 @@ export function Kanban({
 
           if (source.data.type === "column") {
             const startIndex = data.findIndex(
-              (column) => column.id === source.data.columnId
+              (column) => column.id === source.data.columnId,
             );
 
             const target = location.current.dropTargets[0];
             const indexOfTarget = data.findIndex(
-              (column) => column.id === target.data.columnId
+              (column) => column.id === target.data.columnId,
             );
             if (startIndex === -1 || indexOfTarget === -1) {
               return;
             }
             const closestEdgeOfTarget: Edge | null = extractClosestEdge(
-              target.data
+              target.data,
             );
 
             const finishIndex = getReorderDestinationIndex({
@@ -1373,7 +1373,7 @@ export function Kanban({
             const sourceColumn = data.find((column) => column.id === sourceId);
             invariant(sourceColumn, "Missing source column");
             const itemIndex = sourceColumn.cards.findIndex(
-              (item) => item.id === itemId
+              (item) => item.id === itemId,
             );
             if (itemIndex === -1) {
               return;
@@ -1384,10 +1384,10 @@ export function Kanban({
               const destinationId = destinationColumnRecord.data.columnId;
               invariant(
                 typeof destinationId === "string",
-                "Missing destination"
+                "Missing destination",
               );
               const destinationColumn = data.find(
-                (column) => column.id === destinationId
+                (column) => column.id === destinationId,
               );
               invariant(destinationColumn, "Missing destination column");
 
@@ -1422,18 +1422,18 @@ export function Kanban({
               const destinationColumnId = destinationColumnRecord.data.columnId;
               invariant(
                 typeof destinationColumnId === "string",
-                "Missing destination column id"
+                "Missing destination column id",
               );
               const destinationColumn = data.find(
-                (column) => column.id === destinationColumnId
+                (column) => column.id === destinationColumnId,
               );
               invariant(destinationColumn, "Missing destination column");
 
               const indexOfTarget = destinationColumn.cards.findIndex(
-                (item) => item.id === destinationCardRecord.data.itemId
+                (item) => item.id === destinationCardRecord.data.itemId,
               );
               const closestEdgeOfTarget: Edge | null = extractClosestEdge(
-                destinationCardRecord.data
+                destinationCardRecord.data,
               );
 
               if (sourceColumn === destinationColumn) {
@@ -1455,7 +1455,7 @@ export function Kanban({
               const destinationIndex =
                 closestEdgeOfTarget === "bottom"
                   ? (indexOfTarget ?? 0) + 1
-                  : indexOfTarget ?? 0;
+                  : (indexOfTarget ?? 0);
 
               moveCard({
                 itemIndexInStartColumn: itemIndex,
@@ -1467,7 +1467,7 @@ export function Kanban({
             }
           }
         },
-      })
+      }),
     );
   }, [instanceId, moveCard, reorderCard, reorderColumn]);
 
@@ -1494,7 +1494,7 @@ export function Kanban({
       // Deletar a acquisition via API
       await deletePropertyListingAcquisition(
         deleteConfirmDialog.cardId,
-        auth.store.token
+        auth.store.token,
       );
 
       // Atualizar os stages e acquisitions
@@ -1528,7 +1528,7 @@ export function Kanban({
 
   const handleMenuOpen = (
     event: React.MouseEvent<HTMLElement>,
-    columnId: ColumnId
+    columnId: ColumnId,
   ) => {
     setMenuAnchor({ element: event.currentTarget, columnId });
   };
@@ -1551,7 +1551,7 @@ export function Kanban({
     setEditColumnColor(column.color);
     setEditColumnFontColor(column.fontColor ?? "#000000");
     setEditColumnIcon(
-      (stage?.icon as "home" | "person" | "trending" | "location") ?? "home"
+      (stage?.icon as "home" | "person" | "trending" | "location") ?? "home",
     );
     setIsEditModalOpen(true);
     handleMenuClose();
@@ -1570,7 +1570,7 @@ export function Kanban({
           color: editColumnColor,
           fontColor: editColumnFontColor,
           icon: editColumnIcon,
-        }
+        },
       );
       clearPropertyListingAcquisitionsStagesCache();
       await mutate();
@@ -1611,7 +1611,7 @@ export function Kanban({
     try {
       await deletePropertyListingAcquisitionStage(
         auth.store.token,
-        columnId as string
+        columnId as string,
       );
       clearPropertyListingAcquisitionsStagesCache();
       await mutate();
@@ -1935,7 +1935,7 @@ export function Kanban({
                       | "home"
                       | "person"
                       | "trending"
-                      | "location"
+                      | "location",
                   )
                 }
                 label="Selecione um ícone"
@@ -1972,7 +1972,7 @@ export function Kanban({
         <DialogActions sx={{ p: 2, gap: 1 }}>
           <Button
             onClick={() => setIsEditModalOpen(false)}
-            variant="outlined"
+            variant="contained"
             sx={{ textTransform: "none" }}
           >
             Cancelar
@@ -2077,7 +2077,7 @@ export function Kanban({
                       | "home"
                       | "person"
                       | "trending"
-                      | "location"
+                      | "location",
                   )
                 }
                 label="Selecione um ícone"
