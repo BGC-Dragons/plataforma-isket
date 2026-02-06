@@ -27,6 +27,7 @@
 18. [Padroes de Codigo e Convencoes](#18-padroes-de-codigo-e-convencoes)
 19. [Troubleshooting e Dicas](#19-troubleshooting-e-dicas)
 20. [Glossario de Termos de Negocio](#20-glossario-de-termos-de-negocio)
+21. [Deploy no GCP (passo a passo)](#21-deploy-no-gcp-passo-a-passo)
 
 ---
 
@@ -2044,6 +2045,71 @@ function FeaturePage() {
 
 ---
 
+## 21. Deploy no GCP (passo a passo)
+
+Guia pratico para publicar a aplicacao no Google Cloud Platform (buckets + App Engine). Utilize uma **conta Google da Isket** com acesso ao projeto.
+
+### Acesso ao Google Cloud
+
+1. Acessar o [Google Cloud](https://cloud.google.com/)
+2. Fazer login com a conta Isket que tenha acesso ao projeto
+3. No canto superior direito, clicar em **Console**
+4. No console, pesquisar por **buckets** (ou acessar Cloud Storage) para encontrar os buckets do projeto
+
+---
+
+### Staging
+
+1. **Na maquina local (no projeto app-isket):**
+   - Rodar: `pnpm build:development`
+
+2. **No Google Cloud Console:**
+   - Entrar no bucket **isket-v2-staging**
+   - Excluir o conteudo atual da pasta `dist/` (ou os arquivos que representam o deploy anterior)
+
+3. **Upload do build:**
+   - Clicar em **Upload** → **Carregar pasta**
+   - Dentro de `app-isket`, selecionar a pasta **dist** e fazer upload
+
+4. **Deploy via App Engine (Cloud Shell):**
+   - Ativar o **Cloud Shell** (icone do terminal, canto superior direito)
+   - Autorizar se solicitado
+   - Rodar os comandos:
+     ```bash
+     gsutil rsync -r gs://isket-v2-staging ./isket-v2-staging
+     cd isket-v2-staging
+     gcloud app deploy
+     ```
+   - Quando pedir confirmacao, digitar **Y**
+
+5. **Resultado:** deploy disponivel em [https://isket-main-prd.appspot.com/](https://isket-main-prd.appspot.com/) (ou na URL do projeto staging configurada no App Engine).
+
+---
+
+### Production (beta)
+
+> **Atencao:** Hoje o processo exclui todos os arquivos do bucket antes do upload. A plataforma fica **fora do ar** ate a conclusao do upload. No futuro, considerar uma estrategia de deploy com menor impacto (ex.: versionamento, blue-green ou upload incremental) quando houver usuarios utilizando em producao.
+
+1. **Na maquina local:** rodar `pnpm build:production` (gerar a pasta `dist/` com build de producao).
+
+2. **No Google Cloud Console:**
+   - Acessar o bucket **isket-v2-production**
+   - Excluir **todos os arquivos** do bucket (ate haver uma forma melhor de deploy com usuarios ativos)
+
+3. **Upload dos arquivos da raiz de `dist/`:**
+   - Clicar em **Upload** → **Fazer upload de arquivos**
+   - Dentro de `app-isket`, abrir a pasta **dist**
+   - Fazer upload dos **4 arquivos** que estao diretamente dentro de `dist/` (ex.: `index.html` e os arquivos JS/CSS gerados)
+
+4. **Upload da pasta `assets`:**
+   - Clicar novamente em **Upload** → **Carregar pasta**
+   - Dentro de `app-isket`, abrir a pasta **dist**
+   - Selecionar a pasta **assets** e fazer o upload
+
+5. Apos o upload concluido, a aplicacao de producao estara disponivel na URL configurada para o bucket/projeto.
+
+---
+
 ## Apendice: Mapa de Arquivos Criticos
 
 Se voce precisa encontrar algo rapidamente, estes sao os arquivos mais importantes:
@@ -2071,5 +2137,7 @@ Se voce precisa encontrar algo rapidamente, estes sao os arquivos mais important
 | Deploy GCP | `app.yaml` |
 
 ---
+
+
 
 > Ultima atualizacao: Fevereiro 2025
