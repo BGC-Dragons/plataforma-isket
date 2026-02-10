@@ -69,7 +69,7 @@ function formatPhone(value: string): string {
     return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
   return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(
     7,
-    11
+    11,
   )}`;
 }
 
@@ -106,10 +106,10 @@ export function GenerateReportModal({
       ? "TOTAL"
       : (mapCalculationCriterionToAreaType(calculationCriterion) as
           | "USABLE"
-          | "TOTAL")
+          | "TOTAL"),
   );
   const [expandedProperties, setExpandedProperties] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -128,7 +128,7 @@ export function GenerateReportModal({
     if (open && selectedProperties.length > 0) {
       const initialData = createInitialReportData(
         selectedProperties,
-        reportAreaType
+        reportAreaType,
       );
       // Pré-preenche autor com o nome do usuário da conta
       initialData.author = store.user?.name || initialData.author;
@@ -146,8 +146,7 @@ export function GenerateReportModal({
           phone: myCompanyData.profile?.phoneNumber
             ? formatPhone(myCompanyData.profile.phoneNumber)
             : initialData.company.phone || "",
-          email:
-            myCompanyData.profile?.email || initialData.company.email || "",
+          email: store.user?.email || initialData.company.email || "",
           website:
             myCompanyData.profile?.site || initialData.company.website || "",
         };
@@ -170,7 +169,7 @@ export function GenerateReportModal({
     if (reportData) {
       const summary = calculateSummary(reportData.properties, reportAreaType);
       setReportData((prev) =>
-        prev ? { ...prev, summary, areaType: reportAreaType } : null
+        prev ? { ...prev, summary, areaType: reportAreaType } : null,
       );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -263,12 +262,12 @@ export function GenerateReportModal({
         colorRafIdRef.current = requestAnimationFrame(flushPendingColors);
       }
     },
-    [flushPendingColors]
+    [flushPendingColors],
   );
 
   const handleStylingChange = (
     field: string,
-    value: string | boolean | "left" | "center" | "right"
+    value: string | boolean | "left" | "center" | "right",
   ) => {
     if (!reportData) return;
     if (field === "primaryColor" || field === "secondaryColor") {
@@ -288,7 +287,7 @@ export function GenerateReportModal({
   /** Atualização imediata da cor (ex.: ao digitar no campo hex), sem throttle */
   const handleColorHexChange = (
     field: "primaryColor" | "secondaryColor",
-    value: string
+    value: string,
   ) => {
     if (!reportData) return;
     pendingColorsRef.current = null;
@@ -309,7 +308,7 @@ export function GenerateReportModal({
     propertyId: string,
     field: string,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    value: any
+    value: any,
   ) => {
     if (!reportData) return;
     setReportData((prev) => {
@@ -368,7 +367,7 @@ export function GenerateReportModal({
   const handlePropertyAddressChange = (
     propertyId: string,
     field: string,
-    value: string
+    value: string,
   ) => {
     if (!reportData) return;
     setReportData((prev) => {
@@ -425,10 +424,10 @@ export function GenerateReportModal({
   const toggleAllProperties = () => {
     if (!reportData) return;
     const includedProperties = reportData.properties.filter(
-      (p) => p.includeInReport
+      (p) => p.includeInReport,
     );
     const allExpanded = includedProperties.every((p) =>
-      expandedProperties.has(p.id)
+      expandedProperties.has(p.id),
     );
 
     if (allExpanded) {
@@ -585,7 +584,7 @@ export function GenerateReportModal({
                         label="Tipo de Área"
                         onChange={(e) =>
                           setReportAreaType(
-                            e.target.value as "USABLE" | "TOTAL"
+                            e.target.value as "USABLE" | "TOTAL",
                           )
                         }
                       >
@@ -782,7 +781,7 @@ export function GenerateReportModal({
                                 e.stopPropagation();
                                 updatePropertyInclusion(
                                   property.id,
-                                  e.target.checked
+                                  e.target.checked,
                                 );
                               }}
                               onClick={(e) => e.stopPropagation()}
@@ -827,7 +826,7 @@ export function GenerateReportModal({
                                 handlePropertyChange(
                                   property.id,
                                   "title",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                             />
@@ -840,7 +839,7 @@ export function GenerateReportModal({
                                 handlePropertyChange(
                                   property.id,
                                   "propertyType",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                             />
@@ -855,7 +854,7 @@ export function GenerateReportModal({
                                 handlePropertyChange(
                                   property.id,
                                   "description",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                             />
@@ -876,7 +875,7 @@ export function GenerateReportModal({
                                   handlePropertyChange(
                                     property.id,
                                     "price",
-                                    parseFloat(e.target.value) || 0
+                                    parseFloat(e.target.value) || 0,
                                   )
                                 }
                               />
@@ -890,7 +889,7 @@ export function GenerateReportModal({
                                   handlePropertyChange(
                                     property.id,
                                     "pricePerM2Usable",
-                                    parseFloat(e.target.value) || 0
+                                    parseFloat(e.target.value) || 0,
                                   )
                                 }
                               />
@@ -904,7 +903,7 @@ export function GenerateReportModal({
                                   handlePropertyChange(
                                     property.id,
                                     "pricePerM2Total",
-                                    parseFloat(e.target.value) || 0
+                                    parseFloat(e.target.value) || 0,
                                   )
                                 }
                               />
@@ -926,7 +925,7 @@ export function GenerateReportModal({
                                   handlePropertyChange(
                                     property.id,
                                     "usableArea",
-                                    parseFloat(e.target.value) || 0
+                                    parseFloat(e.target.value) || 0,
                                   )
                                 }
                               />
@@ -940,7 +939,7 @@ export function GenerateReportModal({
                                   handlePropertyChange(
                                     property.id,
                                     "totalArea",
-                                    parseFloat(e.target.value) || 0
+                                    parseFloat(e.target.value) || 0,
                                   )
                                 }
                               />
@@ -962,7 +961,7 @@ export function GenerateReportModal({
                                   handlePropertyChange(
                                     property.id,
                                     "rooms",
-                                    parseInt(e.target.value) || 0
+                                    parseInt(e.target.value) || 0,
                                   )
                                 }
                               />
@@ -976,7 +975,7 @@ export function GenerateReportModal({
                                   handlePropertyChange(
                                     property.id,
                                     "bathrooms",
-                                    parseInt(e.target.value) || 0
+                                    parseInt(e.target.value) || 0,
                                   )
                                 }
                               />
@@ -990,7 +989,7 @@ export function GenerateReportModal({
                                   handlePropertyChange(
                                     property.id,
                                     "parking",
-                                    parseInt(e.target.value) || 0
+                                    parseInt(e.target.value) || 0,
                                   )
                                 }
                               />
@@ -1011,7 +1010,7 @@ export function GenerateReportModal({
                                 handlePropertyAddressChange(
                                   property.id,
                                   "street",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                             />
@@ -1030,7 +1029,7 @@ export function GenerateReportModal({
                                   handlePropertyAddressChange(
                                     property.id,
                                     "neighborhood",
-                                    e.target.value
+                                    e.target.value,
                                   )
                                 }
                               />
@@ -1042,7 +1041,7 @@ export function GenerateReportModal({
                                   handlePropertyAddressChange(
                                     property.id,
                                     "city",
-                                    e.target.value
+                                    e.target.value,
                                   )
                                 }
                               />
@@ -1063,7 +1062,7 @@ export function GenerateReportModal({
                                   handlePropertyAddressChange(
                                     property.id,
                                     "state",
-                                    e.target.value.toUpperCase()
+                                    e.target.value.toUpperCase(),
                                   )
                                 }
                               />
@@ -1076,7 +1075,7 @@ export function GenerateReportModal({
                                   handlePropertyAddressChange(
                                     property.id,
                                     "postalCode",
-                                    e.target.value
+                                    e.target.value,
                                   )
                                 }
                               />
@@ -1091,7 +1090,7 @@ export function GenerateReportModal({
                               onChange={(e) =>
                                 handlePropertyFeaturesChange(
                                   property.id,
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                             />
@@ -1107,7 +1106,7 @@ export function GenerateReportModal({
                                 handlePropertyChange(
                                   property.id,
                                   "customNotes",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                             />
@@ -1237,7 +1236,7 @@ export function GenerateReportModal({
                           onChange={(e) =>
                             handleStylingChange(
                               "secondaryColor",
-                              e.target.value
+                              e.target.value,
                             )
                           }
                           style={{
@@ -1254,7 +1253,7 @@ export function GenerateReportModal({
                           onChange={(e) =>
                             handleColorHexChange(
                               "secondaryColor",
-                              e.target.value
+                              e.target.value,
                             )
                           }
                           placeholder="#dee6e8"
@@ -1313,7 +1312,7 @@ export function GenerateReportModal({
                           onChange={(e) =>
                             handleStylingChange(
                               "showCompanyInfo",
-                              e.target.checked
+                              e.target.checked,
                             )
                           }
                         />
@@ -1328,7 +1327,7 @@ export function GenerateReportModal({
                           onChange={(e) =>
                             handleStylingChange(
                               "showAnalysis",
-                              e.target.checked
+                              e.target.checked,
                             )
                           }
                         />
